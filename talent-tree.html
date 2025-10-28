@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbre de Talents</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Info Icon Component
+        const Info = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+        );
+
+        function ArbreTalents() {
+          const [pointsDisponibles, setPointsDisponibles] = useState(10);
+          const [talentsActifs, setTalentsActifs] = useState({});
+          const [hoveredTalent, setHoveredTalent] = useState(null);
+
+          const talents = {
+            vie1: {
+              id: 'vie1',
+              nom: 'Vitalité',
+              cout: 1,
+              bonus: 'Vie +1',
+              description: 'Augmente vos points de vie de 1',
+              position: { x: 50, y: 150 },
+              prerequis: [],
+              categorie: 'vie'
+            },
+            alchimiste1: {
+              id: 'alchimiste1',
+              nom: 'Alchimiste : Artificier',
+              cout: 2,
+              bonus: 'Endu +2',
+              description: 'Vous débutez chaque combat avec 1 grenade qui inflige des dégâts à tous les combattants en petit rayon',
+              position: { x: 250, y: 150 },
+              prerequis: ['vie1'],
+              categorie: 'combat'
+            },
+            analyse: {
+              id: 'analyse',
+              nom: 'Analyse Standard',
+              cout: 1,
+              bonus: '',
+              description: 'Sans mouvement, vous effectuez 1 analyse standard',
+              position: { x: 450, y: 150 },
+              prerequis: ['alchimiste1'],
+              categorie: 'analyse'
+            },
+            alchimiste2: {
+              id: 'alchimiste2',
+              nom: 'Alchimiste : Apothicaire',
+              cout: 2,
+              bonus: 'Endu +2',
+              description: 'Vous débutez chaque combat avec 1 infusion qui soigne un allié en contact',
+              position: { x: 650, y: 150 },
+              prerequis: ['analyse'],
+              categorie: 'soin'
+            },
+            vie2: {
+              id: 'vie2',
+              nom: 'Vitalité II',
+              cout: 1,
+              bonus: 'Vie +1',
+              description: 'Augmente vos points de vie de 1 supplémentaire',
+              position: { x: 850, y: 150 },
+              prerequis: ['alchimiste2'],
+              categorie: 'vie'
+            }
+          };
+
+          const categories = {
+            vie: { couleur: 'bg-orange-600', nom: 'Vie' },
+            combat: { couleur: 'bg-blue-600', nom: 'Combat' },
+            analyse: { couleur: 'bg-purple-600', nom: 'Analyse' },
+            soin: { couleur: 'bg-green-600', nom: 'Soin' }
+          };
+
+          const toggleTalent = (talentId) => {
+            const talent = talents[talentId];
+
+            // Vérifier si le talent est actif
+            if (talentsActifs[talentId]) {
+              // Désactiver le talent
+              setTalentsActifs(prev => {
+                const newState = { ...prev };
+                delete newState[talentId];
+                return newState;
+              });
+              setPointsDisponibles(prev => prev + talent.cout);
+            } else {
+              // Vérifier les prérequis
+              const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+
+              if (!prerequisRemplis) {
+                alert('Vous devez d\'abord débloquer les talents prérequis !');
+                return;
+              }
+
+              // Vérifier les points disponibles
+              if (pointsDisponibles < talent.cout) {
+                alert('Points insuffisants !');
+                return;
+              }
+
+              // Activer le talent
+              setTalentsActifs(prev => ({ ...prev, [talentId]: true }));
+              setPointsDisponibles(prev => prev - talent.cout);
+            }
+          };
+
+          const peutEtreActive = (talentId) => {
+            const talent = talents[talentId];
+            const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+            return prerequisRemplis && (talentsActifs[talentId] || pointsDisponibles >= talent.cout);
+          };
+
+          const resetTalents = () => {
+            setTalentsActifs({});
+            setPointsDisponibles(10);
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+              <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg">
+                  <h1 className="text-4xl font-bold text-center text-white tracking-wide">
+                    Arbre de Talents
+                  </h1>
+                </div>
+
+                {/* Compteurs de points */}
+                <div className="bg-slate-800 border-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap">
+                  {Object.entries(categories).map(([key, cat]) => {
+                    const count = Object.keys(talentsActifs).filter(
+                      id => talents[id].categorie === key
+                    ).length;
+                    const total = Object.values(talents).filter(
+                      t => t.categorie === key
+                    ).length;
+
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <div className={`w-4 h-4 ${cat.couleur} rounded`}></div>
+                        <span className="text-white font-semibold">
+                          {count} / {total}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-2 ml-8">
+                    <span className="text-amber-400 font-bold text-lg">
+                      Points disponibles: {pointsDisponibles}
+                    </span>
+                    <button
+                      onClick={resetTalents}
+                      className="ml-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
+                </div>
+
+                {/* Arbre de talents */}
+                <div className="bg-slate-700 rounded-b-lg p-8 shadow-2xl relative" style={{ minHeight: '400px' }}>
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                    {/* Lignes de connexion */}
+                    {Object.values(talents).map(talent =>
+                      talent.prerequis.map(prereqId => {
+                        const prereq = talents[prereqId];
+                        const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
+                        const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
+
+                        return (
+                          <line
+                            key={`${prereqId}-${talent.id}`}
+                            x1={prereq.position.x + 100}
+                            y1={prereq.position.y + 40}
+                            x2={talent.position.x}
+                            y2={talent.position.y + 40}
+                            stroke={isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569'}
+                            strokeWidth={isActive ? 3 : isHighlighted ? 2 : 2}
+                            strokeDasharray={isActive ? '0' : '5,5'}
+                            className="transition-all duration-300"
+                          />
+                        );
+                      })
+                    )}
+                  </svg>
+
+                  {/* Talents */}
+                  <div className="relative" style={{ zIndex: 2 }}>
+                    {Object.values(talents).map(talent => {
+                      const isActive = talentsActifs[talent.id];
+                      const isAvailable = peutEtreActive(talent.id);
+                      const isHovered = hoveredTalent === talent.id;
+                      const categorie = categories[talent.categorie];
+
+                      return (
+                        <div
+                          key={talent.id}
+                          className="absolute group"
+                          style={{
+                            left: `${talent.position.x}px`,
+                            top: `${talent.position.y}px`,
+                            width: '200px'
+                          }}
+                          onMouseEnter={() => setHoveredTalent(talent.id)}
+                          onMouseLeave={() => setHoveredTalent(null)}
+                        >
+                          <button
+                            onClick={() => toggleTalent(talent.id)}
+                            disabled={!isAvailable && !isActive}
+                            className={`
+                              w-full p-4 rounded-lg border-2 transition-all duration-300 relative
+                              ${isActive
+                                ? `${categorie.couleur} border-amber-400 shadow-lg shadow-amber-500/50 scale-105`
+                                : isAvailable
+                                ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg hover:scale-105'
+                                : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                              }
+                              ${isHovered ? 'ring-2 ring-amber-400' : ''}
+                            `}
+                          >
+                            {/* Coût */}
+                            <div className={`
+                              absolute -top-3 -right-3 w-10 h-10 rounded-full
+                              flex items-center justify-center font-bold text-sm
+                              ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
+                              border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
+                            `}>
+                              {talent.cout}
+                            </div>
+
+                            {/* Bonus */}
+                            {talent.bonus && (
+                              <div className={`
+                                absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold
+                                ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
+                                border ${isActive ? 'border-green-400' : 'border-slate-400'}
+                              `}>
+                                {talent.bonus}
+                              </div>
+                            )}
+
+                            <div className="text-white font-bold text-sm mb-2 text-center">
+                              {talent.nom}
+                            </div>
+
+                            <div className="text-xs text-slate-200 text-center leading-relaxed">
+                              {talent.description}
+                            </div>
+
+                            {/* Checkbox indicator */}
+                            <div className={`
+                              absolute top-2 left-2 w-4 h-4 border-2 rounded
+                              ${isActive ? 'bg-amber-400 border-amber-500' : 'border-slate-400'}
+                            `}>
+                              {isActive && (
+                                <svg className="w-full h-full text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* Infobulle détaillée au survol */}
+                          {isHovered && (
+                            <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl z-50">
+                              <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                              <div className="text-white text-xs mb-2">{talent.description}</div>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                {talent.bonus && (
+                                  <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                )}
+                              </div>
+                              {talent.prerequis.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-slate-700">
+                                  <div className="text-slate-400 text-xs">
+                                    Prérequis: {talent.prerequis.map(p => talents[p].nom).join(', ')}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Légende */}
+                <div className="mt-6 bg-slate-800 rounded-lg p-4 border border-slate-600">
+                  <div className="flex items-center gap-2 text-slate-300 text-sm mb-2">
+                    <Info />
+                    <span className="font-semibold">Instructions:</span>
+                  </div>
+                  <ul className="text-slate-400 text-xs space-y-1 ml-6">
+                    <li>• Survolez un talent pour voir ses détails complets</li>
+                    <li>• Cliquez pour activer/désactiver un talent</li>
+                    <li>• Les talents grisés nécessitent des prérequis</li>
+                    <li>• Les lignes en pointillés montrent les connexions inactives</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ArbreTalents />);
+    </script>
+</body>
+</html>
