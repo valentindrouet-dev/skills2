@@ -175,6 +175,7 @@
 
           const [editingTalent, setEditingTalent] = useState(null);
           const [draggingTalent, setDraggingTalent] = useState(null);
+          const [modeLectureSeule, setModeLectureSeule] = useState(false);
 
           const categories = {
             vie: { couleur: 'bg-orange-600', nom: 'Vie' },
@@ -192,6 +193,7 @@
                 const decoded = JSON.parse(atob(dataParam));
                 if (decoded.talents) setTalents(decoded.talents);
                 if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
+                setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
               } catch (e) {
                 console.error('Erreur lors du chargement depuis l\'URL', e);
               }
@@ -421,35 +423,45 @@
                   </div>
 
                   <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => setModeEdition(!modeEdition)}
-                      className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
-                        modeEdition ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                      } text-white`}
-                    >
-                      <Edit /> {modeEdition ? 'Quitter Édition' : 'Mode Édition'}
-                    </button>
-
-                    {modeEdition && (
-                      <button
-                        onClick={ajouterTalent}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                      >
-                        + Nouveau Talent
-                      </button>
+                    {modeLectureSeule && (
+                      <div className="px-4 py-2 bg-slate-600 text-white rounded font-semibold flex items-center gap-2">
+                        🔒 Mode Lecture Seule
+                      </div>
                     )}
 
-                    <button
-                      onClick={exportJSON}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                    >
-                      <Download /> Exporter
-                    </button>
+                    {!modeLectureSeule && (
+                      <>
+                        <button
+                          onClick={() => setModeEdition(!modeEdition)}
+                          className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
+                            modeEdition ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                          } text-white`}
+                        >
+                          <Edit /> {modeEdition ? 'Quitter Édition' : 'Mode Édition'}
+                        </button>
 
-                    <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2 cursor-pointer">
-                      <Upload /> Importer
-                      <input type="file" accept=".json" onChange={importJSON} className="hidden" />
-                    </label>
+                        {modeEdition && (
+                          <button
+                            onClick={ajouterTalent}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                          >
+                            + Nouveau Talent
+                          </button>
+                        )}
+
+                        <button
+                          onClick={exportJSON}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                        >
+                          <Download /> Exporter
+                        </button>
+
+                        <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2 cursor-pointer">
+                          <Upload /> Importer
+                          <input type="file" accept=".json" onChange={importJSON} className="hidden" />
+                        </label>
+                      </>
+                    )}
 
                     <button
                       onClick={genererLienPartage}
