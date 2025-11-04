@@ -188,15 +188,28 @@
           useEffect(() => {
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('data');
+            console.log('Paramètre data dans URL:', dataParam ? 'Présent' : 'Absent');
+
             if (dataParam) {
               try {
+                console.log('Décodage du paramètre data...');
                 const decoded = JSON.parse(atob(dataParam));
-                if (decoded.talents) setTalents(decoded.talents);
+                console.log('Données décodées:', decoded);
+                console.log('Talents chargés:', decoded.talents);
+                console.log('Nombre de talents chargés:', Object.keys(decoded.talents || {}).length);
+
+                if (decoded.talents) {
+                  setTalents(decoded.talents);
+                  console.log('✅ Talents mis à jour avec les données partagées');
+                }
                 if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
+                console.log('🔒 Mode lecture seule activé');
               } catch (e) {
-                console.error('Erreur lors du chargement depuis l\'URL', e);
+                console.error('❌ Erreur lors du chargement depuis l\'URL', e);
               }
+            } else {
+              console.log('📝 Aucune donnée partagée - Mode normal');
             }
           }, []);
 
@@ -280,20 +293,31 @@
 
           // Générer URL de partage
           const genererLienPartage = () => {
+            // Déboguer : afficher l'état actuel
+            console.log('État des talents au moment du partage:', talents);
+            console.log('Nombre de talents:', Object.keys(talents).length);
+
             // S'assurer de capturer l'état actuel des talents avec toutes les modifications
+            const talentsToShare = JSON.parse(JSON.stringify(talents)); // Deep copy
             const data = {
-              talents: { ...talents }, // Copie de l'état actuel
+              talents: talentsToShare,
               pointsMax: 10,
               version: '1.0'
             };
 
-            const encoded = btoa(JSON.stringify(data));
+            console.log('Données à encoder:', data);
+
+            const jsonString = JSON.stringify(data);
+            const encoded = btoa(jsonString);
             const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+
+            console.log('URL générée (longueur):', url.length);
 
             // Copier dans le presse-papier
             navigator.clipboard.writeText(url).then(() => {
-              const nbTalents = Object.keys(talents).length;
-              alert(`✅ Lien copié !\n\n📊 Arbre partagé avec ${nbTalents} talent(s)\n🔒 Mode lecture seule pour vos joueurs`);
+              const nbTalents = Object.keys(talentsToShare).length;
+              const talentNames = Object.values(talentsToShare).map(t => t.nom).join(', ');
+              alert(`✅ Lien copié !\n\n📊 Arbre partagé avec ${nbTalents} talent(s):\n${talentNames}\n\n🔒 Mode lecture seule pour vos joueurs`);
             }).catch(() => {
               prompt('Copiez ce lien :', url);
             });
