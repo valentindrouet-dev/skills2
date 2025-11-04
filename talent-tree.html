@@ -15,14 +15,46 @@
     <!-- Babel Standalone for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
     <style>
         body {
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        }
+
+        /* Styles pour l'impression */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: white !important;
+            }
+
+            .print-page-break {
+                page-break-after: always;
+            }
+
+            .print-talent-tree {
+                background: white !important;
+                padding: 20px;
+            }
+
+            .print-talent {
+                border: 2px solid #333 !important;
+                background: white !important;
+                box-shadow: none !important;
+            }
+
+            .print-talent.active {
+                background: #fef3c7 !important;
+            }
+        }
+
+        .dragging {
+            opacity: 0.5;
+            cursor: move;
         }
     </style>
 </head>
@@ -30,9 +62,9 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
 
-        // Info Icon Component
+        // Icons
         const Info = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -41,12 +73,54 @@
             </svg>
         );
 
+        const Edit = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        );
+
+        const Download = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+        );
+
+        const Upload = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+        );
+
+        const Share = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+        );
+
+        const Printer = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
+        );
+
         function ArbreTalents() {
           const [pointsDisponibles, setPointsDisponibles] = useState(10);
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
-
-          const talents = {
+          const [modeEdition, setModeEdition] = useState(false);
+          const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
+          const [talents, setTalents] = useState({
             vie1: {
               id: 'vie1',
               nom: 'Vitalité',
@@ -97,7 +171,10 @@
               prerequis: ['alchimiste2'],
               categorie: 'vie'
             }
-          };
+          });
+
+          const [editingTalent, setEditingTalent] = useState(null);
+          const [draggingTalent, setDraggingTalent] = useState(null);
 
           const categories = {
             vie: { couleur: 'bg-orange-600', nom: 'Vie' },
@@ -106,12 +183,27 @@
             soin: { couleur: 'bg-green-600', nom: 'Soin' }
           };
 
+          // Charger depuis l'URL au démarrage
+          useEffect(() => {
+            const params = new URLSearchParams(window.location.search);
+            const dataParam = params.get('data');
+            if (dataParam) {
+              try {
+                const decoded = JSON.parse(atob(dataParam));
+                if (decoded.talents) setTalents(decoded.talents);
+                if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
+              } catch (e) {
+                console.error('Erreur lors du chargement depuis l\'URL', e);
+              }
+            }
+          }, []);
+
           const toggleTalent = (talentId) => {
+            if (modeEdition) return; // Pas d'activation en mode édition
+
             const talent = talents[talentId];
 
-            // Vérifier si le talent est actif
             if (talentsActifs[talentId]) {
-              // Désactiver le talent
               setTalentsActifs(prev => {
                 const newState = { ...prev };
                 delete newState[talentId];
@@ -119,7 +211,6 @@
               });
               setPointsDisponibles(prev => prev + talent.cout);
             } else {
-              // Vérifier les prérequis
               const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
 
               if (!prerequisRemplis) {
@@ -127,13 +218,11 @@
                 return;
               }
 
-              // Vérifier les points disponibles
               if (pointsDisponibles < talent.cout) {
                 alert('Points insuffisants !');
                 return;
               }
 
-              // Activer le talent
               setTalentsActifs(prev => ({ ...prev, [talentId]: true }));
               setPointsDisponibles(prev => prev - talent.cout);
             }
@@ -150,6 +239,156 @@
             setPointsDisponibles(10);
           };
 
+          // Fonction d'export en JSON
+          const exportJSON = () => {
+            const data = {
+              talents,
+              pointsMax: 10,
+              talentsActifs,
+              version: '1.0'
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'arbre-talents.json';
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+
+          // Fonction d'import JSON
+          const importJSON = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const data = JSON.parse(e.target.result);
+                if (data.talents) setTalents(data.talents);
+                if (data.talentsActifs) setTalentsActifs(data.talentsActifs);
+                if (data.pointsMax) setPointsDisponibles(data.pointsMax);
+                alert('Import réussi !');
+              } catch (error) {
+                alert('Erreur lors de l\'import du fichier');
+              }
+            };
+            reader.readAsText(file);
+          };
+
+          // Générer URL de partage
+          const genererLienPartage = () => {
+            const data = {
+              talents,
+              pointsMax: 10,
+              version: '1.0'
+            };
+            const encoded = btoa(JSON.stringify(data));
+            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+
+            navigator.clipboard.writeText(url).then(() => {
+              alert('Lien copié dans le presse-papier !');
+            }).catch(() => {
+              prompt('Copiez ce lien :', url);
+            });
+          };
+
+          // Ajouter un nouveau talent
+          const ajouterTalent = () => {
+            const newId = `talent_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                id: newId,
+                nom: 'Nouveau Talent',
+                cout: 1,
+                bonus: '',
+                description: 'Description du talent',
+                position: { x: 100, y: 300 },
+                prerequis: [],
+                categorie: 'vie'
+              }
+            }));
+            setEditingTalent(newId);
+          };
+
+          // Supprimer un talent
+          const supprimerTalent = (talentId) => {
+            if (!confirm('Voulez-vous vraiment supprimer ce talent ?')) return;
+
+            setTalents(prev => {
+              const newTalents = { ...prev };
+              delete newTalents[talentId];
+
+              // Retirer ce talent des prérequis des autres
+              Object.keys(newTalents).forEach(id => {
+                newTalents[id].prerequis = newTalents[id].prerequis.filter(p => p !== talentId);
+              });
+
+              return newTalents;
+            });
+
+            setTalentsActifs(prev => {
+              const newState = { ...prev };
+              delete newState[talentId];
+              return newState;
+            });
+          };
+
+          // Sauvegarder les modifications d'un talent
+          const sauvegarderTalent = (talentId, updates) => {
+            setTalents(prev => ({
+              ...prev,
+              [talentId]: {
+                ...prev[talentId],
+                ...updates
+              }
+            }));
+            setEditingTalent(null);
+          };
+
+          // Drag & Drop
+          const handleDragStart = (e, talentId) => {
+            if (!modeEdition) return;
+            setDraggingTalent(talentId);
+            e.dataTransfer.effectAllowed = 'move';
+          };
+
+          const handleDragOver = (e) => {
+            if (!modeEdition) return;
+            e.preventDefault();
+          };
+
+          const handleDrop = (e) => {
+            if (!modeEdition || !draggingTalent) return;
+            e.preventDefault();
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left - 100; // -100 pour centrer
+            const y = e.clientY - rect.top - 40;
+
+            setTalents(prev => ({
+              ...prev,
+              [draggingTalent]: {
+                ...prev[draggingTalent],
+                position: { x: Math.max(0, x), y: Math.max(0, y) }
+              }
+            }));
+
+            setDraggingTalent(null);
+          };
+
+          // Imprimer
+          const imprimerArbre = () => {
+            setVueActive('arbre');
+            setTimeout(() => window.print(), 100);
+          };
+
+          const imprimerFeuille = () => {
+            setVueActive('feuille');
+            setTimeout(() => window.print(), 100);
+          };
+
           return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
               <div className="max-w-7xl mx-auto">
@@ -160,181 +399,437 @@
                   </h1>
                 </div>
 
-                {/* Compteurs de points */}
-                <div className="bg-slate-800 border-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap">
-                  {Object.entries(categories).map(([key, cat]) => {
-                    const count = Object.keys(talentsActifs).filter(
-                      id => talents[id].categorie === key
-                    ).length;
-                    const total = Object.values(talents).filter(
-                      t => t.categorie === key
-                    ).length;
-
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        <div className={`w-4 h-4 ${cat.couleur} rounded`}></div>
-                        <span className="text-white font-semibold">
-                          {count} / {total}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div className="flex items-center gap-2 ml-8">
-                    <span className="text-amber-400 font-bold text-lg">
-                      Points disponibles: {pointsDisponibles}
-                    </span>
+                {/* Barre d'outils */}
+                <div className="bg-slate-800 border-2 border-amber-500 p-4 flex justify-between items-center flex-wrap gap-4 no-print">
+                  <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={resetTalents}
-                      className="ml-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
+                      onClick={() => setVueActive('arbre')}
+                      className={`px-4 py-2 rounded font-semibold transition-colors ${
+                        vueActive === 'arbre' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
                     >
-                      Réinitialiser
+                      Arbre
+                    </button>
+                    <button
+                      onClick={() => setVueActive('feuille')}
+                      className={`px-4 py-2 rounded font-semibold transition-colors ${
+                        vueActive === 'feuille' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      Feuille de Perso
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setModeEdition(!modeEdition)}
+                      className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
+                        modeEdition ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                      } text-white`}
+                    >
+                      <Edit /> {modeEdition ? 'Quitter Édition' : 'Mode Édition'}
+                    </button>
+
+                    {modeEdition && (
+                      <button
+                        onClick={ajouterTalent}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                      >
+                        + Nouveau Talent
+                      </button>
+                    )}
+
+                    <button
+                      onClick={exportJSON}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <Download /> Exporter
+                    </button>
+
+                    <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2 cursor-pointer">
+                      <Upload /> Importer
+                      <input type="file" accept=".json" onChange={importJSON} className="hidden" />
+                    </label>
+
+                    <button
+                      onClick={genererLienPartage}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <Share /> Partager
+                    </button>
+
+                    <button
+                      onClick={vueActive === 'arbre' ? imprimerArbre : imprimerFeuille}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <Printer /> Imprimer
                     </button>
                   </div>
                 </div>
 
-                {/* Arbre de talents */}
-                <div className="bg-slate-700 rounded-b-lg p-8 shadow-2xl relative" style={{ minHeight: '400px' }}>
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                    {/* Lignes de connexion */}
-                    {Object.values(talents).map(talent =>
-                      talent.prerequis.map(prereqId => {
-                        const prereq = talents[prereqId];
-                        const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
-                        const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
+                {/* Vue Arbre */}
+                {vueActive === 'arbre' && (
+                  <>
+                    {/* Compteurs de points */}
+                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap">
+                      {Object.entries(categories).map(([key, cat]) => {
+                        const count = Object.keys(talentsActifs).filter(
+                          id => talents[id]?.categorie === key
+                        ).length;
+                        const total = Object.values(talents).filter(
+                          t => t.categorie === key
+                        ).length;
 
                         return (
-                          <line
-                            key={`${prereqId}-${talent.id}`}
-                            x1={prereq.position.x + 100}
-                            y1={prereq.position.y + 40}
-                            x2={talent.position.x}
-                            y2={talent.position.y + 40}
-                            stroke={isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569'}
-                            strokeWidth={isActive ? 3 : isHighlighted ? 2 : 2}
-                            strokeDasharray={isActive ? '0' : '5,5'}
-                            className="transition-all duration-300"
-                          />
+                          <div key={key} className="flex items-center gap-2">
+                            <div className={`w-4 h-4 ${cat.couleur} rounded`}></div>
+                            <span className="text-white font-semibold">
+                              {count} / {total}
+                            </span>
+                          </div>
                         );
-                      })
-                    )}
-                  </svg>
-
-                  {/* Talents */}
-                  <div className="relative" style={{ zIndex: 2 }}>
-                    {Object.values(talents).map(talent => {
-                      const isActive = talentsActifs[talent.id];
-                      const isAvailable = peutEtreActive(talent.id);
-                      const isHovered = hoveredTalent === talent.id;
-                      const categorie = categories[talent.categorie];
-
-                      return (
-                        <div
-                          key={talent.id}
-                          className="absolute group"
-                          style={{
-                            left: `${talent.position.x}px`,
-                            top: `${talent.position.y}px`,
-                            width: '200px'
-                          }}
-                          onMouseEnter={() => setHoveredTalent(talent.id)}
-                          onMouseLeave={() => setHoveredTalent(null)}
+                      })}
+                      <div className="flex items-center gap-2 ml-8">
+                        <span className="text-amber-400 font-bold text-lg">
+                          Points disponibles: {pointsDisponibles}
+                        </span>
+                        <button
+                          onClick={resetTalents}
+                          className="ml-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors no-print"
                         >
-                          <button
-                            onClick={() => toggleTalent(talent.id)}
-                            disabled={!isAvailable && !isActive}
-                            className={`
-                              w-full p-4 rounded-lg border-2 transition-all duration-300 relative
-                              ${isActive
-                                ? `${categorie.couleur} border-amber-400 shadow-lg shadow-amber-500/50 scale-105`
-                                : isAvailable
-                                ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg hover:scale-105'
-                                : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
-                              }
-                              ${isHovered ? 'ring-2 ring-amber-400' : ''}
-                            `}
-                          >
-                            {/* Coût */}
-                            <div className={`
-                              absolute -top-3 -right-3 w-10 h-10 rounded-full
-                              flex items-center justify-center font-bold text-sm
-                              ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
-                              border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
-                            `}>
-                              {talent.cout}
-                            </div>
+                          Réinitialiser
+                        </button>
+                      </div>
+                    </div>
 
-                            {/* Bonus */}
-                            {talent.bonus && (
-                              <div className={`
-                                absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold
-                                ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
-                                border ${isActive ? 'border-green-400' : 'border-slate-400'}
-                              `}>
-                                {talent.bonus}
-                              </div>
-                            )}
+                    {/* Arbre de talents */}
+                    <div
+                      className="bg-slate-700 rounded-b-lg p-8 shadow-2xl relative print-talent-tree"
+                      style={{ minHeight: '500px' }}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                    >
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                        {/* Lignes de connexion */}
+                        {Object.values(talents).map(talent =>
+                          talent.prerequis.map(prereqId => {
+                            const prereq = talents[prereqId];
+                            if (!prereq) return null;
+                            const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
+                            const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
-                            <div className="text-white font-bold text-sm mb-2 text-center">
-                              {talent.nom}
-                            </div>
+                            return (
+                              <line
+                                key={`${prereqId}-${talent.id}`}
+                                x1={prereq.position.x + 100}
+                                y1={prereq.position.y + 40}
+                                x2={talent.position.x}
+                                y2={talent.position.y + 40}
+                                stroke={isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569'}
+                                strokeWidth={isActive ? 3 : isHighlighted ? 2 : 2}
+                                strokeDasharray={isActive ? '0' : '5,5'}
+                                className="transition-all duration-300"
+                              />
+                            );
+                          })
+                        )}
+                      </svg>
 
-                            <div className="text-xs text-slate-200 text-center leading-relaxed">
-                              {talent.description}
-                            </div>
+                      {/* Talents */}
+                      <div className="relative" style={{ zIndex: 2 }}>
+                        {Object.values(talents).map(talent => {
+                          const isActive = talentsActifs[talent.id];
+                          const isAvailable = peutEtreActive(talent.id);
+                          const isHovered = hoveredTalent === talent.id;
+                          const categorie = categories[talent.categorie];
+                          const isEditing = editingTalent === talent.id;
 
-                            {/* Checkbox indicator */}
-                            <div className={`
-                              absolute top-2 left-2 w-4 h-4 border-2 rounded
-                              ${isActive ? 'bg-amber-400 border-amber-500' : 'border-slate-400'}
-                            `}>
-                              {isActive && (
-                                <svg className="w-full h-full text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
-                          </button>
-
-                          {/* Infobulle détaillée au survol */}
-                          {isHovered && (
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl z-50">
-                              <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
-                              <div className="text-white text-xs mb-2">{talent.description}</div>
-                              <div className="flex justify-between items-center text-xs">
-                                <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
-                                {talent.bonus && (
-                                  <span className="text-green-400 font-bold">{talent.bonus}</span>
-                                )}
-                              </div>
-                              {talent.prerequis.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-slate-700">
-                                  <div className="text-slate-400 text-xs">
-                                    Prérequis: {talent.prerequis.map(p => talents[p].nom).join(', ')}
+                          return (
+                            <div
+                              key={talent.id}
+                              className={`absolute group ${draggingTalent === talent.id ? 'dragging' : ''}`}
+                              style={{
+                                left: `${talent.position.x}px`,
+                                top: `${talent.position.y}px`,
+                                width: '200px'
+                              }}
+                              draggable={modeEdition}
+                              onDragStart={(e) => handleDragStart(e, talent.id)}
+                              onMouseEnter={() => !modeEdition && setHoveredTalent(talent.id)}
+                              onMouseLeave={() => setHoveredTalent(null)}
+                            >
+                              {isEditing ? (
+                                // Formulaire d'édition
+                                <div className="bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl">
+                                  <input
+                                    type="text"
+                                    defaultValue={talent.nom}
+                                    placeholder="Nom"
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`nom-${talent.id}`}
+                                  />
+                                  <textarea
+                                    defaultValue={talent.description}
+                                    placeholder="Description"
+                                    className="w-full mb-2 p-1 text-xs bg-slate-700 text-white rounded"
+                                    rows="2"
+                                    id={`desc-${talent.id}`}
+                                  />
+                                  <input
+                                    type="number"
+                                    defaultValue={talent.cout}
+                                    placeholder="Coût"
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`cout-${talent.id}`}
+                                  />
+                                  <input
+                                    type="text"
+                                    defaultValue={talent.bonus}
+                                    placeholder="Bonus"
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`bonus-${talent.id}`}
+                                  />
+                                  <select
+                                    defaultValue={talent.categorie}
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`cat-${talent.id}`}
+                                  >
+                                    {Object.keys(categories).map(cat => (
+                                      <option key={cat} value={cat}>{categories[cat].nom}</option>
+                                    ))}
+                                  </select>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        sauvegarderTalent(talent.id, {
+                                          nom: document.getElementById(`nom-${talent.id}`).value,
+                                          description: document.getElementById(`desc-${talent.id}`).value,
+                                          cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                          bonus: document.getElementById(`bonus-${talent.id}`).value,
+                                          categorie: document.getElementById(`cat-${talent.id}`).value
+                                        });
+                                      }}
+                                      className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                    >
+                                      Sauv.
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingTalent(null)}
+                                      className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                                    >
+                                      Annuler
+                                    </button>
                                   </div>
                                 </div>
+                              ) : (
+                                // Affichage normal
+                                <div className="relative">
+                                  <button
+                                    onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
+                                    disabled={!modeEdition && !isAvailable && !isActive}
+                                    className={`
+                                      w-full p-4 rounded-lg border-2 transition-all duration-300 relative print-talent
+                                      ${isActive
+                                        ? `${categorie.couleur} border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active`
+                                        : isAvailable
+                                        ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg hover:scale-105'
+                                        : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                                      }
+                                      ${isHovered ? 'ring-2 ring-amber-400' : ''}
+                                      ${modeEdition ? 'cursor-move' : ''}
+                                    `}
+                                  >
+                                    {/* Coût */}
+                                    <div className={`
+                                      absolute -top-3 -right-3 w-10 h-10 rounded-full
+                                      flex items-center justify-center font-bold text-sm
+                                      ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
+                                      border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
+                                    `}>
+                                      {talent.cout}
+                                    </div>
+
+                                    {/* Bonus */}
+                                    {talent.bonus && (
+                                      <div className={`
+                                        absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold
+                                        ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
+                                        border ${isActive ? 'border-green-400' : 'border-slate-400'}
+                                      `}>
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+
+                                    <div className="text-white font-bold text-sm mb-2 text-center">
+                                      {talent.nom}
+                                    </div>
+
+                                    <div className="text-xs text-slate-200 text-center leading-relaxed">
+                                      {talent.description}
+                                    </div>
+
+                                    {/* Checkbox indicator */}
+                                    <div className={`
+                                      absolute top-2 left-2 w-4 h-4 border-2 rounded
+                                      ${isActive ? 'bg-amber-400 border-amber-500' : 'border-slate-400'}
+                                    `}>
+                                      {isActive && (
+                                        <svg className="w-full h-full text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                  </button>
+
+                                  {/* Boutons d'édition */}
+                                  {modeEdition && (
+                                    <div className="absolute -bottom-8 left-0 right-0 flex gap-1 justify-center no-print">
+                                      <button
+                                        onClick={() => setEditingTalent(talent.id)}
+                                        className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                      >
+                                        ✏️
+                                      </button>
+                                      <button
+                                        onClick={() => supprimerTalent(talent.id)}
+                                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                      >
+                                        🗑️
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Infobulle détaillée au survol */}
+                                  {isHovered && !modeEdition && (
+                                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl z-50 no-print">
+                                      <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                                      <div className="text-white text-xs mb-2">{talent.description}</div>
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                        {talent.bonus && (
+                                          <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                        )}
+                                      </div>
+                                      {talent.prerequis.length > 0 && (
+                                        <div className="mt-2 pt-2 border-t border-slate-700">
+                                          <div className="text-slate-400 text-xs">
+                                            Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
+                                          </div>
+                                        </div>
+                                      )}
+                                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
+                                    </div>
+                                  )}
+                                </div>
                               )}
-                              <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
                             </div>
-                          )}
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Légende */}
+                    <div className="mt-6 bg-slate-800 rounded-lg p-4 border border-slate-600 no-print">
+                      <div className="flex items-center gap-2 text-slate-300 text-sm mb-2">
+                        <Info />
+                        <span className="font-semibold">Instructions:</span>
+                      </div>
+                      <ul className="text-slate-400 text-xs space-y-1 ml-6">
+                        <li>• Survolez un talent pour voir ses détails complets</li>
+                        <li>• Cliquez pour activer/désactiver un talent</li>
+                        <li>• Les talents grisés nécessitent des prérequis</li>
+                        <li>• Les lignes en pointillés montrent les connexions inactives</li>
+                        {modeEdition && (
+                          <>
+                            <li className="text-green-400">• MODE ÉDITION: Glissez-déposez pour déplacer les talents</li>
+                            <li className="text-green-400">• Cliquez sur ✏️ pour modifier, 🗑️ pour supprimer</li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  </>
+                )}
+
+                {/* Vue Feuille de personnage */}
+                {vueActive === 'feuille' && (
+                  <div className="bg-white rounded-b-lg p-8 shadow-2xl text-black">
+                    <h2 className="text-3xl font-bold mb-6 text-center border-b-2 border-amber-500 pb-4">
+                      Feuille de Personnage
+                    </h2>
+
+                    {/* Récapitulatif des points */}
+                    <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-500 rounded">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="font-bold">Points dépensés:</span> {10 - pointsDisponibles} / 10
+                        </div>
+                        <div>
+                          <span className="font-bold">Talents actifs:</span> {Object.keys(talentsActifs).length}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bonus totaux */}
+                    <div className="mb-6 p-4 bg-green-50 border-2 border-green-500 rounded">
+                      <h3 className="font-bold text-lg mb-3">Bonus Totaux</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(talentsActifs).map(([id]) => {
+                          const talent = talents[id];
+                          if (!talent?.bonus) return null;
+                          return (
+                            <div key={id} className="text-sm">
+                              • {talent.bonus} <span className="text-gray-600">({talent.nom})</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Liste des talents par catégorie */}
+                    {Object.entries(categories).map(([key, cat]) => {
+                      const talentsCat = Object.entries(talentsActifs)
+                        .filter(([id]) => talents[id]?.categorie === key)
+                        .map(([id]) => talents[id]);
+
+                      if (talentsCat.length === 0) return null;
+
+                      return (
+                        <div key={key} className="mb-6">
+                          <h3 className="font-bold text-xl mb-3 flex items-center gap-2">
+                            <div className={`w-6 h-6 ${cat.couleur} rounded`}></div>
+                            {cat.nom}
+                          </h3>
+                          <div className="space-y-3">
+                            {talentsCat.map(talent => (
+                              <div key={talent.id} className="border-2 border-slate-300 rounded-lg p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-bold text-lg">{talent.nom}</h4>
+                                  <div className="flex gap-2 items-center">
+                                    {talent.bonus && (
+                                      <span className="px-2 py-1 bg-green-100 border border-green-500 rounded text-sm font-bold">
+                                        {talent.bonus}
+                                      </span>
+                                    )}
+                                    <span className="px-2 py-1 bg-amber-100 border border-amber-500 rounded text-sm font-bold">
+                                      {talent.cout} pts
+                                    </span>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-700">{talent.description}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       );
                     })}
-                  </div>
-                </div>
 
-                {/* Légende */}
-                <div className="mt-6 bg-slate-800 rounded-lg p-4 border border-slate-600">
-                  <div className="flex items-center gap-2 text-slate-300 text-sm mb-2">
-                    <Info />
-                    <span className="font-semibold">Instructions:</span>
+                    {Object.keys(talentsActifs).length === 0 && (
+                      <div className="text-center text-gray-500 py-12">
+                        Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
+                      </div>
+                    )}
                   </div>
-                  <ul className="text-slate-400 text-xs space-y-1 ml-6">
-                    <li>• Survolez un talent pour voir ses détails complets</li>
-                    <li>• Cliquez pour activer/désactiver un talent</li>
-                    <li>• Les talents grisés nécessitent des prérequis</li>
-                    <li>• Les lignes en pointillés montrent les connexions inactives</li>
-                  </ul>
-                </div>
+                )}
               </div>
             </div>
           );
