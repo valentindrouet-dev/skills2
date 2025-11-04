@@ -280,16 +280,20 @@
 
           // Générer URL de partage
           const genererLienPartage = () => {
+            // S'assurer de capturer l'état actuel des talents avec toutes les modifications
             const data = {
-              talents,
+              talents: { ...talents }, // Copie de l'état actuel
               pointsMax: 10,
               version: '1.0'
             };
+
             const encoded = btoa(JSON.stringify(data));
             const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
 
+            // Copier dans le presse-papier
             navigator.clipboard.writeText(url).then(() => {
-              alert('Lien copié dans le presse-papier !');
+              const nbTalents = Object.keys(talents).length;
+              alert(`✅ Lien copié !\n\n📊 Arbre partagé avec ${nbTalents} talent(s)\n🔒 Mode lecture seule pour vos joueurs`);
             }).catch(() => {
               prompt('Copiez ce lien :', url);
             });
