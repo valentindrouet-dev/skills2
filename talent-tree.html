@@ -141,6 +141,7 @@
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
           const [arbresDisponibles, setArbresDisponibles] = useState(['Arbre par défaut']);
+          const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(10);
           const [talentsActifs, setTalentsActifs] = useState({});
@@ -404,6 +405,7 @@
                   console.log('✅ Talents mis à jour avec les données partagées');
                 }
                 if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
+                if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
               } catch (e) {
@@ -503,7 +505,8 @@
             const data = {
               talents: talentsToShare,
               pointsMax: 10,
-              version: '1.0'
+              version: '1.0',
+              nomArbre: arbreActuel
             };
 
             console.log('Données à encoder:', data);
@@ -657,7 +660,7 @@
                 {/* Header */}
                 <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg">
                   <h1 className="text-4xl font-bold text-center text-white tracking-wide">
-                    Arbre de Talents {modeLectureSeule ? '(PJ)' : '(GM)'}
+                    Arbre de Talents {modeLectureSeule ? (nomArbrePartage ? `- ${nomArbrePartage}` : '(PJ)') : `(GM)`}
                   </h1>
                 </div>
 
@@ -755,18 +758,6 @@
                             + Nouveau Talent
                           </button>
                         )}
-
-                        <button
-                          onClick={exportJSON}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                        >
-                          <Download /> Exporter
-                        </button>
-
-                        <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2 cursor-pointer">
-                          <Upload /> Importer
-                          <input type="file" accept=".json" onChange={importJSON} className="hidden" />
-                        </label>
                       </>
                     )}
 
@@ -944,8 +935,17 @@
                               onMouseLeave={() => setHoveredTalent(null)}
                             >
                               {isEditing ? (
-                                // Formulaire d'édition
-                                <div className="bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl h-full overflow-y-auto">
+                                // Formulaire d'édition - Box fixe déportée
+                                <div
+                                  className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
+                                  style={{
+                                    width: '320px',
+                                    height: '480px',
+                                    top: '0',
+                                    left: '0',
+                                    zIndex: 1000
+                                  }}
+                                >
                                   <input
                                     type="text"
                                     defaultValue={talent.nom}
@@ -1229,73 +1229,173 @@
                       <span><strong>Bonus:</strong> {Object.entries(talentsActifs).filter(([id]) => talents[id]?.bonus).length}</span>
                     </div>
 
-                    {/* Talents actifs en grille de cases */}
-                    <div className="flex flex-wrap gap-4 justify-center">
-                      {Object.entries(talentsActifs).map(([id]) => {
-                        const talent = talents[id];
-                        if (!talent) return null;
-                        const dimensions = getDimensionsTalent(talent);
-                        const couleur = getCouleurTalent(talent);
+                    {/* Talents actifs groupés par type */}
+                    {Object.keys(talentsActifs).length === 0 ? (
+                      <div className="text-center text-gray-500 py-12">
+                        Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Talents Action */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'action').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#496f93' }}>
+                              Action
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'action').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
 
-                        return (
-                          <div
-                            key={id}
-                            className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
-                            style={{
-                              backgroundColor: couleur,
-                              width: `${dimensions.width}px`,
-                              minHeight: `${dimensions.height}px`,
-                              maxHeight: `${dimensions.height}px`,
-                              boxSizing: 'border-box'
-                            }}
-                          >
-                            {/* Coût */}
-                            <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
-                              {talent.cout}
-                            </div>
-
-                            {/* Bonus */}
-                            {talent.bonus && (
-                              <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
-                                {talent.bonus}
-                              </div>
-                            )}
-
-                            {/* Contenu */}
-                            <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
-                              {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                <>
-                                  <div className="font-bold text-sm mb-2 text-center line-clamp-2">
-                                    {talent.nom}
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <div className="font-bold text-xs text-center line-clamp-2">{talent.nom}</div>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <div className="font-bold text-xs text-center line-clamp-3 leading-tight">{talent.nom}</div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-center leading-relaxed line-clamp-5">
-                                    {talent.description}
-                                  </div>
-                                </>
-                              )}
-
-                              {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
-                                <div className="font-bold text-xs text-center line-clamp-2">
-                                  {talent.nom}
-                                </div>
-                              )}
-
-                              {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
-                                <div className="font-bold text-xs text-center line-clamp-3 leading-tight">
-                                  {talent.nom}
-                                </div>
-                              )}
+                                );
+                              })}
                             </div>
                           </div>
-                        );
-                      })}
+                        )}
 
-                      {Object.keys(talentsActifs).length === 0 && (
-                        <div className="text-center text-gray-500 py-12 w-full">
-                          Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
-                        </div>
-                      )}
-                    </div>
+                        {/* Talents Amélioration */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'amelioration').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#4e8b51' }}>
+                              Amélioration
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'amelioration').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
+
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <div className="font-bold text-xs text-center line-clamp-2">{talent.nom}</div>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <div className="font-bold text-xs text-center line-clamp-3 leading-tight">{talent.nom}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Talents Passif */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'passif').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#b7b7b7' }}>
+                              Passif
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'passif').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
+
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <div className="font-bold text-xs text-center line-clamp-2">{talent.nom}</div>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <div className="font-bold text-xs text-center line-clamp-3 leading-tight">{talent.nom}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
