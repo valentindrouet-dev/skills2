@@ -881,16 +881,14 @@
                             const talentDim = getDimensionsTalent(talent);
 
                             // Points de départ et d'arrivée (centres des talents)
-                            const x1Start = prereq.position.x + prereqDim.width / 2;
-                            const y1Start = prereq.position.y + prereqDim.height / 2;
-                            const x2End = talent.position.x + talentDim.width / 2;
-                            const y2End = talent.position.y + talentDim.height / 2;
+                            const y1Center = prereq.position.y + prereqDim.height / 2;
+                            const y2Center = talent.position.y + talentDim.height / 2;
 
                             // Bords des talents
                             const x1 = prereq.position.x + prereqDim.width; // Bord droit du prereq
-                            const y1 = y1Start;
+                            const y1 = y1Center;
                             const x2 = talent.position.x; // Bord gauche du talent
-                            const y2 = y2Start;
+                            const y2 = y2Center;
 
                             // Chemin au milieu des espaces entre colonnes/lignes
                             // Si même ligne (y proche), ligne horizontale directe
