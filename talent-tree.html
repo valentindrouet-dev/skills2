@@ -135,7 +135,8 @@
               position: { x: 50, y: 150 },
               prerequis: [],
               categorie: 'vie',
-              typeTalent: 'action' // action (200x200), passif (200x80), bonus (80x80)
+              typeTalent: 'action', // action (200x200), passif (200x80), bonus (80x80)
+              couleurTalent: 'action' // action, amelioration, passif
             },
             alchimiste1: {
               id: 'alchimiste1',
@@ -146,7 +147,8 @@
               position: { x: 250, y: 150 },
               prerequis: ['vie1'],
               categorie: 'combat',
-              typeTalent: 'action'
+              typeTalent: 'action',
+              couleurTalent: 'action'
             },
             analyse: {
               id: 'analyse',
@@ -157,7 +159,8 @@
               position: { x: 450, y: 150 },
               prerequis: ['alchimiste1'],
               categorie: 'analyse',
-              typeTalent: 'action'
+              typeTalent: 'action',
+              couleurTalent: 'action'
             },
             alchimiste2: {
               id: 'alchimiste2',
@@ -168,7 +171,8 @@
               position: { x: 650, y: 150 },
               prerequis: ['analyse'],
               categorie: 'soin',
-              typeTalent: 'action'
+              typeTalent: 'action',
+              couleurTalent: 'action'
             },
             vie2: {
               id: 'vie2',
@@ -179,7 +183,8 @@
               position: { x: 850, y: 150 },
               prerequis: ['alchimiste2'],
               categorie: 'vie',
-              typeTalent: 'action'
+              typeTalent: 'action',
+              couleurTalent: 'action'
             }
           };
 
@@ -202,10 +207,23 @@
             bonus: { width: 80, height: 80, nom: 'Bonus' }
           };
 
+          // Couleurs de talents
+          const couleursTalent = {
+            action: { code: '#496f93', nom: 'Action' },
+            amelioration: { code: '#4e8b51', nom: 'Amélioration' },
+            passif: { code: '#b7b7b7', nom: 'Passif' }
+          };
+
           // Helper pour obtenir les dimensions d'un talent
           const getDimensionsTalent = (talent) => {
             const type = talent?.typeTalent || 'action'; // Par défaut: action
             return typesTalent[type] || typesTalent.action;
+          };
+
+          // Helper pour obtenir la couleur d'un talent
+          const getCouleurTalent = (talent) => {
+            const couleur = talent?.couleurTalent || 'action'; // Par défaut: action
+            return couleursTalent[couleur]?.code || couleursTalent.action.code;
           };
 
           // ========== GESTION DE LA SAUVEGARDE GM ==========
@@ -479,7 +497,8 @@
                 position: { x: 100, y: 300 },
                 prerequis: [],
                 categorie: 'vie',
-                typeTalent: 'action'
+                typeTalent: 'action',
+                couleurTalent: 'action'
               }
             }));
             setEditingTalent(newId);
@@ -845,6 +864,17 @@
                                       </option>
                                     ))}
                                   </select>
+                                  <select
+                                    defaultValue={talent.couleurTalent || 'action'}
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`couleur-${talent.id}`}
+                                  >
+                                    {Object.keys(couleursTalent).map(couleur => (
+                                      <option key={couleur} value={couleur}>
+                                        {couleursTalent[couleur].nom}
+                                      </option>
+                                    ))}
+                                  </select>
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -854,7 +884,8 @@
                                           cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
                                           bonus: document.getElementById(`bonus-${talent.id}`).value,
                                           categorie: document.getElementById(`cat-${talent.id}`).value,
-                                          typeTalent: document.getElementById(`type-${talent.id}`).value
+                                          typeTalent: document.getElementById(`type-${talent.id}`).value,
+                                          couleurTalent: document.getElementById(`couleur-${talent.id}`).value
                                         });
                                       }}
                                       className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
@@ -876,13 +907,12 @@
                                     onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
                                     disabled={!modeEdition && !isAvailable && !isActive}
                                     style={{
-                                      padding: dimensions.width <= 80 ? '0.25rem' : '1rem',
-                                      fontSize: dimensions.width <= 80 ? '0.6rem' : undefined
+                                      backgroundColor: isActive ? getCouleurTalent(talent) : undefined
                                     }}
                                     className={`
-                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent
+                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4
                                       ${isActive
-                                        ? `${categorie.couleur} border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active`
+                                        ? 'border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active'
                                         : isAvailable
                                         ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg hover:scale-105'
                                         : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
