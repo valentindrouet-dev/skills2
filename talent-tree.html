@@ -151,10 +151,10 @@
               cout: 1,
               bonus: 'Vie +1',
               description: 'Augmente vos points de vie de 1',
-              position: { x: 50, y: 150 },
+              position: { x: 0, y: 0 },
               prerequis: [],
               categorie: 'vie',
-              typeTalent: 'grand_carre', // grand_carre (200x200), rectangle (200x80), petit_carre (80x80)
+              typeTalent: 'grand_carre', // grand_carre (200x200), rectangle (200x100), petit_carre (100x100)
               couleurTalent: 'action' // action, amelioration, passif
             },
             alchimiste1: {
@@ -163,7 +163,7 @@
               cout: 2,
               bonus: 'Endu +2',
               description: 'Vous débutez chaque combat avec 1 grenade qui inflige des dégâts à tous les combattants en petit rayon',
-              position: { x: 250, y: 150 },
+              position: { x: 250, y: 0 },
               prerequis: ['vie1'],
               categorie: 'combat',
               typeTalent: 'grand_carre',
@@ -175,7 +175,7 @@
               cout: 1,
               bonus: '',
               description: 'Sans mouvement, vous effectuez 1 analyse standard',
-              position: { x: 450, y: 150 },
+              position: { x: 500, y: 0 },
               prerequis: ['alchimiste1'],
               categorie: 'analyse',
               typeTalent: 'grand_carre',
@@ -187,7 +187,7 @@
               cout: 2,
               bonus: 'Endu +2',
               description: 'Vous débutez chaque combat avec 1 infusion qui soigne un allié en contact',
-              position: { x: 650, y: 150 },
+              position: { x: 750, y: 0 },
               prerequis: ['analyse'],
               categorie: 'soin',
               typeTalent: 'grand_carre',
@@ -199,7 +199,7 @@
               cout: 1,
               bonus: 'Vie +1',
               description: 'Augmente vos points de vie de 1 supplémentaire',
-              position: { x: 850, y: 150 },
+              position: { x: 1000, y: 0 },
               prerequis: ['alchimiste2'],
               categorie: 'vie',
               typeTalent: 'grand_carre',
@@ -222,12 +222,12 @@
           // Types de talents et leurs dimensions
           const typesTalent = {
             grand_carre: { width: 200, height: 200, nom: 'Grand Carré' },
-            rectangle: { width: 200, height: 80, nom: 'Rectangle' },
-            petit_carre: { width: 80, height: 80, nom: 'Petit Carré' },
+            rectangle: { width: 200, height: 100, nom: 'Rectangle' },
+            petit_carre: { width: 100, height: 100, nom: 'Petit Carré' },
             // Compatibilité anciens noms
             action: { width: 200, height: 200, nom: 'Grand Carré' },
-            passif: { width: 200, height: 80, nom: 'Rectangle' },
-            bonus: { width: 80, height: 80, nom: 'Petit Carré' }
+            passif: { width: 200, height: 100, nom: 'Rectangle' },
+            bonus: { width: 100, height: 100, nom: 'Petit Carré' }
           };
 
           // Couleurs de talents
@@ -251,17 +251,21 @@
 
           // Helper pour calculer la hauteur nécessaire de l'interface
           const getRequiredHeight = () => {
-            if (Object.keys(talents).length === 0) return 500;
+            if (Object.keys(talents).length === 0) return 800;
 
-            let maxY = 500; // Hauteur minimale
+            let maxY = 800; // Hauteur minimale
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
-              const talentBottom = talent.position.y + dim.height + 100; // +100 pour marge
+              const talentBottom = talent.position.y + dim.height + 150; // +150 pour marge
               if (talentBottom > maxY) maxY = talentBottom;
             });
 
             return maxY;
           };
+
+          // Grille de placement : 5 colonnes, espacées de 250px (200px talent + 50px espace)
+          const gridColumns = [0, 250, 500, 750, 1000]; // Positions X possibles
+          const gridRows = [0, 250, 500, 750, 1000, 1250]; // Positions Y possibles (ajuster selon besoin)
 
           // ========== GESTION DE LA SAUVEGARDE GM ==========
 
@@ -594,18 +598,36 @@
 
             const rect = e.currentTarget.getBoundingClientRect();
             let x = e.clientX - rect.left - 100; // -100 pour centrer
-            let y = e.clientY - rect.top - 40;
+            let y = e.clientY - rect.top - 100;
 
-            // Snap to grid (grille de 50px)
-            const gridSize = 50;
-            x = Math.round(x / gridSize) * gridSize;
-            y = Math.round(y / gridSize) * gridSize;
+            // Snap to grid positions (5 colonnes)
+            // Trouver la position X la plus proche dans gridColumns
+            let closestX = gridColumns[0];
+            let minDistX = Math.abs(x - closestX);
+            gridColumns.forEach(col => {
+              const dist = Math.abs(x - col);
+              if (dist < minDistX) {
+                minDistX = dist;
+                closestX = col;
+              }
+            });
+
+            // Trouver la position Y la plus proche dans gridRows
+            let closestY = gridRows[0];
+            let minDistY = Math.abs(y - closestY);
+            gridRows.forEach(row => {
+              const dist = Math.abs(y - row);
+              if (dist < minDistY) {
+                minDistY = dist;
+                closestY = row;
+              }
+            });
 
             setTalents(prev => ({
               ...prev,
               [draggingTalent]: {
                 ...prev[draggingTalent],
-                position: { x: Math.max(0, x), y: Math.max(0, y) }
+                position: { x: closestX, y: closestY }
               }
             }));
 
@@ -804,12 +826,45 @@
                         {/* Grille visible en mode édition */}
                         {modeEdition && (
                           <g className="no-print">
-                            <defs>
-                              <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                                <circle cx="0" cy="0" r="2" fill="#94a3b8" opacity="0.5" />
-                              </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#grid)" />
+                            {/* Points de placement aux intersections de la grille */}
+                            {gridRows.map((row, rowIndex) =>
+                              gridColumns.map((col, colIndex) => (
+                                <circle
+                                  key={`grid-${rowIndex}-${colIndex}`}
+                                  cx={col + 100}
+                                  cy={row + 100}
+                                  r="5"
+                                  fill="#94a3b8"
+                                  opacity="0.6"
+                                />
+                              ))
+                            )}
+                            {/* Lignes verticales légères */}
+                            {gridColumns.map((col, index) => (
+                              <line
+                                key={`col-${index}`}
+                                x1={col + 100}
+                                y1="0"
+                                x2={col + 100}
+                                y2="100%"
+                                stroke="#475569"
+                                strokeWidth="1"
+                                opacity="0.2"
+                              />
+                            ))}
+                            {/* Lignes horizontales légères */}
+                            {gridRows.map((row, index) => (
+                              <line
+                                key={`row-${index}`}
+                                x1="0"
+                                y1={row + 100}
+                                x2="100%"
+                                y2={row + 100}
+                                stroke="#475569"
+                                strokeWidth="1"
+                                opacity="0.2"
+                              />
+                            ))}
                           </g>
                         )}
 
@@ -825,54 +880,82 @@
                             const prereqDim = getDimensionsTalent(prereq);
                             const talentDim = getDimensionsTalent(talent);
 
-                            // Points de départ et d'arrivée
-                            const x1 = prereq.position.x + prereqDim.width;
-                            const y1 = prereq.position.y + prereqDim.height / 2;
-                            const x2 = talent.position.x;
-                            const y2 = talent.position.y + talentDim.height / 2;
+                            // Points de départ et d'arrivée (centres des talents)
+                            const x1Start = prereq.position.x + prereqDim.width / 2;
+                            const y1Start = prereq.position.y + prereqDim.height / 2;
+                            const x2End = talent.position.x + talentDim.width / 2;
+                            const y2End = talent.position.y + talentDim.height / 2;
 
-                            // Point intermédiaire pour créer un angle droit
-                            const midX = (x1 + x2) / 2;
+                            // Bords des talents
+                            const x1 = prereq.position.x + prereqDim.width; // Bord droit du prereq
+                            const y1 = y1Start;
+                            const x2 = talent.position.x; // Bord gauche du talent
+                            const y2 = y2Start;
+
+                            // Chemin au milieu des espaces entre colonnes/lignes
+                            // Si même ligne (y proche), ligne horizontale directe
+                            // Sinon, utiliser un chemin avec tournants au milieu des espaces
+                            const midX = x1 + 25; // Milieu de l'espace de 50px après le prereq
+                            const midY = y1 < y2 ? y1 + 125 : y1 - 125; // Milieu de l'espace entre lignes
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
                             const dashArray = isActive ? '0' : '5,5';
 
+                            // Si les talents sont sur la même ligne (différence Y < 50px)
+                            const sameLine = Math.abs(y1 - y2) < 50;
+
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
-                                {/* Ligne horizontale depuis prereq */}
-                                <line
-                                  x1={x1}
-                                  y1={y1}
-                                  x2={midX}
-                                  y2={y1}
-                                  stroke={strokeColor}
-                                  strokeWidth={strokeW}
-                                  strokeDasharray={dashArray}
-                                  className="transition-all duration-300"
-                                />
-                                {/* Ligne verticale */}
-                                <line
-                                  x1={midX}
-                                  y1={y1}
-                                  x2={midX}
-                                  y2={y2}
-                                  stroke={strokeColor}
-                                  strokeWidth={strokeW}
-                                  strokeDasharray={dashArray}
-                                  className="transition-all duration-300"
-                                />
-                                {/* Ligne horizontale vers talent */}
-                                <line
-                                  x1={midX}
-                                  y1={y2}
-                                  x2={x2}
-                                  y2={y2}
-                                  stroke={strokeColor}
-                                  strokeWidth={strokeW}
-                                  strokeDasharray={dashArray}
-                                  className="transition-all duration-300"
-                                />
+                                {sameLine ? (
+                                  // Ligne directe horizontale
+                                  <line
+                                    x1={x1}
+                                    y1={y1}
+                                    x2={x2}
+                                    y2={y2}
+                                    stroke={strokeColor}
+                                    strokeWidth={strokeW}
+                                    strokeDasharray={dashArray}
+                                    className="transition-all duration-300"
+                                  />
+                                ) : (
+                                  <>
+                                    {/* Ligne horizontale depuis prereq jusqu'au milieu de l'espace */}
+                                    <line
+                                      x1={x1}
+                                      y1={y1}
+                                      x2={midX}
+                                      y2={y1}
+                                      stroke={strokeColor}
+                                      strokeWidth={strokeW}
+                                      strokeDasharray={dashArray}
+                                      className="transition-all duration-300"
+                                    />
+                                    {/* Ligne verticale dans le canal entre colonnes */}
+                                    <line
+                                      x1={midX}
+                                      y1={y1}
+                                      x2={midX}
+                                      y2={y2}
+                                      stroke={strokeColor}
+                                      strokeWidth={strokeW}
+                                      strokeDasharray={dashArray}
+                                      className="transition-all duration-300"
+                                    />
+                                    {/* Ligne horizontale vers le talent */}
+                                    <line
+                                      x1={midX}
+                                      y1={y2}
+                                      x2={x2}
+                                      y2={y2}
+                                      stroke={strokeColor}
+                                      strokeWidth={strokeW}
+                                      strokeDasharray={dashArray}
+                                      className="transition-all duration-300"
+                                    />
+                                  </>
+                                )}
                               </g>
                             );
                           })
@@ -1029,7 +1112,7 @@
                                       backgroundColor: isActive ? getCouleurTalent(talent) : undefined
                                     }}
                                     className={`
-                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4
+                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4 overflow-hidden
                                       ${isActive
                                         ? 'border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active'
                                         : isAvailable
@@ -1063,13 +1146,23 @@
 
                                     {/* Afficher le nom uniquement pour les talents Grand Carré */}
                                     {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-white font-bold text-sm mb-2 text-center">
+                                      <div className="text-white font-bold text-sm mb-2 text-center overflow-hidden" style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: '2',
+                                        WebkitBoxOrient: 'vertical',
+                                        textOverflow: 'ellipsis'
+                                      }}>
                                         {talent.nom}
                                       </div>
                                     )}
 
                                     {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-xs text-slate-200 text-center leading-relaxed">
+                                      <div className="text-xs text-slate-200 text-center leading-relaxed overflow-hidden" style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: '5',
+                                        WebkitBoxOrient: 'vertical',
+                                        textOverflow: 'ellipsis'
+                                      }}>
                                         {talent.description}
                                       </div>
                                     )}
