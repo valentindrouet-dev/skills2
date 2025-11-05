@@ -134,6 +134,10 @@
         );
 
         function ArbreTalents() {
+          // Grille de placement : 5 colonnes, espacées de 250px (200px talent + 50px espace)
+          const gridColumns = [0, 250, 500, 750, 1000]; // Positions X possibles
+          const gridRows = [0, 250, 500, 750, 1000, 1250]; // Positions Y possibles
+
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
           const [arbresDisponibles, setArbresDisponibles] = useState(['Arbre par défaut']);
@@ -262,10 +266,6 @@
 
             return maxY;
           };
-
-          // Grille de placement : 5 colonnes, espacées de 250px (200px talent + 50px espace)
-          const gridColumns = [0, 250, 500, 750, 1000]; // Positions X possibles
-          const gridRows = [0, 250, 500, 750, 1000, 1250]; // Positions Y possibles (ajuster selon besoin)
 
           // ========== GESTION DE LA SAUVEGARDE GM ==========
 
