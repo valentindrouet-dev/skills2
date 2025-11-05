@@ -831,11 +831,11 @@
                               gridColumns.map((col, colIndex) => (
                                 <circle
                                   key={`grid-${rowIndex}-${colIndex}`}
-                                  cx={col + 100}
-                                  cy={row + 100}
-                                  r="5"
-                                  fill="#94a3b8"
-                                  opacity="0.6"
+                                  cx={col + 100 + 32}
+                                  cy={row + 100 + 32}
+                                  r="6"
+                                  fill="#fbbf24"
+                                  opacity="0.8"
                                 />
                               ))
                             )}
@@ -843,9 +843,9 @@
                             {gridColumns.map((col, index) => (
                               <line
                                 key={`col-${index}`}
-                                x1={col + 100}
+                                x1={col + 100 + 32}
                                 y1="0"
-                                x2={col + 100}
+                                x2={col + 100 + 32}
                                 y2="100%"
                                 stroke="#475569"
                                 strokeWidth="1"
@@ -857,9 +857,9 @@
                               <line
                                 key={`row-${index}`}
                                 x1="0"
-                                y1={row + 100}
+                                y1={row + 100 + 32}
                                 x2="100%"
-                                y2={row + 100}
+                                y2={row + 100 + 32}
                                 stroke="#475569"
                                 strokeWidth="1"
                                 opacity="0.2"
@@ -876,84 +876,33 @@
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
-                            // Calculer les points de connexion selon les dimensions des talents
+                            // Calculer les centres des talents
                             const prereqDim = getDimensionsTalent(prereq);
                             const talentDim = getDimensionsTalent(talent);
 
-                            // Points de départ et d'arrivée (centres des talents)
-                            const y1Center = prereq.position.y + prereqDim.height / 2;
-                            const y2Center = talent.position.y + talentDim.height / 2;
-
-                            // Bords des talents
-                            const x1 = prereq.position.x + prereqDim.width; // Bord droit du prereq
-                            const y1 = y1Center;
-                            const x2 = talent.position.x; // Bord gauche du talent
-                            const y2 = y2Center;
-
-                            // Chemin au milieu des espaces entre colonnes/lignes
-                            // Si même ligne (y proche), ligne horizontale directe
-                            // Sinon, utiliser un chemin avec tournants au milieu des espaces
-                            const midX = x1 + 25; // Milieu de l'espace de 50px après le prereq
-                            const midY = y1 < y2 ? y1 + 125 : y1 - 125; // Milieu de l'espace entre lignes
+                            // Centres des talents (ajout de 32px pour le padding du container)
+                            const x1 = prereq.position.x + prereqDim.width / 2 + 32;
+                            const y1 = prereq.position.y + prereqDim.height / 2 + 32;
+                            const x2 = talent.position.x + talentDim.width / 2 + 32;
+                            const y2 = talent.position.y + talentDim.height / 2 + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
                             const dashArray = isActive ? '0' : '5,5';
 
-                            // Si les talents sont sur la même ligne (différence Y < 50px)
-                            const sameLine = Math.abs(y1 - y2) < 50;
-
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
-                                {sameLine ? (
-                                  // Ligne directe horizontale
-                                  <line
-                                    x1={x1}
-                                    y1={y1}
-                                    x2={x2}
-                                    y2={y2}
-                                    stroke={strokeColor}
-                                    strokeWidth={strokeW}
-                                    strokeDasharray={dashArray}
-                                    className="transition-all duration-300"
-                                  />
-                                ) : (
-                                  <>
-                                    {/* Ligne horizontale depuis prereq jusqu'au milieu de l'espace */}
-                                    <line
-                                      x1={x1}
-                                      y1={y1}
-                                      x2={midX}
-                                      y2={y1}
-                                      stroke={strokeColor}
-                                      strokeWidth={strokeW}
-                                      strokeDasharray={dashArray}
-                                      className="transition-all duration-300"
-                                    />
-                                    {/* Ligne verticale dans le canal entre colonnes */}
-                                    <line
-                                      x1={midX}
-                                      y1={y1}
-                                      x2={midX}
-                                      y2={y2}
-                                      stroke={strokeColor}
-                                      strokeWidth={strokeW}
-                                      strokeDasharray={dashArray}
-                                      className="transition-all duration-300"
-                                    />
-                                    {/* Ligne horizontale vers le talent */}
-                                    <line
-                                      x1={midX}
-                                      y1={y2}
-                                      x2={x2}
-                                      y2={y2}
-                                      stroke={strokeColor}
-                                      strokeWidth={strokeW}
-                                      strokeDasharray={dashArray}
-                                      className="transition-all duration-300"
-                                    />
-                                  </>
-                                )}
+                                {/* Ligne droite entre les centres */}
+                                <line
+                                  x1={x1}
+                                  y1={y1}
+                                  x2={x2}
+                                  y2={y2}
+                                  stroke={strokeColor}
+                                  strokeWidth={strokeW}
+                                  strokeDasharray={dashArray}
+                                  className="transition-all duration-300"
+                                />
                               </g>
                             );
                           })
@@ -987,7 +936,7 @@
                             >
                               {isEditing ? (
                                 // Formulaire d'édition
-                                <div className="bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl">
+                                <div className="bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl h-full overflow-y-auto">
                                   <input
                                     type="text"
                                     defaultValue={talent.nom}
@@ -1110,7 +1059,7 @@
                                       backgroundColor: isActive ? getCouleurTalent(talent) : undefined
                                     }}
                                     className={`
-                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4 overflow-hidden
+                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4
                                       ${isActive
                                         ? 'border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active'
                                         : isAvailable
@@ -1142,16 +1091,27 @@
                                       </div>
                                     )}
 
-                                    {/* Afficher le nom uniquement pour les talents Grand Carré */}
+                                    {/* Affichage selon le type de talent */}
                                     {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2">
+                                      <>
+                                        <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2">
+                                          {talent.nom}
+                                        </div>
+                                        <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5">
+                                          {talent.description}
+                                        </div>
+                                      </>
+                                    )}
+
+                                    {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                      <div className="text-white font-bold text-xs text-center line-clamp-2">
                                         {talent.nom}
                                       </div>
                                     )}
 
-                                    {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5">
-                                        {talent.description}
+                                    {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                      <div className="text-white font-bold text-xs text-center line-clamp-3 leading-tight">
+                                        {talent.nom}
                                       </div>
                                     )}
 
