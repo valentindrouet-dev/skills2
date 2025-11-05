@@ -134,7 +134,8 @@
               description: 'Augmente vos points de vie de 1',
               position: { x: 50, y: 150 },
               prerequis: [],
-              categorie: 'vie'
+              categorie: 'vie',
+              typeTalent: 'action' // action (200x200), passif (200x80), bonus (80x80)
             },
             alchimiste1: {
               id: 'alchimiste1',
@@ -144,7 +145,8 @@
               description: 'Vous débutez chaque combat avec 1 grenade qui inflige des dégâts à tous les combattants en petit rayon',
               position: { x: 250, y: 150 },
               prerequis: ['vie1'],
-              categorie: 'combat'
+              categorie: 'combat',
+              typeTalent: 'action'
             },
             analyse: {
               id: 'analyse',
@@ -154,7 +156,8 @@
               description: 'Sans mouvement, vous effectuez 1 analyse standard',
               position: { x: 450, y: 150 },
               prerequis: ['alchimiste1'],
-              categorie: 'analyse'
+              categorie: 'analyse',
+              typeTalent: 'action'
             },
             alchimiste2: {
               id: 'alchimiste2',
@@ -164,7 +167,8 @@
               description: 'Vous débutez chaque combat avec 1 infusion qui soigne un allié en contact',
               position: { x: 650, y: 150 },
               prerequis: ['analyse'],
-              categorie: 'soin'
+              categorie: 'soin',
+              typeTalent: 'action'
             },
             vie2: {
               id: 'vie2',
@@ -174,7 +178,8 @@
               description: 'Augmente vos points de vie de 1 supplémentaire',
               position: { x: 850, y: 150 },
               prerequis: ['alchimiste2'],
-              categorie: 'vie'
+              categorie: 'vie',
+              typeTalent: 'action'
             }
           };
 
@@ -188,6 +193,19 @@
             combat: { couleur: 'bg-blue-600', nom: 'Combat' },
             analyse: { couleur: 'bg-purple-600', nom: 'Analyse' },
             soin: { couleur: 'bg-green-600', nom: 'Soin' }
+          };
+
+          // Types de talents et leurs dimensions
+          const typesTalent = {
+            action: { width: 200, height: 200, nom: 'Action' },
+            passif: { width: 200, height: 80, nom: 'Passif' },
+            bonus: { width: 80, height: 80, nom: 'Bonus' }
+          };
+
+          // Helper pour obtenir les dimensions d'un talent
+          const getDimensionsTalent = (talent) => {
+            const type = talent?.typeTalent || 'action'; // Par défaut: action
+            return typesTalent[type] || typesTalent.action;
           };
 
           // ========== GESTION DE LA SAUVEGARDE GM ==========
@@ -460,7 +478,8 @@
                 description: 'Description du talent',
                 position: { x: 100, y: 300 },
                 prerequis: [],
-                categorie: 'vie'
+                categorie: 'vie',
+                typeTalent: 'action'
               }
             }));
             setEditingTalent(newId);
@@ -729,13 +748,17 @@
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
+                            // Calculer les points de connexion selon les dimensions des talents
+                            const prereqDim = getDimensionsTalent(prereq);
+                            const talentDim = getDimensionsTalent(talent);
+
                             return (
                               <line
                                 key={`${prereqId}-${talent.id}`}
-                                x1={prereq.position.x + 200}
-                                y1={prereq.position.y + 60}
+                                x1={prereq.position.x + prereqDim.width}
+                                y1={prereq.position.y + prereqDim.height / 2}
                                 x2={talent.position.x}
-                                y2={talent.position.y + 60}
+                                y2={talent.position.y + talentDim.height / 2}
                                 stroke={isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569'}
                                 strokeWidth={isActive ? 3 : isHighlighted ? 2 : 2}
                                 strokeDasharray={isActive ? '0' : '5,5'}
@@ -754,6 +777,7 @@
                           const isHovered = hoveredTalent === talent.id;
                           const categorie = categories[talent.categorie];
                           const isEditing = editingTalent === talent.id;
+                          const dimensions = getDimensionsTalent(talent);
 
                           return (
                             <div
@@ -762,7 +786,8 @@
                               style={{
                                 left: `${talent.position.x}px`,
                                 top: `${talent.position.y}px`,
-                                width: '200px'
+                                width: `${dimensions.width}px`,
+                                height: `${dimensions.height}px`
                               }}
                               draggable={modeEdition}
                               onDragStart={(e) => handleDragStart(e, talent.id)}
@@ -809,6 +834,17 @@
                                       <option key={cat} value={cat}>{categories[cat].nom}</option>
                                     ))}
                                   </select>
+                                  <select
+                                    defaultValue={talent.typeTalent || 'action'}
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`type-${talent.id}`}
+                                  >
+                                    {Object.keys(typesTalent).map(type => (
+                                      <option key={type} value={type}>
+                                        {typesTalent[type].nom} ({typesTalent[type].width}x{typesTalent[type].height})
+                                      </option>
+                                    ))}
+                                  </select>
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -817,7 +853,8 @@
                                           description: document.getElementById(`desc-${talent.id}`).value,
                                           cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
                                           bonus: document.getElementById(`bonus-${talent.id}`).value,
-                                          categorie: document.getElementById(`cat-${talent.id}`).value
+                                          categorie: document.getElementById(`cat-${talent.id}`).value,
+                                          typeTalent: document.getElementById(`type-${talent.id}`).value
                                         });
                                       }}
                                       className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
@@ -838,8 +875,12 @@
                                   <button
                                     onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
                                     disabled={!modeEdition && !isAvailable && !isActive}
+                                    style={{
+                                      padding: dimensions.width <= 80 ? '0.25rem' : '1rem',
+                                      fontSize: dimensions.width <= 80 ? '0.6rem' : undefined
+                                    }}
                                     className={`
-                                      w-full p-4 rounded-lg border-2 transition-all duration-300 relative print-talent
+                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent
                                       ${isActive
                                         ? `${categorie.couleur} border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active`
                                         : isAvailable
