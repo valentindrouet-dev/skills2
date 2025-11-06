@@ -32,9 +32,16 @@
                 background: white !important;
             }
 
-            @page {
+            /* A4 portrait pour l'arbre */
+            @page arbre {
+                size: A4 portrait;
+                margin: 0.5cm;
+            }
+
+            /* A4 paysage pour la feuille */
+            @page feuille {
                 size: A4 landscape;
-                margin: 1cm;
+                margin: 0.5cm;
             }
 
             .print-page-break {
@@ -46,6 +53,11 @@
                 padding: 10px;
                 max-width: 100%;
                 overflow: hidden;
+                page: arbre;
+                transform: scale(0.45) !important;
+                transform-origin: top left !important;
+                width: 220% !important;
+                height: 220% !important;
             }
 
             .print-talent {
@@ -55,9 +67,16 @@
                 opacity: 1 !important;
             }
 
+            /* Talents non actifs : fond blanc */
+            .print-talent:not(.active) {
+                background: white !important;
+            }
+
+            /* Talents actifs : garder les couleurs */
             .print-talent.active {
-                background: #d9d9d9 !important;
                 border-color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             /* Masquer les badges pour l'impression */
@@ -66,6 +85,12 @@
             }
 
             /* Styles pour la feuille de perso */
+            .print-feuille {
+                page: feuille;
+                transform: scale(0.75) !important;
+                transform-origin: top left !important;
+            }
+
             .bg-white {
                 background: white !important;
             }
@@ -134,15 +159,26 @@
         );
 
         function ArbreTalents() {
+          // Grille de placement : points d'ancrage tous les 20px
+          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 1200 (61 lignes)
+          const gridColumns = Array.from({ length: 68 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1340]
+          const gridRows = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
+
+          // Ref pour éviter la sauvegarde automatique au premier rendu
+          const isInitialMount = React.useRef(true);
+
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
           const [arbresDisponibles, setArbresDisponibles] = useState(['Arbre par défaut']);
+          const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(10);
+          const [pointsMax, setPointsMax] = useState(10);
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
           const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
+          const [zoom, setZoom] = useState(1); // Zoom level: 0.5 à 1.5
 
           const talentsParDefaut = {
             vie1: {
@@ -151,10 +187,10 @@
               cout: 1,
               bonus: 'Vie +1',
               description: 'Augmente vos points de vie de 1',
-              position: { x: 50, y: 150 },
+              position: { x: 0, y: 0 },
               prerequis: [],
               categorie: 'vie',
-              typeTalent: 'grand_carre', // grand_carre (200x200), rectangle (200x80), petit_carre (80x80)
+              typeTalent: 'grand_carre', // grand_carre (200x200), rectangle (200x100), petit_carre (100x100)
               couleurTalent: 'action' // action, amelioration, passif
             },
             alchimiste1: {
@@ -163,7 +199,7 @@
               cout: 2,
               bonus: 'Endu +2',
               description: 'Vous débutez chaque combat avec 1 grenade qui inflige des dégâts à tous les combattants en petit rayon',
-              position: { x: 250, y: 150 },
+              position: { x: 250, y: 0 },
               prerequis: ['vie1'],
               categorie: 'combat',
               typeTalent: 'grand_carre',
@@ -175,7 +211,7 @@
               cout: 1,
               bonus: '',
               description: 'Sans mouvement, vous effectuez 1 analyse standard',
-              position: { x: 450, y: 150 },
+              position: { x: 500, y: 0 },
               prerequis: ['alchimiste1'],
               categorie: 'analyse',
               typeTalent: 'grand_carre',
@@ -187,7 +223,7 @@
               cout: 2,
               bonus: 'Endu +2',
               description: 'Vous débutez chaque combat avec 1 infusion qui soigne un allié en contact',
-              position: { x: 650, y: 150 },
+              position: { x: 750, y: 0 },
               prerequis: ['analyse'],
               categorie: 'soin',
               typeTalent: 'grand_carre',
@@ -199,7 +235,7 @@
               cout: 1,
               bonus: 'Vie +1',
               description: 'Augmente vos points de vie de 1 supplémentaire',
-              position: { x: 850, y: 150 },
+              position: { x: 1000, y: 0 },
               prerequis: ['alchimiste2'],
               categorie: 'vie',
               typeTalent: 'grand_carre',
@@ -210,6 +246,8 @@
           const [talents, setTalents] = useState(talentsParDefaut);
           const [editingTalent, setEditingTalent] = useState(null);
           const [draggingTalent, setDraggingTalent] = useState(null);
+          const [dragOffset, setDragOffset] = useState(null); // Offset entre la souris et le coin sup gauche du talent
+          const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
           const [modeLectureSeule, setModeLectureSeule] = useState(false);
 
           const categories = {
@@ -251,32 +289,55 @@
 
           // Helper pour calculer la hauteur nécessaire de l'interface
           const getRequiredHeight = () => {
-            if (Object.keys(talents).length === 0) return 500;
+            if (Object.keys(talents).length === 0) return 800;
 
-            let maxY = 500; // Hauteur minimale
+            let maxY = 800; // Hauteur minimale
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
-              const talentBottom = talent.position.y + dim.height + 100; // +100 pour marge
+              const talentBottom = talent.position.y + dim.height + 150; // +150 pour marge
               if (talentBottom > maxY) maxY = talentBottom;
             });
 
             return maxY;
           };
 
+          // Helper pour calculer la largeur nécessaire de l'interface
+          const getRequiredWidth = () => {
+            if (Object.keys(talents).length === 0) return 1300;
+
+            let maxX = 1000; // Largeur minimale
+            Object.values(talents).forEach(talent => {
+              const dim = getDimensionsTalent(talent);
+              const talentRight = talent.position.x + dim.width + 150; // +150 pour marge
+              if (talentRight > maxX) maxX = talentRight;
+            });
+
+            return maxX;
+          };
+
           // ========== GESTION DE LA SAUVEGARDE GM ==========
 
           // Sauvegarder automatiquement l'arbre actuel
           useEffect(() => {
+            // Sauter la sauvegarde au premier rendu pour éviter d'écraser le dernier arbre actif
+            if (isInitialMount.current) {
+              isInitialMount.current = false;
+              return;
+            }
+
             if (!modeLectureSeule) {
               const arbreData = {
                 talents,
+                talentsActifs,
                 pointsDisponibles,
-                pointsMax: 10
+                pointsMax
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
+              // Sauvegarder également quel arbre est actif
+              localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, pointsDisponibles, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -293,6 +354,7 @@
               // Sauvegarder l'arbre par défaut s'il n'y en a pas
               const defaultData = {
                 talents: talentsParDefaut,
+                talentsActifs: {},
                 pointsDisponibles: 10,
                 pointsMax: 10
               };
@@ -306,9 +368,10 @@
             if (savedData) {
               const data = JSON.parse(savedData);
               setTalents(data.talents || talentsParDefaut);
+              setTalentsActifs(data.talentsActifs || {});
               setPointsDisponibles(data.pointsDisponibles || 10);
+              setPointsMax(data.pointsMax || 10);
               setArbreActuel(nomArbre);
-              setTalentsActifs({});
               console.log('📂 Arbre chargé:', nomArbre);
             }
           };
@@ -319,6 +382,7 @@
             if (nom && nom.trim()) {
               const newData = {
                 talents: talentsParDefaut,
+                talentsActifs: {},
                 pointsDisponibles: 10,
                 pointsMax: 10
               };
@@ -374,8 +438,10 @@
             const dataParam = params.get('data');
 
             if (!dataParam) {
-              // Page GM - Charger l'arbre sauvegardé
-              chargerArbre(arbreActuel);
+              // Page GM - Charger le dernier arbre utilisé
+              const dernierArbre = localStorage.getItem('dernierArbreActif') || 'Arbre par défaut';
+              console.log('🔄 Chargement du dernier arbre actif:', dernierArbre);
+              chargerArbre(dernierArbre);
             }
           }, []); // Uniquement au démarrage
 
@@ -399,7 +465,11 @@
                   setTalents(decoded.talents);
                   console.log('✅ Talents mis à jour avec les données partagées');
                 }
-                if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
+                if (decoded.pointsMax) {
+                  setPointsMax(decoded.pointsMax);
+                  setPointsDisponibles(decoded.pointsMax);
+                }
+                if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
               } catch (e) {
@@ -410,23 +480,58 @@
             }
           }, []);
 
+          // Trouver tous les talents qui dépendent d'un talent donné (récursif)
+          const findDependentTalents = (talentId, currentActifs) => {
+            const dependents = [];
+
+            // Trouver les talents qui ont talentId comme prérequis et qui sont actifs
+            Object.keys(currentActifs).forEach(id => {
+              const talent = talents[id];
+              if (talent && talent.prerequis.includes(talentId)) {
+                dependents.push(id);
+                // Récursion pour trouver les talents qui dépendent de celui-ci
+                const subDependents = findDependentTalents(id, currentActifs);
+                dependents.push(...subDependents);
+              }
+            });
+
+            return dependents;
+          };
+
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
 
             const talent = talents[talentId];
 
             if (talentsActifs[talentId]) {
+              // Trouver tous les talents qui dépendent de celui-ci
+              const dependents = findDependentTalents(talentId, talentsActifs);
+
+              // Calculer le total des points à restituer
+              let pointsToRestore = talent.cout;
+              dependents.forEach(depId => {
+                if (talents[depId]) {
+                  pointsToRestore += talents[depId].cout;
+                }
+              });
+
+              // Décocher le talent et tous ses dépendants
               setTalentsActifs(prev => {
                 const newState = { ...prev };
                 delete newState[talentId];
+                dependents.forEach(depId => {
+                  delete newState[depId];
+                });
                 return newState;
               });
-              setPointsDisponibles(prev => prev + talent.cout);
+
+              setPointsDisponibles(prev => prev + pointsToRestore);
             } else {
-              const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+              // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
+              const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
 
               if (!prerequisRemplis) {
-                alert('Vous devez d\'abord débloquer les talents prérequis !');
+                alert('Vous devez d\'abord débloquer au moins un des talents prérequis !');
                 return;
               }
 
@@ -442,13 +547,14 @@
 
           const peutEtreActive = (talentId) => {
             const talent = talents[talentId];
-            const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+            // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
+            const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
             return prerequisRemplis && (talentsActifs[talentId] || pointsDisponibles >= talent.cout);
           };
 
           const resetTalents = () => {
             setTalentsActifs({});
-            setPointsDisponibles(10);
+            setPointsDisponibles(pointsMax);
           };
 
           // Fonction d'export en JSON
@@ -498,26 +604,27 @@
             const talentsToShare = JSON.parse(JSON.stringify(talents)); // Deep copy
             const data = {
               talents: talentsToShare,
-              pointsMax: 10,
-              version: '1.0'
+              pointsMax,
+              version: '1.0',
+              nomArbre: arbreActuel
             };
 
             console.log('Données à encoder:', data);
 
             const jsonString = JSON.stringify(data);
             const encoded = btoa(jsonString);
-            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
 
-            console.log('URL générée (longueur):', url.length);
+            // Forcer l'URL vers talent-tree.html pour éviter la redirection de index.html
+            const baseUrl = `${window.location.origin}${window.location.pathname}`;
+            const targetUrl = baseUrl.endsWith('talent-tree.html')
+              ? baseUrl
+              : `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}/talent-tree.html`;
+            const url = `${targetUrl}?data=${encoded}`;
 
-            // Copier dans le presse-papier
-            navigator.clipboard.writeText(url).then(() => {
-              const nbTalents = Object.keys(talentsToShare).length;
-              const talentNames = Object.values(talentsToShare).map(t => t.nom).join(', ');
-              alert(`✅ Lien copié !\n\n📊 Arbre partagé avec ${nbTalents} talent(s):\n${talentNames}\n\n🔒 Mode lecture seule pour vos joueurs`);
-            }).catch(() => {
-              prompt('Copiez ce lien :', url);
-            });
+            console.log('URL générée:', url);
+
+            // Ouvrir dans un nouvel onglet
+            window.open(url, '_blank');
           };
 
           // Ajouter un nouveau talent
@@ -564,6 +671,28 @@
             });
           };
 
+          // Dupliquer un talent
+          const dupliquerTalent = (talentId) => {
+            const talent = talents[talentId];
+            if (!talent) return;
+
+            const newId = `talent_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                ...talent,
+                id: newId,
+                nom: talent.nom,
+                position: {
+                  x: talent.position.x + 40,  // Décalage de 40px
+                  y: talent.position.y + 40
+                },
+                prerequis: [...talent.prerequis] // Copier les prérequis
+              }
+            }));
+            setEditingTalent(newId);
+          };
+
           // Sauvegarder les modifications d'un talent
           const sauvegarderTalent = (talentId, updates) => {
             setTalents(prev => ({
@@ -580,36 +709,75 @@
           const handleDragStart = (e, talentId) => {
             if (!modeEdition) return;
             setDraggingTalent(talentId);
+
+            // Capturer l'offset entre la souris et le coin supérieur gauche du talent
+            const rect = e.currentTarget.getBoundingClientRect();
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+            setDragOffset({ x: offsetX, y: offsetY });
+
             e.dataTransfer.effectAllowed = 'move';
           };
 
+          const handleDragEnd = () => {
+            // Réinitialiser les états si le drag est annulé
+            setDraggingTalent(null);
+            setDragOffset(null);
+            setTargetGridPoint(null);
+          };
+
           const handleDragOver = (e) => {
-            if (!modeEdition) return;
+            if (!modeEdition || !draggingTalent || !dragOffset) return;
             e.preventDefault();
+
+            // Calculer où sera le coin supérieur gauche du talent
+            const rect = e.currentTarget.getBoundingClientRect();
+            // Position de la souris moins l'offset de clic moins le padding du container (32px = p-8)
+            let x = e.clientX - rect.left - dragOffset.x - 32;
+            let y = e.clientY - rect.top - dragOffset.y - 32;
+
+            // Trouver la position X la plus proche
+            let closestX = gridColumns[0];
+            let minDistX = Math.abs(x - closestX);
+            gridColumns.forEach(col => {
+              const dist = Math.abs(x - col);
+              if (dist < minDistX) {
+                minDistX = dist;
+                closestX = col;
+              }
+            });
+
+            // Trouver la position Y la plus proche
+            let closestY = gridRows[0];
+            let minDistY = Math.abs(y - closestY);
+            gridRows.forEach(row => {
+              const dist = Math.abs(y - row);
+              if (dist < minDistY) {
+                minDistY = dist;
+                closestY = row;
+              }
+            });
+
+            // Mettre à jour le point cible
+            setTargetGridPoint({ x: closestX, y: closestY });
           };
 
           const handleDrop = (e) => {
-            if (!modeEdition || !draggingTalent) return;
+            if (!modeEdition || !draggingTalent || !targetGridPoint) return;
             e.preventDefault();
 
-            const rect = e.currentTarget.getBoundingClientRect();
-            let x = e.clientX - rect.left - 100; // -100 pour centrer
-            let y = e.clientY - rect.top - 40;
-
-            // Snap to grid (grille de 50px)
-            const gridSize = 50;
-            x = Math.round(x / gridSize) * gridSize;
-            y = Math.round(y / gridSize) * gridSize;
-
+            // Utiliser le point cible calculé pendant le drag
             setTalents(prev => ({
               ...prev,
               [draggingTalent]: {
                 ...prev[draggingTalent],
-                position: { x: Math.max(0, x), y: Math.max(0, y) }
+                position: { x: targetGridPoint.x, y: targetGridPoint.y }
               }
             }));
 
+            // Réinitialiser les états de drag
             setDraggingTalent(null);
+            setTargetGridPoint(null);
           };
 
           // Imprimer
@@ -625,11 +793,11 @@
 
           return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-              <div className="max-w-7xl mx-auto">
+              <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {/* Header */}
-                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg">
+                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg no-print">
                   <h1 className="text-4xl font-bold text-center text-white tracking-wide">
-                    Arbre de Talents {modeLectureSeule ? '(PJ)' : '(GM)'}
+                    Arbre de Talents {modeLectureSeule ? (nomArbrePartage ? `- ${nomArbrePartage}` : '(PJ)') : `(GM)`}
                   </h1>
                 </div>
 
@@ -727,27 +895,38 @@
                             + Nouveau Talent
                           </button>
                         )}
-
-                        <button
-                          onClick={exportJSON}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                        >
-                          <Download /> Exporter
-                        </button>
-
-                        <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors flex items-center gap-2 cursor-pointer">
-                          <Upload /> Importer
-                          <input type="file" accept=".json" onChange={importJSON} className="hidden" />
-                        </label>
                       </>
                     )}
 
-                    <button
-                      onClick={genererLienPartage}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                    >
-                      <Share /> Partager
-                    </button>
+                    {!modeLectureSeule && (
+                      <button
+                        onClick={genererLienPartage}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Share /> Partager
+                      </button>
+                    )}
+
+                    {vueActive === 'arbre' && (
+                      <div className="flex items-center gap-2 border-l border-slate-600 pl-4">
+                        <span className="text-white text-sm font-semibold">Zoom:</span>
+                        <button
+                          onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
+                          title="Dézoomer"
+                        >
+                          −
+                        </button>
+                        <span className="text-white text-sm font-mono">{Math.round(zoom * 100)}%</span>
+                        <button
+                          onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
+                          title="Zoomer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
 
                     <button
                       onClick={vueActive === 'arbre' ? imprimerArbre : imprimerFeuille}
@@ -762,7 +941,7 @@
                 {vueActive === 'arbre' && (
                   <>
                     {/* Compteurs de points */}
-                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap">
+                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print">
                       {Object.entries(categories).map(([key, cat]) => {
                         const count = Object.keys(talentsActifs).filter(
                           id => talents[id]?.categorie === key
@@ -780,13 +959,30 @@
                           </div>
                         );
                       })}
-                      <div className="flex items-center gap-2 ml-8">
+                      <div className="flex items-center gap-4 ml-8">
                         <span className="text-amber-400 font-bold text-lg">
-                          Points disponibles: {pointsDisponibles}
+                          {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
                         </span>
+                        {modeEdition && (
+                          <div className="flex items-center gap-2 no-print">
+                            <label className="text-white text-sm font-semibold">Points max:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={pointsMax}
+                              onChange={(e) => {
+                                const newMax = parseInt(e.target.value) || 10;
+                                setPointsMax(newMax);
+                                setPointsDisponibles(newMax);
+                              }}
+                              className="w-16 px-2 py-1 bg-slate-700 text-white rounded border border-slate-600 text-sm"
+                            />
+                          </div>
+                        )}
                         <button
                           onClick={resetTalents}
-                          className="ml-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors no-print"
+                          className="px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors no-print"
                         >
                           Réinitialiser
                         </button>
@@ -794,22 +990,43 @@
                     </div>
 
                     {/* Arbre de talents */}
-                    <div
-                      className="bg-slate-700 rounded-b-lg p-8 shadow-2xl relative print-talent-tree"
-                      style={{ minHeight: `${getRequiredHeight()}px` }}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
-                    >
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                        {/* Grille visible en mode édition */}
-                        {modeEdition && (
+                    <div className="bg-slate-700 rounded-b-lg shadow-2xl overflow-auto">
+                      <div className="flex justify-center w-full">
+                        <div
+                          className="p-8 relative print-talent-tree origin-top-left"
+                          style={{
+                            minHeight: `${getRequiredHeight()}px`,
+                            width: `${getRequiredWidth()}px`,
+                            transform: `scale(${zoom})`,
+                            transformOrigin: 'top left'
+                          }}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                        >
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                        {/* Points d'ancrage visibles pendant le drag */}
+                        {modeEdition && draggingTalent && (
                           <g className="no-print">
-                            <defs>
-                              <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                                <circle cx="0" cy="0" r="2" fill="#94a3b8" opacity="0.5" />
-                              </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#grid)" />
+                            {/* Points de placement aux intersections de la grille */}
+                            {gridRows.map((row, rowIndex) =>
+                              gridColumns.map((col, colIndex) => {
+                                // Ce point est-il le point cible ?
+                                const isTarget = targetGridPoint &&
+                                  targetGridPoint.x === col &&
+                                  targetGridPoint.y === row;
+
+                                return (
+                                  <circle
+                                    key={`grid-${rowIndex}-${colIndex}`}
+                                    cx={col + 32}
+                                    cy={row + 32}
+                                    r={isTarget ? "8" : "4"}
+                                    fill={isTarget ? "#22c55e" : "#fbbf24"}
+                                    opacity={isTarget ? "1" : "0.5"}
+                                  />
+                                );
+                              })
+                            )}
                           </g>
                         )}
 
@@ -821,18 +1038,16 @@
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
-                            // Calculer les points de connexion selon les dimensions des talents
+                            // Calculer les centres des talents selon leurs dimensions réelles
                             const prereqDim = getDimensionsTalent(prereq);
                             const talentDim = getDimensionsTalent(talent);
 
-                            // Points de départ et d'arrivée
-                            const x1 = prereq.position.x + prereqDim.width;
-                            const y1 = prereq.position.y + prereqDim.height / 2;
-                            const x2 = talent.position.x;
-                            const y2 = talent.position.y + talentDim.height / 2;
-
-                            // Point intermédiaire pour créer un angle droit
-                            const midX = (x1 + x2) / 2;
+                            // Centres des talents (ajout de 32px pour le padding du container p-8)
+                            // Le centre dépend maintenant de la taille du talent
+                            const x1 = prereq.position.x + (prereqDim.width / 2) + 32;
+                            const y1 = prereq.position.y + (prereqDim.height / 2) + 32;
+                            const x2 = talent.position.x + (talentDim.width / 2) + 32;
+                            const y2 = talent.position.y + (talentDim.height / 2) + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
@@ -840,32 +1055,10 @@
 
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
-                                {/* Ligne horizontale depuis prereq */}
+                                {/* Ligne droite entre les centres */}
                                 <line
                                   x1={x1}
                                   y1={y1}
-                                  x2={midX}
-                                  y2={y1}
-                                  stroke={strokeColor}
-                                  strokeWidth={strokeW}
-                                  strokeDasharray={dashArray}
-                                  className="transition-all duration-300"
-                                />
-                                {/* Ligne verticale */}
-                                <line
-                                  x1={midX}
-                                  y1={y1}
-                                  x2={midX}
-                                  y2={y2}
-                                  stroke={strokeColor}
-                                  strokeWidth={strokeW}
-                                  strokeDasharray={dashArray}
-                                  className="transition-all duration-300"
-                                />
-                                {/* Ligne horizontale vers talent */}
-                                <line
-                                  x1={midX}
-                                  y1={y2}
                                   x2={x2}
                                   y2={y2}
                                   stroke={strokeColor}
@@ -889,6 +1082,10 @@
                           const isEditing = editingTalent === talent.id;
                           const dimensions = getDimensionsTalent(talent);
 
+                          // Point d'ancrage en haut à gauche (pas de centrage)
+                          const offsetX = 0;
+                          const offsetY = 0;
+
                           return (
                             <div
                               key={talent.id}
@@ -897,16 +1094,30 @@
                                 left: `${talent.position.x}px`,
                                 top: `${talent.position.y}px`,
                                 width: `${dimensions.width}px`,
-                                height: `${dimensions.height}px`
+                                height: `${dimensions.height}px`,
+                                maxHeight: `${dimensions.height}px`,
+                                minHeight: `${dimensions.height}px`,
+                                overflow: 'visible'
                               }}
                               draggable={modeEdition}
                               onDragStart={(e) => handleDragStart(e, talent.id)}
+                              onDragEnd={handleDragEnd}
                               onMouseEnter={() => !modeEdition && setHoveredTalent(talent.id)}
                               onMouseLeave={() => setHoveredTalent(null)}
                             >
                               {isEditing ? (
-                                // Formulaire d'édition
-                                <div className="bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl">
+                                // Formulaire d'édition - Box fixe déportée
+                                <div
+                                  key={talent.id}
+                                  className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
+                                  style={{
+                                    width: '320px',
+                                    height: '480px',
+                                    top: '0',
+                                    left: '0',
+                                    zIndex: 1000
+                                  }}
+                                >
                                   <input
                                     type="text"
                                     defaultValue={talent.nom}
@@ -918,7 +1129,7 @@
                                     defaultValue={talent.description}
                                     placeholder="Description"
                                     className="w-full mb-2 p-1 text-xs bg-slate-700 text-white rounded"
-                                    rows="2"
+                                    rows="6"
                                     id={`desc-${talent.id}`}
                                   />
                                   <input
@@ -928,22 +1139,6 @@
                                     className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                     id={`cout-${talent.id}`}
                                   />
-                                  <input
-                                    type="text"
-                                    defaultValue={talent.bonus}
-                                    placeholder="Bonus"
-                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
-                                    id={`bonus-${talent.id}`}
-                                  />
-                                  <select
-                                    defaultValue={talent.categorie}
-                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
-                                    id={`cat-${talent.id}`}
-                                  >
-                                    {Object.keys(categories).map(cat => (
-                                      <option key={cat} value={cat}>{categories[cat].nom}</option>
-                                    ))}
-                                  </select>
                                   <select
                                     defaultValue={talent.typeTalent || 'grand_carre'}
                                     className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
@@ -973,6 +1168,7 @@
                                     <div className="max-h-24 overflow-y-auto text-xs">
                                       {Object.values(talents)
                                         .filter(t => t.id !== talent.id)
+                                        .sort((a, b) => a.nom.localeCompare(b.nom))
                                         .map(t => (
                                           <label key={t.id} className="flex items-center gap-1 text-white cursor-pointer hover:bg-slate-600 px-1 rounded">
                                             <input
@@ -989,34 +1185,48 @@
                                     </div>
                                   </div>
 
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        // Récupérer les prérequis cochés
-                                        const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
-                                          .map(checkbox => checkbox.getAttribute('data-prereq-id'));
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          // Récupérer les prérequis cochés
+                                          const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
+                                            .map(checkbox => checkbox.getAttribute('data-prereq-id'));
 
-                                        sauvegarderTalent(talent.id, {
-                                          nom: document.getElementById(`nom-${talent.id}`).value,
-                                          description: document.getElementById(`desc-${talent.id}`).value,
-                                          cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
-                                          bonus: document.getElementById(`bonus-${talent.id}`).value,
-                                          categorie: document.getElementById(`cat-${talent.id}`).value,
-                                          typeTalent: document.getElementById(`type-${talent.id}`).value,
-                                          couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
-                                          prerequis: prerequis
-                                        });
-                                      }}
-                                      className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
-                                    >
-                                      Sauv.
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingTalent(null)}
-                                      className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
-                                    >
-                                      Annuler
-                                    </button>
+                                          sauvegarderTalent(talent.id, {
+                                            nom: document.getElementById(`nom-${talent.id}`).value,
+                                            description: document.getElementById(`desc-${talent.id}`).value,
+                                            cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                            typeTalent: document.getElementById(`type-${talent.id}`).value,
+                                            couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
+                                            prerequis: prerequis
+                                          });
+                                        }}
+                                        className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      >
+                                        Sauvegarder
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingTalent(null)}
+                                        className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                                      >
+                                        Annuler
+                                      </button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => dupliquerTalent(talent.id)}
+                                        className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                      >
+                                        Dupliquer
+                                      </button>
+                                      <button
+                                        onClick={() => supprimerTalent(talent.id)}
+                                        className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                      >
+                                        Supprimer
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
@@ -1026,15 +1236,22 @@
                                     onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
                                     disabled={!modeEdition && !isAvailable && !isActive}
                                     style={{
-                                      backgroundColor: isActive ? getCouleurTalent(talent) : undefined
+                                      backgroundColor: isActive ? getCouleurTalent(talent) : undefined,
+                                      boxSizing: 'border-box',
+                                      height: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      width: `${dimensions.width}px`,
+                                      maxWidth: `${dimensions.width}px`,
+                                      minWidth: `${dimensions.width}px`
                                     }}
                                     className={`
-                                      w-full h-full rounded-lg border-2 transition-all duration-300 relative print-talent p-4
+                                      rounded-lg border-2 transition-all duration-300 relative print-talent p-4
                                       ${isActive
-                                        ? 'border-amber-400 shadow-lg shadow-amber-500/50 scale-105 active'
+                                        ? 'border-amber-400 shadow-lg shadow-amber-500/50 active'
                                         : isAvailable
-                                        ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg hover:scale-105'
-                                        : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                                        ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg'
+                                        : 'bg-slate-800 border-slate-700 cursor-not-allowed'
                                       }
                                       ${isHovered ? 'ring-2 ring-amber-400' : ''}
                                       ${modeEdition ? 'cursor-move' : ''}
@@ -1042,7 +1259,7 @@
                                   >
                                     {/* Coût */}
                                     <div className={`
-                                      absolute -top-3 -right-3 w-10 h-10 rounded-full
+                                      absolute -top-4 -right-4 w-8 h-8 rounded-full
                                       flex items-center justify-center font-bold text-sm
                                       ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
                                       border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
@@ -1053,7 +1270,7 @@
                                     {/* Bonus */}
                                     {talent.bonus && (
                                       <div className={`
-                                        absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold
+                                        absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold
                                         ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
                                         border ${isActive ? 'border-green-400' : 'border-slate-400'}
                                       `}>
@@ -1061,18 +1278,41 @@
                                       </div>
                                     )}
 
-                                    {/* Afficher le nom uniquement pour les talents Grand Carré */}
-                                    {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-white font-bold text-sm mb-2 text-center">
-                                        {talent.nom}
-                                      </div>
-                                    )}
+                                    {/* Contenu texte avec overflow contrôlé */}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2">
+                                            {talent.nom}
+                                          </div>
+                                          <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>
+                                            {talent.description}
+                                          </div>
+                                        </>
+                                      )}
 
-                                    {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
-                                      <div className="text-xs text-slate-200 text-center leading-relaxed">
-                                        {talent.description}
-                                      </div>
-                                    )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <>
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-2">
+                                            {talent.nom}
+                                          </div>
+                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
+                                            {talent.description}
+                                          </div>
+                                        </>
+                                      )}
+
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <>
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-2">
+                                            {talent.nom}
+                                          </div>
+                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
+                                            {talent.description}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
 
                                     {/* Checkbox indicator */}
                                     <div className={`
@@ -1097,6 +1337,12 @@
                                         ✏️
                                       </button>
                                       <button
+                                        onClick={() => dupliquerTalent(talent.id)}
+                                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      >
+                                        📋
+                                      </button>
+                                      <button
                                         onClick={() => supprimerTalent(talent.id)}
                                         className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
                                       >
@@ -1107,24 +1353,47 @@
 
                                   {/* Infobulle détaillée au survol */}
                                   {isHovered && !modeEdition && (
-                                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl z-50 no-print">
-                                      <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
-                                      <div className="text-white text-xs mb-2">{talent.description}</div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
-                                        {talent.bonus && (
-                                          <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                    talent.position.y === 0 ? (
+                                      // Infobulle vers le bas pour la première ligne
+                                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
+                                        <div className="absolute left-1/2 -translate-x-1/2 -top-2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-amber-400"></div>
+                                        <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                                        <div className="text-white text-xs mb-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        <div className="flex justify-between items-center text-xs">
+                                          <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                          {talent.bonus && (
+                                            <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                          )}
+                                        </div>
+                                        {talent.prerequis.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-slate-700">
+                                            <div className="text-slate-400 text-xs">
+                                              Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
+                                            </div>
+                                          </div>
                                         )}
                                       </div>
-                                      {talent.prerequis.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-slate-700">
-                                          <div className="text-slate-400 text-xs">
-                                            Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
-                                          </div>
+                                    ) : (
+                                      // Infobulle vers le haut pour les autres lignes
+                                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
+                                        <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                                        <div className="text-white text-xs mb-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        <div className="flex justify-between items-center text-xs">
+                                          <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                          {talent.bonus && (
+                                            <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                          )}
                                         </div>
-                                      )}
-                                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
-                                    </div>
+                                        {talent.prerequis.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-slate-700">
+                                            <div className="text-slate-400 text-xs">
+                                              Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
+                                      </div>
+                                    )
                                   )}
                                 </div>
                               )}
@@ -1133,6 +1402,8 @@
                         })}
                       </div>
                     </div>
+                      </div>
+                  </div>
 
                     {/* Légende */}
                     <div className="mt-6 bg-slate-800 rounded-lg p-4 border border-slate-600 no-print">
@@ -1158,51 +1429,203 @@
 
                 {/* Vue Feuille de personnage */}
                 {vueActive === 'feuille' && (
-                  <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black">
+                  <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black print-feuille">
                     <h2 className="text-2xl font-bold mb-3 text-center border-b-2 border-amber-500 pb-2">
                       Feuille de Personnage
                     </h2>
 
                     {/* Récapitulatif compact */}
                     <div className="mb-3 p-2 bg-amber-50 border border-amber-500 rounded flex justify-between text-sm">
-                      <span><strong>Points:</strong> {10 - pointsDisponibles}/10</span>
+                      <span><strong>Points:</strong> {pointsMax - pointsDisponibles}/{pointsMax}</span>
                       <span><strong>Talents:</strong> {Object.keys(talentsActifs).length}</span>
                       <span><strong>Bonus:</strong> {Object.entries(talentsActifs).filter(([id]) => talents[id]?.bonus).length}</span>
                     </div>
 
-                    {/* Talents actifs groupés */}
-                    <div className="space-y-2">
-                      {Object.entries(talentsActifs).map(([id]) => {
-                        const talent = talents[id];
-                        if (!talent) return null;
-                        return (
-                          <div key={id} className="border border-slate-300 rounded p-2 text-sm">
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold">{talent.nom}</span>
-                              <div className="flex gap-1 items-center text-xs">
-                                {talent.bonus && (
-                                  <span className="px-1.5 py-0.5 bg-green-100 border border-green-500 rounded font-bold">
-                                    {talent.bonus}
-                                  </span>
-                                )}
-                                <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-500 rounded font-bold">
-                                  {talent.cout}pts
-                                </span>
-                              </div>
-                            </div>
-                            {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && talent.description && (
-                              <p className="text-xs text-gray-600 mt-1">{talent.description}</p>
-                            )}
-                          </div>
-                        );
-                      })}
+                    {/* Talents actifs groupés par type */}
+                    {Object.keys(talentsActifs).length === 0 ? (
+                      <div className="text-center text-gray-500 py-12">
+                        Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Talents Action */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'action').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#496f93' }}>
+                              Action
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'action').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
 
-                      {Object.keys(talentsActifs).length === 0 && (
-                        <div className="text-center text-gray-500 py-12">
-                          Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
-                        </div>
-                      )}
-                    </div>
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Talents Amélioration */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'amelioration').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#4e8b51' }}>
+                              Amélioration
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'amelioration').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
+
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Talents Passif */}
+                        {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'passif').length > 0 && (
+                          <div>
+                            <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: '#b7b7b7' }}>
+                              Passif
+                            </h3>
+                            <div className="flex flex-wrap gap-4">
+                              {Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === 'passif').map(([id]) => {
+                                const talent = talents[id];
+                                const dimensions = getDimensionsTalent(talent);
+                                const couleur = getCouleurTalent(talent);
+
+                                return (
+                                  <div
+                                    key={id}
+                                    className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                    style={{
+                                      backgroundColor: couleur,
+                                      width: `${dimensions.width}px`,
+                                      minHeight: `${dimensions.height}px`,
+                                      maxHeight: `${dimensions.height}px`,
+                                      boxSizing: 'border-box'
+                                    }}
+                                  >
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                      {talent.cout}
+                                    </div>
+                                    {talent.bonus && (
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                        {talent.bonus}
+                                      </div>
+                                    )}
+                                    <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
+                                      {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
+                                        <>
+                                          <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                        <>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
+                                          <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
