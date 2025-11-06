@@ -460,7 +460,9 @@
             if (dataParam) {
               try {
                 console.log('Décodage du paramètre data...');
-                const decoded = JSON.parse(atob(dataParam));
+                // Décoder Base64 avec support Unicode
+                const jsonString = decodeURIComponent(escape(atob(dataParam)));
+                const decoded = JSON.parse(jsonString);
                 console.log('Données décodées:', decoded);
                 console.log('Talents chargés:', decoded.talents);
                 console.log('Nombre de talents chargés:', Object.keys(decoded.talents || {}).length);
@@ -616,7 +618,8 @@
             console.log('Données à encoder:', data);
 
             const jsonString = JSON.stringify(data);
-            const encoded = btoa(jsonString);
+            // Encoder en Base64 avec support Unicode
+            const encoded = btoa(unescape(encodeURIComponent(jsonString)));
 
             // Forcer l'URL vers talent-tree.html pour éviter la redirection de index.html
             const baseUrl = `${window.location.origin}${window.location.pathname}`;
@@ -626,6 +629,7 @@
             const url = `${targetUrl}?data=${encoded}`;
 
             console.log('URL générée:', url);
+            console.log('Longueur de l\'URL:', url.length);
 
             // Copier dans le presse-papier
             try {
@@ -1310,10 +1314,7 @@
 
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-2">
-                                            {talent.nom}
-                                          </div>
-                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
+                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line' }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1513,8 +1514,7 @@
                                           )}
                                           {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                             <>
-                                              <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
-                                              <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                              <div className="text-xs text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                             </>
                                           )}
                                           {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
