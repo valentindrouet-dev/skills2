@@ -134,9 +134,10 @@
         );
 
         function ArbreTalents() {
-          // Grille de placement : 9 colonnes, espacées de 125px (points d'ancrage intermédiaires)
-          const gridColumns = [0, 125, 250, 375, 500, 625, 750, 875, 1000]; // Positions X possibles
-          const gridRows = [0, 125, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250]; // Positions Y possibles
+          // Grille de placement uniforme de 100x100px
+          // Permet d'aligner : 1 grand carré = 2 rectangles empilés = 4 petits carrés en 2x2
+          const gridColumns = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]; // Positions X possibles (tous les 100px)
+          const gridRows = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]; // Positions Y possibles (tous les 100px)
 
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
