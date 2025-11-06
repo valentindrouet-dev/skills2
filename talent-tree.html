@@ -53,10 +53,11 @@
                 box-shadow: none !important;
                 transform: none !important;
                 opacity: 1 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             .print-talent.active {
-                background: #d9d9d9 !important;
                 border-color: #000 !important;
             }
 
@@ -820,12 +821,14 @@
                       </>
                     )}
 
-                    <button
-                      onClick={genererLienPartage}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                    >
-                      <Share /> Partager
-                    </button>
+                    {!modeLectureSeule && (
+                      <button
+                        onClick={genererLienPartage}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Share /> Partager
+                      </button>
+                    )}
 
                     {vueActive === 'arbre' && (
                       <div className="flex items-center gap-2 border-l border-slate-600 pl-4">
@@ -881,7 +884,7 @@
                       })}
                       <div className="flex items-center gap-4 ml-8">
                         <span className="text-amber-400 font-bold text-lg">
-                          Points disponibles: {pointsDisponibles}
+                          {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
                         </span>
                         {modeEdition && (
                           <div className="flex items-center gap-2 no-print">
@@ -1027,6 +1030,7 @@
                               {isEditing ? (
                                 // Formulaire d'édition - Box fixe déportée
                                 <div
+                                  key={talent.id}
                                   className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
                                   style={{
                                     width: '320px',
@@ -1211,7 +1215,7 @@
 
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-1">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-2">
                                             {talent.nom}
                                           </div>
                                           <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
@@ -1222,7 +1226,7 @@
 
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-1">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-2">
                                             {talent.nom}
                                           </div>
                                           <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
@@ -1253,6 +1257,12 @@
                                         className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
                                       >
                                         ✏️
+                                      </button>
+                                      <button
+                                        onClick={() => dupliquerTalent(talent.id)}
+                                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      >
+                                        📋
                                       </button>
                                       <button
                                         onClick={() => supprimerTalent(talent.id)}
@@ -1400,13 +1410,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
@@ -1459,13 +1469,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
@@ -1518,13 +1528,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
