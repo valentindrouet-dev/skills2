@@ -218,6 +218,7 @@
           const [talents, setTalents] = useState(talentsParDefaut);
           const [editingTalent, setEditingTalent] = useState(null);
           const [draggingTalent, setDraggingTalent] = useState(null);
+          const [dragOffset, setDragOffset] = useState(null); // Offset entre la souris et le coin sup gauche du talent
           const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
           const [modeLectureSeule, setModeLectureSeule] = useState(false);
 
@@ -600,23 +601,32 @@
           const handleDragStart = (e, talentId) => {
             if (!modeEdition) return;
             setDraggingTalent(talentId);
+
+            // Capturer l'offset entre la souris et le coin supérieur gauche du talent
+            const rect = e.currentTarget.getBoundingClientRect();
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+            setDragOffset({ x: offsetX, y: offsetY });
+
             e.dataTransfer.effectAllowed = 'move';
           };
 
           const handleDragEnd = () => {
             // Réinitialiser les états si le drag est annulé
             setDraggingTalent(null);
+            setDragOffset(null);
             setTargetGridPoint(null);
           };
 
           const handleDragOver = (e) => {
-            if (!modeEdition || !draggingTalent) return;
+            if (!modeEdition || !draggingTalent || !dragOffset) return;
             e.preventDefault();
 
-            // Calculer le point d'ancrage cible pendant le drag
+            // Calculer où sera le coin supérieur gauche du talent
             const rect = e.currentTarget.getBoundingClientRect();
-            let x = e.clientX - rect.left - 32; // -32 pour le padding du container
-            let y = e.clientY - rect.top - 32;
+            // Position de la souris moins l'offset de clic moins le padding du container
+            let x = e.clientX - rect.left - dragOffset.x - 32;
+            let y = e.clientY - rect.top - dragOffset.y - 32;
 
             // Trouver la position X la plus proche
             let closestX = gridColumns[0];
