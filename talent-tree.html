@@ -452,10 +452,11 @@
               });
               setPointsDisponibles(prev => prev + talent.cout);
             } else {
-              const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+              // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
+              const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
 
               if (!prerequisRemplis) {
-                alert('Vous devez d\'abord débloquer les talents prérequis !');
+                alert('Vous devez d\'abord débloquer au moins un des talents prérequis !');
                 return;
               }
 
@@ -471,7 +472,8 @@
 
           const peutEtreActive = (talentId) => {
             const talent = talents[talentId];
-            const prerequisRemplis = talent.prerequis.every(prereq => talentsActifs[prereq]);
+            // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
+            const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
             return prerequisRemplis && (talentsActifs[talentId] || pointsDisponibles >= talent.cout);
           };
 
@@ -1181,7 +1183,7 @@
                                   >
                                     {/* Coût */}
                                     <div className={`
-                                      absolute -top-3 -right-3 w-10 h-10 rounded-full
+                                      absolute -top-4 -right-4 w-8 h-8 rounded-full
                                       flex items-center justify-center font-bold text-sm
                                       ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
                                       border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
@@ -1192,7 +1194,7 @@
                                     {/* Bonus */}
                                     {talent.bonus && (
                                       <div className={`
-                                        absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold
+                                        absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold
                                         ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
                                         border ${isActive ? 'border-green-400' : 'border-slate-400'}
                                       `}>
@@ -1393,11 +1395,11 @@
                                       boxSizing: 'border-box'
                                     }}
                                   >
-                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
                                       {talent.cout}
                                     </div>
                                     {talent.bonus && (
-                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
                                         {talent.bonus}
                                       </div>
                                     )}
@@ -1452,11 +1454,11 @@
                                       boxSizing: 'border-box'
                                     }}
                                   >
-                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
                                       {talent.cout}
                                     </div>
                                     {talent.bonus && (
-                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
                                         {talent.bonus}
                                       </div>
                                     )}
@@ -1511,11 +1513,11 @@
                                       boxSizing: 'border-box'
                                     }}
                                   >
-                                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
+                                    <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
                                       {talent.cout}
                                     </div>
                                     {talent.bonus && (
-                                      <div className="absolute -top-3 -left-3 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
+                                      <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
                                         {talent.bonus}
                                       </div>
                                     )}
