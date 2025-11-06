@@ -139,6 +139,9 @@
           const gridColumns = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
           const gridRows = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
 
+          // Ref pour éviter la sauvegarde automatique au premier rendu
+          const isInitialMount = React.useRef(true);
+
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
           const [arbresDisponibles, setArbresDisponibles] = useState(['Arbre par défaut']);
@@ -277,6 +280,12 @@
 
           // Sauvegarder automatiquement l'arbre actuel
           useEffect(() => {
+            // Sauter la sauvegarde au premier rendu pour éviter d'écraser le dernier arbre actif
+            if (isInitialMount.current) {
+              isInitialMount.current = false;
+              return;
+            }
+
             if (!modeLectureSeule) {
               const arbreData = {
                 talents,
@@ -391,7 +400,6 @@
               const dernierArbre = localStorage.getItem('dernierArbreActif') || 'Arbre par défaut';
               console.log('🔄 Chargement du dernier arbre actif:', dernierArbre);
               chargerArbre(dernierArbre);
-              setArbreActuel(dernierArbre);
             }
           }, []); // Uniquement au démarrage
 
@@ -583,6 +591,28 @@
               delete newState[talentId];
               return newState;
             });
+          };
+
+          // Dupliquer un talent
+          const dupliquerTalent = (talentId) => {
+            const talent = talents[talentId];
+            if (!talent) return;
+
+            const newId = `talent_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                ...talent,
+                id: newId,
+                nom: `${talent.nom} (copie)`,
+                position: {
+                  x: talent.position.x + 40,  // Décalage de 40px
+                  y: talent.position.y + 40
+                },
+                prerequis: [...talent.prerequis] // Copier les prérequis
+              }
+            }));
+            setEditingTalent(newId);
           };
 
           // Sauvegarder les modifications d'un talent
@@ -1073,32 +1103,48 @@
                                     </div>
                                   </div>
 
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        // Récupérer les prérequis cochés
-                                        const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
-                                          .map(checkbox => checkbox.getAttribute('data-prereq-id'));
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          // Récupérer les prérequis cochés
+                                          const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
+                                            .map(checkbox => checkbox.getAttribute('data-prereq-id'));
 
-                                        sauvegarderTalent(talent.id, {
-                                          nom: document.getElementById(`nom-${talent.id}`).value,
-                                          description: document.getElementById(`desc-${talent.id}`).value,
-                                          cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
-                                          typeTalent: document.getElementById(`type-${talent.id}`).value,
-                                          couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
-                                          prerequis: prerequis
-                                        });
-                                      }}
-                                      className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
-                                    >
-                                      Sauv.
-                                    </button>
-                                    <button
-                                      onClick={() => setEditingTalent(null)}
-                                      className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
-                                    >
-                                      Annuler
-                                    </button>
+                                          sauvegarderTalent(talent.id, {
+                                            nom: document.getElementById(`nom-${talent.id}`).value,
+                                            description: document.getElementById(`desc-${talent.id}`).value,
+                                            cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                            typeTalent: document.getElementById(`type-${talent.id}`).value,
+                                            couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
+                                            prerequis: prerequis
+                                          });
+                                        }}
+                                        className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      >
+                                        Sauvegarder
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingTalent(null)}
+                                        className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                                      >
+                                        Annuler
+                                      </button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => dupliquerTalent(talent.id)}
+                                        className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                      >
+                                        Dupliquer
+                                      </button>
+                                      <button
+                                        onClick={() => supprimerTalent(talent.id)}
+                                        className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                      >
+                                        Supprimer
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
@@ -1123,7 +1169,7 @@
                                         ? 'border-amber-400 shadow-lg shadow-amber-500/50 active'
                                         : isAvailable
                                         ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg'
-                                        : 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                                        : 'bg-slate-800 border-slate-700 cursor-not-allowed'
                                       }
                                       ${isHovered ? 'ring-2 ring-amber-400' : ''}
                                       ${modeEdition ? 'cursor-move' : ''}
@@ -1165,7 +1211,7 @@
 
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-1">
                                             {talent.nom}
                                           </div>
                                           <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
@@ -1176,7 +1222,7 @@
 
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-1">
                                             {talent.nom}
                                           </div>
                                           <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
@@ -1354,13 +1400,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
@@ -1413,13 +1459,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
@@ -1472,13 +1518,13 @@
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight">{talent.nom}</div>
+                                          <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-1">{talent.nom}</div>
                                           <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
