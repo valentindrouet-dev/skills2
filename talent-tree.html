@@ -294,7 +294,7 @@
             let maxY = 800; // Hauteur minimale
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
-              const talentBottom = talent.position.y + dim.height + 50; // +50 pour marge minimale
+              const talentBottom = talent.position.y + dim.height + 150; // +150 pour marge
               if (talentBottom > maxY) maxY = talentBottom;
             });
 
@@ -308,7 +308,7 @@
             let maxX = 1000; // Largeur minimale
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
-              const talentRight = talent.position.x + dim.width + 50; // +50 pour marge minimale
+              const talentRight = talent.position.x + dim.width + 150; // +150 pour marge
               if (talentRight > maxX) maxX = talentRight;
             });
 
@@ -698,9 +698,9 @@
 
             // Calculer où sera le coin supérieur gauche du talent
             const rect = e.currentTarget.getBoundingClientRect();
-            // Position de la souris moins l'offset de clic moins le padding du container (16px = p-4)
-            let x = e.clientX - rect.left - dragOffset.x - 16;
-            let y = e.clientY - rect.top - dragOffset.y - 16;
+            // Position de la souris moins l'offset de clic moins le padding du container (32px = p-8)
+            let x = e.clientX - rect.left - dragOffset.x - 32;
+            let y = e.clientY - rect.top - dragOffset.y - 32;
 
             // Trouver la position X la plus proche
             let closestX = gridColumns[0];
@@ -759,7 +759,7 @@
 
           return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-              <div className="w-full mx-auto" style={{ maxWidth: 'none' }}>
+              <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg no-print">
                   <h1 className="text-4xl font-bold text-center text-white tracking-wide">
@@ -959,7 +959,7 @@
                     <div className="bg-slate-700 rounded-b-lg shadow-2xl overflow-auto">
                       <div className="flex justify-center w-full">
                         <div
-                          className="p-4 relative print-talent-tree origin-top-left"
+                          className="p-8 relative print-talent-tree origin-top-left"
                           style={{
                             minHeight: `${getRequiredHeight()}px`,
                             width: `${getRequiredWidth()}px`,
@@ -984,8 +984,8 @@
                                 return (
                                   <circle
                                     key={`grid-${rowIndex}-${colIndex}`}
-                                    cx={col + 16}
-                                    cy={row + 16}
+                                    cx={col + 32}
+                                    cy={row + 32}
                                     r={isTarget ? "8" : "4"}
                                     fill={isTarget ? "#22c55e" : "#fbbf24"}
                                     opacity={isTarget ? "1" : "0.5"}
@@ -1008,12 +1008,12 @@
                             const prereqDim = getDimensionsTalent(prereq);
                             const talentDim = getDimensionsTalent(talent);
 
-                            // Centres des talents (ajout de 16px pour le padding du container p-4)
+                            // Centres des talents (ajout de 32px pour le padding du container p-8)
                             // Le centre dépend maintenant de la taille du talent
-                            const x1 = prereq.position.x + (prereqDim.width / 2) + 16;
-                            const y1 = prereq.position.y + (prereqDim.height / 2) + 16;
-                            const x2 = talent.position.x + (talentDim.width / 2) + 16;
-                            const y2 = talent.position.y + (talentDim.height / 2) + 16;
+                            const x1 = prereq.position.x + (prereqDim.width / 2) + 32;
+                            const y1 = prereq.position.y + (prereqDim.height / 2) + 32;
+                            const x2 = talent.position.x + (talentDim.width / 2) + 32;
+                            const y2 = talent.position.y + (talentDim.height / 2) + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
