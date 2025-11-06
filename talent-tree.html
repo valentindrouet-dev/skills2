@@ -314,6 +314,7 @@
             if (!modeLectureSeule) {
               const arbreData = {
                 talents,
+                talentsActifs,
                 pointsDisponibles,
                 pointsMax
               };
@@ -322,7 +323,7 @@
               localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -339,6 +340,7 @@
               // Sauvegarder l'arbre par défaut s'il n'y en a pas
               const defaultData = {
                 talents: talentsParDefaut,
+                talentsActifs: {},
                 pointsDisponibles: 10,
                 pointsMax: 10
               };
@@ -352,10 +354,10 @@
             if (savedData) {
               const data = JSON.parse(savedData);
               setTalents(data.talents || talentsParDefaut);
+              setTalentsActifs(data.talentsActifs || {});
               setPointsDisponibles(data.pointsDisponibles || 10);
               setPointsMax(data.pointsMax || 10);
               setArbreActuel(nomArbre);
-              setTalentsActifs({});
               console.log('📂 Arbre chargé:', nomArbre);
             }
           };
@@ -366,6 +368,7 @@
             if (nom && nom.trim()) {
               const newData = {
                 talents: talentsParDefaut,
+                talentsActifs: {},
                 pointsDisponibles: 10,
                 pointsMax: 10
               };
