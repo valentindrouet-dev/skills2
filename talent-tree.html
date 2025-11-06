@@ -160,8 +160,8 @@
 
         function ArbreTalents() {
           // Grille de placement : points d'ancrage tous les 20px
-          // Génère automatiquement les points de 0 à 1200
-          const gridColumns = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
+          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 1200 (61 lignes)
+          const gridColumns = Array.from({ length: 68 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1340]
           const gridRows = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
 
           // Ref pour éviter la sauvegarde automatique au premier rendu
