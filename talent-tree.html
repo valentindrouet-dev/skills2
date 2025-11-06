@@ -480,18 +480,52 @@
             }
           }, []);
 
+          // Trouver tous les talents qui dépendent d'un talent donné (récursif)
+          const findDependentTalents = (talentId, currentActifs) => {
+            const dependents = [];
+
+            // Trouver les talents qui ont talentId comme prérequis et qui sont actifs
+            Object.keys(currentActifs).forEach(id => {
+              const talent = talents[id];
+              if (talent && talent.prerequis.includes(talentId)) {
+                dependents.push(id);
+                // Récursion pour trouver les talents qui dépendent de celui-ci
+                const subDependents = findDependentTalents(id, currentActifs);
+                dependents.push(...subDependents);
+              }
+            });
+
+            return dependents;
+          };
+
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
 
             const talent = talents[talentId];
 
             if (talentsActifs[talentId]) {
+              // Trouver tous les talents qui dépendent de celui-ci
+              const dependents = findDependentTalents(talentId, talentsActifs);
+
+              // Calculer le total des points à restituer
+              let pointsToRestore = talent.cout;
+              dependents.forEach(depId => {
+                if (talents[depId]) {
+                  pointsToRestore += talents[depId].cout;
+                }
+              });
+
+              // Décocher le talent et tous ses dépendants
               setTalentsActifs(prev => {
                 const newState = { ...prev };
                 delete newState[talentId];
+                dependents.forEach(depId => {
+                  delete newState[depId];
+                });
                 return newState;
               });
-              setPointsDisponibles(prev => prev + talent.cout);
+
+              setPointsDisponibles(prev => prev + pointsToRestore);
             } else {
               // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
               const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
