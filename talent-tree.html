@@ -65,9 +65,14 @@
                 box-shadow: none !important;
                 transform: none !important;
                 opacity: 1 !important;
+            }
+
+            /* Talents non actifs : fond blanc */
+            .print-talent:not(.active) {
                 background: white !important;
             }
 
+            /* Talents actifs : garder les couleurs */
             .print-talent.active {
                 border-color: #000 !important;
                 -webkit-print-color-adjust: exact !important;
@@ -739,7 +744,7 @@
             <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
               <div className="w-full mx-auto" style={{ maxWidth: 'none' }}>
                 {/* Header */}
-                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg">
+                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg no-print">
                   <h1 className="text-4xl font-bold text-center text-white tracking-wide">
                     Arbre de Talents {modeLectureSeule ? (nomArbrePartage ? `- ${nomArbrePartage}` : '(PJ)') : `(GM)`}
                   </h1>
@@ -885,7 +890,7 @@
                 {vueActive === 'arbre' && (
                   <>
                     {/* Compteurs de points */}
-                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap">
+                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print">
                       {Object.entries(categories).map(([key, cat]) => {
                         const count = Object.keys(talentsActifs).filter(
                           id => talents[id]?.categorie === key
