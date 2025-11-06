@@ -134,10 +134,10 @@
         );
 
         function ArbreTalents() {
-          // Grille de placement avec pattern : 100px, 100px, 40px, 100px, 100px, 40px...
-          // Permet d'aligner : 1 grand carré = 2 rectangles empilés = 4 petits carrés en 2x2
-          const gridColumns = [0, 100, 200, 240, 340, 440, 480, 580, 680, 720, 820, 920, 960, 1060]; // 14 points X
-          const gridRows = [0, 100, 200, 240, 340, 440, 480, 580, 680, 720, 820, 920, 960, 1060]; // 14 points Y
+          // Grille de placement : points d'ancrage tous les 20px
+          // Génère automatiquement les points de 0 à 1200
+          const gridColumns = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
+          const gridRows = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
 
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
@@ -218,6 +218,7 @@
           const [talents, setTalents] = useState(talentsParDefaut);
           const [editingTalent, setEditingTalent] = useState(null);
           const [draggingTalent, setDraggingTalent] = useState(null);
+          const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
           const [modeLectureSeule, setModeLectureSeule] = useState(false);
 
           const categories = {
@@ -602,21 +603,22 @@
             e.dataTransfer.effectAllowed = 'move';
           };
 
-          const handleDragOver = (e) => {
-            if (!modeEdition) return;
-            e.preventDefault();
+          const handleDragEnd = () => {
+            // Réinitialiser les états si le drag est annulé
+            setDraggingTalent(null);
+            setTargetGridPoint(null);
           };
 
-          const handleDrop = (e) => {
+          const handleDragOver = (e) => {
             if (!modeEdition || !draggingTalent) return;
             e.preventDefault();
 
+            // Calculer le point d'ancrage cible pendant le drag
             const rect = e.currentTarget.getBoundingClientRect();
-            let x = e.clientX - rect.left - 100; // -100 pour centrer
-            let y = e.clientY - rect.top - 100;
+            let x = e.clientX - rect.left - 32; // -32 pour le padding du container
+            let y = e.clientY - rect.top - 32;
 
-            // Snap to grid positions (5 colonnes)
-            // Trouver la position X la plus proche dans gridColumns
+            // Trouver la position X la plus proche
             let closestX = gridColumns[0];
             let minDistX = Math.abs(x - closestX);
             gridColumns.forEach(col => {
@@ -627,7 +629,7 @@
               }
             });
 
-            // Trouver la position Y la plus proche dans gridRows
+            // Trouver la position Y la plus proche
             let closestY = gridRows[0];
             let minDistY = Math.abs(y - closestY);
             gridRows.forEach(row => {
@@ -638,15 +640,26 @@
               }
             });
 
+            // Mettre à jour le point cible
+            setTargetGridPoint({ x: closestX, y: closestY });
+          };
+
+          const handleDrop = (e) => {
+            if (!modeEdition || !draggingTalent || !targetGridPoint) return;
+            e.preventDefault();
+
+            // Utiliser le point cible calculé pendant le drag
             setTalents(prev => ({
               ...prev,
               [draggingTalent]: {
                 ...prev[draggingTalent],
-                position: { x: closestX, y: closestY }
+                position: { x: targetGridPoint.x, y: targetGridPoint.y }
               }
             }));
 
+            // Réinitialiser les états de drag
             setDraggingTalent(null);
+            setTargetGridPoint(null);
           };
 
           // Imprimer
@@ -870,48 +883,29 @@
                         onDrop={handleDrop}
                       >
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
-                        {/* Grille visible en mode édition */}
-                        {modeEdition && (
+                        {/* Points d'ancrage visibles pendant le drag */}
+                        {modeEdition && draggingTalent && (
                           <g className="no-print">
                             {/* Points de placement aux intersections de la grille */}
                             {gridRows.map((row, rowIndex) =>
-                              gridColumns.map((col, colIndex) => (
-                                <circle
-                                  key={`grid-${rowIndex}-${colIndex}`}
-                                  cx={col + 100 + 32}
-                                  cy={row + 100 + 32}
-                                  r="6"
-                                  fill="#fbbf24"
-                                  opacity="0.8"
-                                />
-                              ))
+                              gridColumns.map((col, colIndex) => {
+                                // Ce point est-il le point cible ?
+                                const isTarget = targetGridPoint &&
+                                  targetGridPoint.x === col &&
+                                  targetGridPoint.y === row;
+
+                                return (
+                                  <circle
+                                    key={`grid-${rowIndex}-${colIndex}`}
+                                    cx={col + 32}
+                                    cy={row + 32}
+                                    r={isTarget ? "8" : "4"}
+                                    fill={isTarget ? "#22c55e" : "#fbbf24"}
+                                    opacity={isTarget ? "1" : "0.5"}
+                                  />
+                                );
+                              })
                             )}
-                            {/* Lignes verticales légères */}
-                            {gridColumns.map((col, index) => (
-                              <line
-                                key={`col-${index}`}
-                                x1={col + 100 + 32}
-                                y1="0"
-                                x2={col + 100 + 32}
-                                y2="100%"
-                                stroke="#475569"
-                                strokeWidth="1"
-                                opacity="0.2"
-                              />
-                            ))}
-                            {/* Lignes horizontales légères */}
-                            {gridRows.map((row, index) => (
-                              <line
-                                key={`row-${index}`}
-                                x1="0"
-                                y1={row + 100 + 32}
-                                x2="100%"
-                                y2={row + 100 + 32}
-                                stroke="#475569"
-                                strokeWidth="1"
-                                opacity="0.2"
-                              />
-                            ))}
                           </g>
                         )}
 
@@ -986,6 +980,7 @@
                               }}
                               draggable={modeEdition}
                               onDragStart={(e) => handleDragStart(e, talent.id)}
+                              onDragEnd={handleDragEnd}
                               onMouseEnter={() => !modeEdition && setHoveredTalent(talent.id)}
                               onMouseLeave={() => setHoveredTalent(null)}
                             >
