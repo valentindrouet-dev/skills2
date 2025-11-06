@@ -301,6 +301,20 @@
             return maxY;
           };
 
+          // Helper pour calculer la largeur nécessaire de l'interface
+          const getRequiredWidth = () => {
+            if (Object.keys(talents).length === 0) return 1300;
+
+            let maxX = 1000; // Largeur minimale
+            Object.values(talents).forEach(talent => {
+              const dim = getDimensionsTalent(talent);
+              const talentRight = talent.position.x + dim.width + 150; // +150 pour marge
+              if (talentRight > maxX) maxX = talentRight;
+            });
+
+            return maxX;
+          };
+
           // ========== GESTION DE LA SAUVEGARDE GM ==========
 
           // Sauvegarder automatiquement l'arbre actuel
@@ -943,17 +957,18 @@
 
                     {/* Arbre de talents */}
                     <div className="bg-slate-700 rounded-b-lg shadow-2xl overflow-auto">
-                      <div
-                        className="p-8 relative print-talent-tree origin-top-left"
-                        style={{
-                          minHeight: `${getRequiredHeight()}px`,
-                          minWidth: '1300px',
-                          transform: `scale(${zoom})`,
-                          transformOrigin: 'top left'
-                        }}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop}
-                      >
+                      <div className="flex justify-center w-full">
+                        <div
+                          className="p-8 relative print-talent-tree origin-top-left"
+                          style={{
+                            minHeight: `${getRequiredHeight()}px`,
+                            width: `${getRequiredWidth()}px`,
+                            transform: `scale(${zoom})`,
+                            transformOrigin: 'top left'
+                          }}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                        >
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
                         {/* Points d'ancrage visibles pendant le drag */}
                         {modeEdition && draggingTalent && (
@@ -1353,6 +1368,7 @@
                         })}
                       </div>
                     </div>
+                      </div>
                   </div>
 
                     {/* Légende */}
