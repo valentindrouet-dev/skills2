@@ -144,6 +144,7 @@
           const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(10);
+          const [pointsMax, setPointsMax] = useState(10);
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
@@ -276,12 +277,12 @@
               const arbreData = {
                 talents,
                 pointsDisponibles,
-                pointsMax: 10
+                pointsMax
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, pointsDisponibles, arbreActuel, modeLectureSeule]);
+          }, [talents, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -312,6 +313,7 @@
               const data = JSON.parse(savedData);
               setTalents(data.talents || talentsParDefaut);
               setPointsDisponibles(data.pointsDisponibles || 10);
+              setPointsMax(data.pointsMax || 10);
               setArbreActuel(nomArbre);
               setTalentsActifs({});
               console.log('📂 Arbre chargé:', nomArbre);
@@ -404,7 +406,10 @@
                   setTalents(decoded.talents);
                   console.log('✅ Talents mis à jour avec les données partagées');
                 }
-                if (decoded.pointsMax) setPointsDisponibles(decoded.pointsMax);
+                if (decoded.pointsMax) {
+                  setPointsMax(decoded.pointsMax);
+                  setPointsDisponibles(decoded.pointsMax);
+                }
                 if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
@@ -504,7 +509,7 @@
             const talentsToShare = JSON.parse(JSON.stringify(talents)); // Deep copy
             const data = {
               talents: talentsToShare,
-              pointsMax: 10,
+              pointsMax,
               version: '1.0',
               nomArbre: arbreActuel
             };
@@ -523,14 +528,8 @@
 
             console.log('URL générée:', url);
 
-            // Copier dans le presse-papier
-            navigator.clipboard.writeText(url).then(() => {
-              const nbTalents = Object.keys(talentsToShare).length;
-              const talentNames = Object.values(talentsToShare).map(t => t.nom).join(', ');
-              alert(`✅ Lien copié !\n\n📊 Arbre partagé avec ${nbTalents} talent(s):\n${talentNames}\n\n🔒 Mode lecture seule pour vos joueurs`);
-            }).catch(() => {
-              prompt('Copiez ce lien :', url);
-            });
+            // Ouvrir dans un nouvel onglet
+            window.open(url, '_blank');
           };
 
           // Ajouter un nouveau talent
@@ -799,13 +798,30 @@
                           </div>
                         );
                       })}
-                      <div className="flex items-center gap-2 ml-8">
+                      <div className="flex items-center gap-4 ml-8">
                         <span className="text-amber-400 font-bold text-lg">
                           Points disponibles: {pointsDisponibles}
                         </span>
+                        {modeEdition && (
+                          <div className="flex items-center gap-2 no-print">
+                            <label className="text-white text-sm font-semibold">Points max:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={pointsMax}
+                              onChange={(e) => {
+                                const newMax = parseInt(e.target.value) || 10;
+                                setPointsMax(newMax);
+                                setPointsDisponibles(newMax);
+                              }}
+                              className="w-16 px-2 py-1 bg-slate-700 text-white rounded border border-slate-600 text-sm"
+                            />
+                          </div>
+                        )}
                         <button
                           onClick={resetTalents}
-                          className="ml-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors no-print"
+                          className="px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors no-print"
                         >
                           Réinitialiser
                         </button>
@@ -878,10 +894,11 @@
                             const talentDim = getDimensionsTalent(talent);
 
                             // Centres des talents (ajout de 32px pour le padding du container)
-                            const x1 = prereq.position.x + prereqDim.width / 2 + 32;
-                            const y1 = prereq.position.y + prereqDim.height / 2 + 32;
-                            const x2 = talent.position.x + talentDim.width / 2 + 32;
-                            const y2 = talent.position.y + talentDim.height / 2 + 32;
+                            // Tous les talents sont centrés sur une grille 200x200, donc le centre est toujours à +100
+                            const x1 = prereq.position.x + 100 + 32;
+                            const y1 = prereq.position.y + 100 + 32;
+                            const x2 = talent.position.x + 100 + 32;
+                            const y2 = talent.position.y + 100 + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
@@ -916,13 +933,17 @@
                           const isEditing = editingTalent === talent.id;
                           const dimensions = getDimensionsTalent(talent);
 
+                          // Calculer l'offset pour centrer les talents non-carrés
+                          const offsetX = (200 - dimensions.width) / 2;
+                          const offsetY = (200 - dimensions.height) / 2;
+
                           return (
                             <div
                               key={talent.id}
                               className={`absolute group ${draggingTalent === talent.id ? 'dragging' : ''}`}
                               style={{
-                                left: `${talent.position.x}px`,
-                                top: `${talent.position.y}px`,
+                                left: `${talent.position.x + offsetX}px`,
+                                top: `${talent.position.y + offsetY}px`,
                                 width: `${dimensions.width}px`,
                                 height: `${dimensions.height}px`,
                                 maxHeight: `${dimensions.height}px`,
@@ -1012,6 +1033,7 @@
                                     <div className="max-h-24 overflow-y-auto text-xs">
                                       {Object.values(talents)
                                         .filter(t => t.id !== talent.id)
+                                        .sort((a, b) => a.nom.localeCompare(b.nom))
                                         .map(t => (
                                           <label key={t.id} className="flex items-center gap-1 text-white cursor-pointer hover:bg-slate-600 px-1 rounded">
                                             <input
@@ -1114,7 +1136,7 @@
                                           <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2">
                                             {talent.nom}
                                           </div>
-                                          <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5">
+                                          <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1166,7 +1188,7 @@
 
                                   {/* Infobulle détaillée au survol */}
                                   {isHovered && !modeEdition && (
-                                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl z-50 no-print">
+                                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
                                       <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
                                       <div className="text-white text-xs mb-2">{talent.description}</div>
                                       <div className="flex justify-between items-center text-xs">
@@ -1224,7 +1246,7 @@
 
                     {/* Récapitulatif compact */}
                     <div className="mb-3 p-2 bg-amber-50 border border-amber-500 rounded flex justify-between text-sm">
-                      <span><strong>Points:</strong> {10 - pointsDisponibles}/10</span>
+                      <span><strong>Points:</strong> {pointsMax - pointsDisponibles}/{pointsMax}</span>
                       <span><strong>Talents:</strong> {Object.keys(talentsActifs).length}</span>
                       <span><strong>Bonus:</strong> {Object.entries(talentsActifs).filter(([id]) => talents[id]?.bonus).length}</span>
                     </div>
@@ -1272,7 +1294,7 @@
                                       {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                         <>
                                           <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
-                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
@@ -1325,7 +1347,7 @@
                                       {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                         <>
                                           <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
-                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
@@ -1378,7 +1400,7 @@
                                       {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                         <>
                                           <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
-                                          <div className="text-xs text-center leading-relaxed line-clamp-5">{talent.description}</div>
+                                          <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                         </>
                                       )}
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
