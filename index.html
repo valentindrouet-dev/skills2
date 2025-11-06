@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbres de Talents - Sélection</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            padding: 2rem;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #fbbf24;
+        }
+        .versions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .version-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #fbbf24;
+            border-radius: 1rem;
+            padding: 2rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        .version-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(251, 191, 36, 0.3);
+            border-color: #f59e0b;
+        }
+        .version-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #fbbf24;
+        }
+        .version-card p {
+            font-size: 1rem;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #fbbf24;
+            color: #0f172a;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Arbres de Talents</h1>
+        <p style="font-size: 1.2rem; color: #cbd5e1;">Choisissez la version de l'arbre de talents :</p>
+
+        <div class="versions">
+            <a href="talent-tree.html" class="version-card">
+                <h2>⚙️ Version GM</h2>
+                <p>Version complète avec système de gestion multi-arbres, mode édition, export/import, et partage.</p>
+                <span class="badge">Recommandé pour les MJs</span>
+            </a>
+
+            <a href="talent-tree-v2.html" class="version-card">
+                <h2>🔥 Orbes de Feu</h2>
+                <p>Arbre de talents spécialisé basé sur la magie du feu avec système de progression verticale.</p>
+                <span class="badge">Exemple de design</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
