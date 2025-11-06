@@ -282,6 +282,8 @@
                 pointsMax
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
+              // Sauvegarder également quel arbre est actif
+              localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
           }, [talents, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
@@ -383,8 +385,11 @@
             const dataParam = params.get('data');
 
             if (!dataParam) {
-              // Page GM - Charger l'arbre sauvegardé
-              chargerArbre(arbreActuel);
+              // Page GM - Charger le dernier arbre utilisé
+              const dernierArbre = localStorage.getItem('dernierArbreActif') || 'Arbre par défaut';
+              console.log('🔄 Chargement du dernier arbre actif:', dernierArbre);
+              chargerArbre(dernierArbre);
+              setArbreActuel(dernierArbre);
             }
           }, []); // Uniquement au démarrage
 
@@ -918,16 +923,16 @@
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
-                            // Calculer les centres des talents
+                            // Calculer les centres des talents selon leurs dimensions réelles
                             const prereqDim = getDimensionsTalent(prereq);
                             const talentDim = getDimensionsTalent(talent);
 
                             // Centres des talents (ajout de 32px pour le padding du container)
-                            // Tous les talents sont centrés sur une grille 200x200, donc le centre est toujours à +100
-                            const x1 = prereq.position.x + 100 + 32;
-                            const y1 = prereq.position.y + 100 + 32;
-                            const x2 = talent.position.x + 100 + 32;
-                            const y2 = talent.position.y + 100 + 32;
+                            // Le centre dépend maintenant de la taille du talent
+                            const x1 = prereq.position.x + (prereqDim.width / 2) + 32;
+                            const y1 = prereq.position.y + (prereqDim.height / 2) + 32;
+                            const x2 = talent.position.x + (talentDim.width / 2) + 32;
+                            const y2 = talent.position.y + (talentDim.height / 2) + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
@@ -962,17 +967,17 @@
                           const isEditing = editingTalent === talent.id;
                           const dimensions = getDimensionsTalent(talent);
 
-                          // Calculer l'offset pour centrer les talents non-carrés
-                          const offsetX = (200 - dimensions.width) / 2;
-                          const offsetY = (200 - dimensions.height) / 2;
+                          // Point d'ancrage en haut à gauche (pas de centrage)
+                          const offsetX = 0;
+                          const offsetY = 0;
 
                           return (
                             <div
                               key={talent.id}
                               className={`absolute group ${draggingTalent === talent.id ? 'dragging' : ''}`}
                               style={{
-                                left: `${talent.position.x + offsetX}px`,
-                                top: `${talent.position.y + offsetY}px`,
+                                left: `${talent.position.x}px`,
+                                top: `${talent.position.y}px`,
                                 width: `${dimensions.width}px`,
                                 height: `${dimensions.height}px`,
                                 maxHeight: `${dimensions.height}px`,
