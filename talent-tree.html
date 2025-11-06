@@ -149,6 +149,7 @@
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
           const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
+          const [zoom, setZoom] = useState(1); // Zoom level: 0.5 à 1.5
 
           const talentsParDefaut = {
             vie1: {
@@ -459,7 +460,7 @@
 
           const resetTalents = () => {
             setTalentsActifs({});
-            setPointsDisponibles(10);
+            setPointsDisponibles(pointsMax);
           };
 
           // Fonction d'export en JSON
@@ -767,6 +768,27 @@
                       <Share /> Partager
                     </button>
 
+                    {vueActive === 'arbre' && (
+                      <div className="flex items-center gap-2 border-l border-slate-600 pl-4">
+                        <span className="text-white text-sm font-semibold">Zoom:</span>
+                        <button
+                          onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
+                          title="Dézoomer"
+                        >
+                          −
+                        </button>
+                        <span className="text-white text-sm font-mono">{Math.round(zoom * 100)}%</span>
+                        <button
+                          onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
+                          title="Zoomer"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       onClick={vueActive === 'arbre' ? imprimerArbre : imprimerFeuille}
                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
@@ -829,13 +851,19 @@
                     </div>
 
                     {/* Arbre de talents */}
-                    <div
-                      className="bg-slate-700 rounded-b-lg p-8 shadow-2xl relative print-talent-tree overflow-x-auto"
-                      style={{ minHeight: `${getRequiredHeight()}px`, minWidth: '1300px' }}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
-                    >
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                    <div className="bg-slate-700 rounded-b-lg shadow-2xl overflow-auto">
+                      <div
+                        className="p-8 relative print-talent-tree origin-top-left"
+                        style={{
+                          minHeight: `${getRequiredHeight()}px`,
+                          minWidth: '1300px',
+                          transform: `scale(${zoom})`,
+                          transformOrigin: 'top left'
+                        }}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                      >
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
                         {/* Grille visible en mode édition */}
                         {modeEdition && (
                           <g className="no-print">
@@ -1188,24 +1216,47 @@
 
                                   {/* Infobulle détaillée au survol */}
                                   {isHovered && !modeEdition && (
-                                    <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
-                                      <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
-                                      <div className="text-white text-xs mb-2">{talent.description}</div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
-                                        {talent.bonus && (
-                                          <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                    talent.position.y === 0 ? (
+                                      // Infobulle vers le bas pour la première ligne
+                                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
+                                        <div className="absolute left-1/2 -translate-x-1/2 -top-2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-amber-400"></div>
+                                        <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                                        <div className="text-white text-xs mb-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        <div className="flex justify-between items-center text-xs">
+                                          <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                          {talent.bonus && (
+                                            <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                          )}
+                                        </div>
+                                        {talent.prerequis.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-slate-700">
+                                            <div className="text-slate-400 text-xs">
+                                              Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
+                                            </div>
+                                          </div>
                                         )}
                                       </div>
-                                      {talent.prerequis.length > 0 && (
-                                        <div className="mt-2 pt-2 border-t border-slate-700">
-                                          <div className="text-slate-400 text-xs">
-                                            Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
-                                          </div>
+                                    ) : (
+                                      // Infobulle vers le haut pour les autres lignes
+                                      <div className="absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full w-64 bg-slate-900 border-2 border-amber-400 rounded-lg p-3 shadow-2xl no-print" style={{ zIndex: 9999 }}>
+                                        <div className="text-amber-400 font-bold text-sm mb-1">{talent.nom}</div>
+                                        <div className="text-white text-xs mb-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                        <div className="flex justify-between items-center text-xs">
+                                          <span className="text-slate-300">Coût: <span className="text-amber-400 font-bold">{talent.cout} points</span></span>
+                                          {talent.bonus && (
+                                            <span className="text-green-400 font-bold">{talent.bonus}</span>
+                                          )}
                                         </div>
-                                      )}
-                                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
-                                    </div>
+                                        {talent.prerequis.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-slate-700">
+                                            <div className="text-slate-400 text-xs">
+                                              Prérequis: {talent.prerequis.map(p => talents[p]?.nom || p).join(', ')}
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-amber-400"></div>
+                                      </div>
+                                    )
                                   )}
                                 </div>
                               )}
@@ -1214,6 +1265,7 @@
                         })}
                       </div>
                     </div>
+                  </div>
 
                     {/* Légende */}
                     <div className="mt-6 bg-slate-800 rounded-lg p-4 border border-slate-600 no-print">
