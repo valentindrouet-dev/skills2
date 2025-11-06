@@ -100,21 +100,6 @@
             opacity: 0.5;
             cursor: move;
         }
-
-        /* Contour noir pour le texte des talents */
-        .talent-text {
-            text-shadow:
-                -1px -1px 0 #000,
-                 1px -1px 0 #000,
-                -1px  1px 0 #000,
-                 1px  1px 0 #000,
-                -1px  0   0 #000,
-                 1px  0   0 #000,
-                 0   -1px 0 #000,
-                 0    1px 0 #000,
-                -2px -2px 2px rgba(0,0,0,0.5),
-                 2px  2px 2px rgba(0,0,0,0.5);
-        }
     </style>
 </head>
 <body>
@@ -645,11 +630,12 @@
             // Copier dans le presse-papier
             try {
               await navigator.clipboard.writeText(url);
-              alert('✅ Lien copié dans le presse-papier !');
             } catch (err) {
               console.error('Erreur lors de la copie:', err);
-              alert('❌ Erreur lors de la copie. URL dans la console.');
             }
+
+            // Ouvrir dans un nouvel onglet
+            window.open(url, '_blank');
           };
 
           // Ajouter un nouveau talent
@@ -1234,10 +1220,14 @@
                                         Sauvegarder
                                       </button>
                                       <button
-                                        onClick={() => setEditingTalent(null)}
-                                        className="flex-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                                        onClick={() => {
+                                          // Désactiver tous les prérequis
+                                          const checkboxes = document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]`);
+                                          checkboxes.forEach(cb => cb.checked = false);
+                                        }}
+                                        className="flex-1 px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs"
                                       >
-                                        Annuler
+                                        Briser les Liens
                                       </button>
                                     </div>
                                     <div className="flex gap-2">
@@ -1273,7 +1263,7 @@
                                       minWidth: `${dimensions.width}px`
                                     }}
                                     className={`
-                                      rounded-lg border-2 transition-all duration-300 relative print-talent p-4
+                                      rounded-lg border-2 transition-all duration-300 relative print-talent p-1
                                       ${isActive
                                         ? 'border-amber-400 shadow-lg shadow-amber-500/50 active'
                                         : isAvailable
@@ -1309,10 +1299,10 @@
                                     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
                                       {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                         <>
-                                          <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2 talent-text">
+                                          <div className="text-white font-bold text-sm mb-2 text-center line-clamp-2">
                                             {talent.nom}
                                           </div>
-                                          <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5 talent-text" style={{ whiteSpace: 'pre-line' }}>
+                                          <div className="text-xs text-slate-200 text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1320,10 +1310,10 @@
 
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-2 talent-text">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 mb-2">
                                             {talent.nom}
                                           </div>
-                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2 talent-text" style={{ whiteSpace: 'pre-line' }}>
+                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1331,10 +1321,10 @@
 
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                         <>
-                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-2 talent-text">
+                                          <div className="text-white font-bold text-xs text-center line-clamp-1 leading-tight mb-2">
                                             {talent.nom}
                                           </div>
-                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2 talent-text" style={{ whiteSpace: 'pre-line' }}>
+                                          <div className="text-xs text-slate-200 text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1497,7 +1487,7 @@
                                     return (
                                       <div
                                         key={id}
-                                        className="relative rounded-lg border-2 border-slate-800 p-4 shadow-lg"
+                                        className="relative rounded-lg border-2 border-slate-800 p-1 shadow-lg"
                                         style={{
                                           backgroundColor: couleur,
                                           width: `${dimensions.width}px`,
@@ -1517,20 +1507,20 @@
                                         <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
                                           {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                             <>
-                                              <div className="font-bold text-sm mb-2 text-center line-clamp-2 talent-text">{talent.nom}</div>
-                                              <div className="text-xs text-center leading-relaxed line-clamp-5 talent-text" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                              <div className="font-bold text-sm mb-2 text-center line-clamp-2">{talent.nom}</div>
+                                              <div className="text-xs text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                             </>
                                           )}
                                           {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                             <>
-                                              <div className="font-bold text-xs text-center line-clamp-1 mb-2 talent-text">{talent.nom}</div>
-                                              <div className="text-xs text-center leading-tight line-clamp-2 talent-text" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                              <div className="font-bold text-xs text-center line-clamp-1 mb-2">{talent.nom}</div>
+                                              <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                             </>
                                           )}
                                           {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
                                             <>
-                                              <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2 talent-text">{talent.nom}</div>
-                                              <div className="text-xs text-center leading-tight line-clamp-2 talent-text" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
+                                              <div className="font-bold text-xs text-center line-clamp-1 leading-tight mb-2">{talent.nom}</div>
+                                              <div className="text-xs text-center leading-tight line-clamp-2" style={{ whiteSpace: 'pre-line' }}>{talent.description}</div>
                                             </>
                                           )}
                                         </div>
