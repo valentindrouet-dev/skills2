@@ -32,9 +32,16 @@
                 background: white !important;
             }
 
-            @page {
+            /* A4 portrait pour l'arbre */
+            @page arbre {
+                size: A4 portrait;
+                margin: 0.5cm;
+            }
+
+            /* A4 paysage pour la feuille */
+            @page feuille {
                 size: A4 landscape;
-                margin: 1cm;
+                margin: 0.5cm;
             }
 
             .print-page-break {
@@ -46,6 +53,11 @@
                 padding: 10px;
                 max-width: 100%;
                 overflow: hidden;
+                page: arbre;
+                transform: scale(0.45) !important;
+                transform-origin: top left !important;
+                width: 220% !important;
+                height: 220% !important;
             }
 
             .print-talent {
@@ -53,12 +65,13 @@
                 box-shadow: none !important;
                 transform: none !important;
                 opacity: 1 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+                background: white !important;
             }
 
             .print-talent.active {
                 border-color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             /* Masquer les badges pour l'impression */
@@ -67,6 +80,12 @@
             }
 
             /* Styles pour la feuille de perso */
+            .print-feuille {
+                page: feuille;
+                transform: scale(0.75) !important;
+                transform-origin: top left !important;
+            }
+
             .bg-white {
                 background: white !important;
             }
@@ -1352,7 +1371,7 @@
 
                 {/* Vue Feuille de personnage */}
                 {vueActive === 'feuille' && (
-                  <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black">
+                  <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black print-feuille">
                     <h2 className="text-2xl font-bold mb-3 text-center border-b-2 border-amber-500 pb-2">
                       Feuille de Personnage
                     </h2>
