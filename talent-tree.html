@@ -964,14 +964,6 @@
                     </select>
                   </div>
 
-                  {/* ENDU */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">ENDU :</span>
-                    <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
-                      {getTotalEndu()}
-                    </span>
-                  </div>
-
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
                     <span className="text-white font-semibold">DÉGÂTS :</span>
@@ -980,35 +972,49 @@
                     </span>
                   </div>
 
-                  {/* VIE */}
+                  {/* Formule PV = VIE + ENDU + BONUS */}
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">VIE :</span>
-                    <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
-                      {getTotalVie()}
-                    </span>
-                  </div>
+                    {/* PV */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold">PV :</span>
+                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
+                        {getPointsDeVie()}
+                      </span>
+                    </div>
 
-                  {/* Bonus */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Bonus :</label>
-                    <input
-                      type="number"
-                      value={bonus}
-                      onChange={(e) => setBonus(parseInt(e.target.value) || 0)}
-                      readOnly={modeLectureSeule}
-                      className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
-                    />
-                  </div>
+                    <span className="text-white font-bold">=</span>
 
-                  {/* Points de Vie (formule complète) */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">PV :</span>
-                    <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold text-center">
-                      {getPointsDeVie()}
-                    </span>
-                    <span className="text-slate-300 text-sm">
-                      = {getTotalVie()} × {getTotalEndu()} + {bonus}
-                    </span>
+                    {/* VIE */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold">VIE :</span>
+                      <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
+                        {getTotalVie()}
+                      </span>
+                    </div>
+
+                    <span className="text-white font-bold">×</span>
+
+                    {/* ENDU */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold">ENDU :</span>
+                      <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
+                        {getTotalEndu()}
+                      </span>
+                    </div>
+
+                    <span className="text-white font-bold">+</span>
+
+                    {/* Bonus */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-white font-semibold">Bonus :</label>
+                      <input
+                        type="number"
+                        value={bonus}
+                        onChange={(e) => setBonus(parseInt(e.target.value) || 0)}
+                        readOnly={modeLectureSeule}
+                        className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                      />
+                    </div>
                   </div>
                 </div>
 
