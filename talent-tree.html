@@ -1250,15 +1250,19 @@
                   {/* Classe */}
                   <div className="flex items-center gap-2">
                     <label className="text-white font-semibold">Classe :</label>
-                    <select
-                      value={arbreActuel}
-                      onChange={(e) => chargerArbre(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
-                    >
-                      {CLASSES.map(classe => (
-                        <option key={classe} value={classe}>{classe}</option>
-                      ))}
-                    </select>
+                    {modeLectureSeule ? (
+                      <span className="px-3 py-1.5 bg-slate-700 text-amber-400 rounded border border-amber-500 font-bold">{arbreActuel}</span>
+                    ) : (
+                      <select
+                        value={arbreActuel}
+                        onChange={(e) => chargerArbre(e.target.value)}
+                        className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
+                      >
+                        {CLASSES.map(classe => (
+                          <option key={classe} value={classe}>{classe}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   {/* Niveau */}
@@ -1333,7 +1337,7 @@
                   {/* Compétences - visible seulement si au moins 1 point investi */}
                   {getCompetencesActives().length > 0 && (
                     <>
-                      {/* Affichage des compétences sur la même ligne */}
+                      <div className="w-full"></div>
                       {getCompetencesActives().map(comp => (
                         <div key={comp} className="flex items-center gap-2">
                           <span className="text-white font-semibold">{comp} :</span>
@@ -1955,10 +1959,11 @@
                                     {/* Bonus Compétence */}
                                     {talent.competence && (
                                       <div className={`
-                                        absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold
+                                        absolute -top-3 -left-3 px-1.5 py-0.5 rounded text-xs font-semibold
                                         ${isActive ? 'bg-orange-500 text-white' : 'bg-slate-500 text-white'}
                                         border ${isActive ? 'border-orange-400' : 'border-slate-400'}
-                                      `}>
+                                      `}
+                                      style={{ fontSize: '0.65rem' }}>
                                         {talent.competence}
                                       </div>
                                     )}
@@ -2151,11 +2156,6 @@
                                         <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
                                           {talent.cout}
                                         </div>
-                                        {talent.competence && (
-                                          <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white border border-orange-400">
-                                            {talent.competence}
-                                          </div>
-                                        )}
                                         <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
                                           {isGrandCarre(talent) && (
                                             <>
