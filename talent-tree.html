@@ -744,6 +744,69 @@
             setEditingTalent(newId);
           };
 
+          // Ajouter un talent VIE
+          const ajouterTalentVie = () => {
+            const newId = `talent_vie_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                id: newId,
+                nom: 'VIE',
+                cout: 1,
+                bonus: '',
+                description: 'VIE +1',
+                position: { x: 100, y: 300 },
+                prerequis: [],
+                categorie: 'vie',
+                typeTalent: 'petit_carre',
+                couleurTalent: 'vie'
+              }
+            }));
+            setEditingTalent(newId);
+          };
+
+          // Ajouter un talent ENDU
+          const ajouterTalentEndu = () => {
+            const newId = `talent_endu_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                id: newId,
+                nom: 'ENDU',
+                cout: 1,
+                bonus: '',
+                description: 'ENDU +2',
+                position: { x: 100, y: 300 },
+                prerequis: [],
+                categorie: 'vie',
+                typeTalent: 'petit_carre',
+                couleurTalent: 'endu'
+              }
+            }));
+            setEditingTalent(newId);
+          };
+
+          // Ajouter un talent DEGATS
+          const ajouterTalentDegats = () => {
+            const newId = `talent_degats_${Date.now()}`;
+            setTalents(prev => ({
+              ...prev,
+              [newId]: {
+                id: newId,
+                nom: 'DEGATS',
+                cout: 1,
+                bonus: '',
+                description: 'DEGATS +2',
+                position: { x: 100, y: 300 },
+                prerequis: [],
+                categorie: 'vie',
+                typeTalent: 'petit_carre',
+                couleurTalent: 'degats'
+              }
+            }));
+            setEditingTalent(newId);
+          };
+
           // Supprimer un talent
           const supprimerTalent = (talentId) => {
             if (!confirm('Voulez-vous vraiment supprimer ce talent ?')) return;
@@ -1061,12 +1124,41 @@
                         </button>
 
                         {modeEdition && (
-                          <button
-                            onClick={ajouterTalent}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                          >
-                            + Nouveau Talent
-                          </button>
+                          <>
+                            <button
+                              onClick={ajouterTalent}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                            >
+                              + Nouveau Talent
+                            </button>
+                            <button
+                              onClick={ajouterTalentVie}
+                              className="px-4 py-2 text-white rounded font-semibold transition-colors"
+                              style={{ backgroundColor: couleursTalent.vie.code, ':hover': { filter: 'brightness(0.9)' } }}
+                              onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(0.9)'}
+                              onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
+                            >
+                              + VIE
+                            </button>
+                            <button
+                              onClick={ajouterTalentEndu}
+                              className="px-4 py-2 text-white rounded font-semibold transition-colors"
+                              style={{ backgroundColor: couleursTalent.endu.code, ':hover': { filter: 'brightness(0.9)' } }}
+                              onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(0.9)'}
+                              onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
+                            >
+                              + ENDU
+                            </button>
+                            <button
+                              onClick={ajouterTalentDegats}
+                              className="px-4 py-2 text-white rounded font-semibold transition-colors"
+                              style={{ backgroundColor: couleursTalent.degats.code, ':hover': { filter: 'brightness(0.9)' } }}
+                              onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(0.9)'}
+                              onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
+                            >
+                              + DEGATS
+                            </button>
+                          </>
                         )}
                       </>
                     )}
