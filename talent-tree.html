@@ -63,21 +63,28 @@
                 box-shadow: none !important;
                 transform: none !important;
                 opacity: 1 !important;
-                /* Garder les couleurs de fond de tous les talents */
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+                /* Talents non-actifs : fond blanc, texte noir */
+                background-color: white !important;
+                color: black !important;
             }
 
-            /* Tous les talents gardent leur couleur */
-            .print-talent * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+            /* Talents non-actifs : texte en noir */
+            .print-talent *:not(.print-talent.active *) {
+                color: black !important;
             }
 
-            /* Talents actifs : bordure plus épaisse */
+            /* Talents actifs : garder les couleurs */
             .print-talent.active {
                 border-width: 3px !important;
                 border-color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Talents actifs : garder les couleurs du texte */
+            .print-talent.active * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             /* Masquer les badges pour l'impression */
@@ -371,6 +378,28 @@
               'Pyromane': 'from-orange-600 to-orange-500'
             };
             return couleurs[classe] || 'from-amber-600 to-amber-500';
+          };
+
+          // Calculer la taille de police dynamique selon la longueur du texte et largeur du talent
+          const getDynamicFontSize = (text, baseSize, talentWidth) => {
+            if (!text) return baseSize;
+
+            // Estimation : ~7 pixels par caractère en moyenne pour la police de base
+            const charWidthEstimate = baseSize * 0.5;
+            const maxCharsPerLine = Math.floor(talentWidth / charWidthEstimate);
+            const lines = text.split('\n');
+
+            // Vérifier si une ligne dépasse la largeur
+            const hasOverflow = lines.some(line => line.length > maxCharsPerLine);
+
+            if (hasOverflow) {
+              // Réduire proportionnellement
+              const maxLineLength = Math.max(...lines.map(l => l.length));
+              const ratio = maxCharsPerLine / maxLineLength;
+              return Math.max(baseSize * ratio * 0.9, baseSize * 0.6); // Min 60% de la taille de base
+            }
+
+            return baseSize;
           };
 
           // Calculer le total d'ENDU (talents Endu actifs)
@@ -1968,10 +1997,10 @@
                                     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
                                       {(talent.typeTalent === 'grand_carre' || talent.typeTalent === 'action') && (
                                         <>
-                                          <div className="text-white font-bold mb-2 text-center line-clamp-2" style={{ fontSize: '1.3rem' }}>
+                                          <div className="text-white font-bold mb-2 text-center line-clamp-2" style={{ fontSize: `${getDynamicFontSize(talent.nom, 1.3, dimensions.width - 20)}rem` }}>
                                             {talent.nom}
                                           </div>
-                                          <div className="text-slate-200 font-bold text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>
+                                          <div className="text-slate-200 font-bold text-center leading-relaxed line-clamp-5" style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1979,7 +2008,7 @@
 
                                       {(talent.typeTalent === 'rectangle' || talent.typeTalent === 'passif') && (
                                         <>
-                                          <div className="text-slate-200 font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>
+                                          <div className="text-slate-200 font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}>
                                             {talent.description}
                                           </div>
                                         </>
@@ -1987,7 +2016,7 @@
 
                                       {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus' || talent.typeTalent === 'competence') && (
                                         <>
-                                          <div className="text-slate-200 font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>
+                                          <div className="text-slate-200 font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}>
                                             {talent.description}
                                           </div>
                                         </>
