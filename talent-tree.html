@@ -180,6 +180,11 @@
           const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
           const [zoom, setZoom] = useState(1); // Zoom level: 0.5 à 1.5
 
+          // États pour les caractéristiques du personnage
+          const [nomPersonnage, setNomPersonnage] = useState('');
+          const [niveau, setNiveau] = useState(1);
+          const [pointsDeVie, setPointsDeVie] = useState(0);
+
           const talentsParDefaut = {
             vie1: {
               id: 'vie1',
@@ -292,6 +297,22 @@
             return couleursTalent[couleur]?.code || couleursTalent.action.code;
           };
 
+          // Calculer le total d'ENDU (talents Endu actifs)
+          const getTotalEndu = () => {
+            return Object.keys(talentsActifs).filter(id => {
+              const talent = talents[id];
+              return talent && talent.couleurTalent === 'endu';
+            }).length;
+          };
+
+          // Calculer le total de DEGATS (talents Degats actifs)
+          const getTotalDegats = () => {
+            return Object.keys(talentsActifs).filter(id => {
+              const talent = talents[id];
+              return talent && talent.couleurTalent === 'degats';
+            }).length;
+          };
+
           // Helper pour calculer la hauteur nécessaire de l'interface
           const getRequiredHeight = () => {
             if (Object.keys(talents).length === 0) return 800;
@@ -335,14 +356,17 @@
                 talents,
                 talentsActifs,
                 pointsDisponibles,
-                pointsMax
+                pointsMax,
+                nomPersonnage,
+                niveau,
+                pointsDeVie
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
               // Sauvegarder également quel arbre est actif
               localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, pointsDisponibles, pointsMax, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, pointsDisponibles, pointsMax, nomPersonnage, niveau, pointsDeVie, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -376,6 +400,9 @@
               setTalentsActifs(data.talentsActifs || {});
               setPointsDisponibles(data.pointsDisponibles || 10);
               setPointsMax(data.pointsMax || 10);
+              setNomPersonnage(data.nomPersonnage || '');
+              setNiveau(data.niveau || 1);
+              setPointsDeVie(data.pointsDeVie || 0);
               setArbreActuel(nomArbre);
               console.log('📂 Arbre chargé:', nomArbre);
             }
@@ -477,6 +504,9 @@
                   setPointsDisponibles(decoded.pointsMax);
                 }
                 if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
+                if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
+                if (decoded.niveau) setNiveau(decoded.niveau);
+                if (decoded.pointsDeVie !== undefined) setPointsDeVie(decoded.pointsDeVie);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
               } catch (e) {
@@ -613,7 +643,10 @@
               talents: talentsToShare,
               pointsMax,
               version: '1.0',
-              nomArbre: arbreActuel
+              nomArbre: arbreActuel,
+              nomPersonnage,
+              niveau,
+              pointsDeVie
             };
 
             console.log('Données à encoder:', data);
@@ -863,6 +896,66 @@
                     </div>
                   </div>
                 )}
+
+                {/* Caractéristiques du personnage */}
+                <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-6 no-print`}>
+                  {/* Nom */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Nom:</label>
+                    <input
+                      type="text"
+                      value={nomPersonnage}
+                      onChange={(e) => setNomPersonnage(e.target.value)}
+                      readOnly={modeLectureSeule}
+                      placeholder="Nom du personnage"
+                      className={`px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                    />
+                  </div>
+
+                  {/* ENDU */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">ENDU:</span>
+                    <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
+                      {getTotalEndu()}
+                    </span>
+                  </div>
+
+                  {/* DEGATS */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">DÉGÂTS:</span>
+                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                      {getTotalDegats()}
+                    </span>
+                  </div>
+
+                  {/* Points de Vie */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Points de Vie:</label>
+                    <input
+                      type="number"
+                      value={pointsDeVie}
+                      onChange={(e) => setPointsDeVie(parseInt(e.target.value) || 0)}
+                      readOnly={modeLectureSeule}
+                      min="0"
+                      className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                    />
+                  </div>
+
+                  {/* Niveau */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Niveau:</label>
+                    <select
+                      value={niveau}
+                      onChange={(e) => setNiveau(parseInt(e.target.value))}
+                      disabled={modeLectureSeule}
+                      className={`px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
                 {/* Barre d'outils */}
                 <div className={`bg-slate-800 ${modeLectureSeule ? 'border-2' : 'border-x-2'} border-amber-500 p-4 flex justify-between items-center flex-wrap gap-4 no-print`}>
