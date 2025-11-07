@@ -186,7 +186,10 @@
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
           const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
-          const [zoom, setZoom] = useState(1); // Zoom level: 0.5 à 1.5
+          const [zoom, setZoom] = useState(() => {
+            const savedZoom = localStorage.getItem('zoomLevel');
+            return savedZoom ? parseFloat(savedZoom) : 1;
+          }); // Zoom level: 0.5 à 1.5
 
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
@@ -515,23 +518,42 @@
             });
           }, []);
 
+          // Sauvegarder le zoom quand il change
+          useEffect(() => {
+            localStorage.setItem('zoomLevel', zoom.toString());
+          }, [zoom]);
+
           // Charger une classe
           const chargerArbre = (classe) => {
-            const savedData = localStorage.getItem(`classe_${classe}`);
+            // En mode lecture seule, chercher d'abord dans classe_shared_
+            const keyToCheck = modeLectureSeule ? `classe_shared_${classe}` : `classe_${classe}`;
+            const savedData = localStorage.getItem(keyToCheck);
+
             if (savedData) {
               const data = JSON.parse(savedData);
               setTalents(data.talents || creerTalentDepart(classe));
               setTalentsActifs(data.talentsActifs || {});
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
-              setNomPersonnage(data.nomPersonnage || '');
-              setNiveau(data.niveau || 1);
-              setBonus(data.bonus || 0);
+              // Ne pas écraser nomPersonnage, niveau, bonus en mode partagé (ils sont communs à toutes les classes)
+              if (!modeLectureSeule) {
+                setNomPersonnage(data.nomPersonnage || '');
+                setNiveau(data.niveau || 1);
+                setBonus(data.bonus || 0);
+              }
               setArbreActuel(classe);
-              console.log('📂 Classe chargée:', classe);
+              console.log('📂 Classe chargée:', classe, modeLectureSeule ? '(mode partagé)' : '(mode GM)');
             } else {
-              // Si la classe n'existe pas, la créer
-              initialiserClasse(classe);
-              chargerArbre(classe); // Recharger après initialisation
+              // Si la classe n'existe pas, la créer (seulement en mode GM)
+              if (!modeLectureSeule) {
+                initialiserClasse(classe);
+                chargerArbre(classe); // Recharger après initialisation
+              } else {
+                // En mode lecture seule, créer un arbre vide si pas de données
+                setTalents(creerTalentDepart(classe));
+                setTalentsActifs({});
+                setArbreActuel(classe);
+                console.log('📂 Classe vide créée en mode lecture seule:', classe);
+              }
             }
           };
 
@@ -563,25 +585,49 @@
                 const jsonString = decodeURIComponent(escape(atob(dataParam)));
                 const decoded = JSON.parse(jsonString);
                 console.log('Données décodées:', decoded);
-                console.log('Talents chargés:', decoded.talents);
-                console.log('Nombre de talents chargés:', Object.keys(decoded.talents || {}).length);
 
-                if (decoded.talents) {
-                  setTalents(decoded.talents);
-                  console.log('✅ Talents mis à jour avec les données partagées');
+                // Vérifier la version
+                if (decoded.version === '2.0' && decoded.classes) {
+                  // Nouveau format : toutes les classes sont partagées
+                  console.log('Format v2.0 détecté - Chargement de toutes les classes');
+
+                  // Sauvegarder toutes les classes en localStorage pour ce mode lecture seule
+                  Object.entries(decoded.classes).forEach(([classe, data]) => {
+                    localStorage.setItem(`classe_shared_${classe}`, JSON.stringify(data));
+                  });
+
+                  // Charger la classe active
+                  const classeActive = decoded.classeActive || CLASSES[0];
+                  const dataClasseActive = decoded.classes[classeActive];
+                  if (dataClasseActive) {
+                    setTalents(dataClasseActive.talents || {});
+                    setTalentsActifs(dataClasseActive.talentsActifs || {});
+                    setArbreActuel(classeActive);
+                  }
+
+                  if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
+                  if (decoded.niveau) setNiveau(decoded.niveau);
+                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+
+                  console.log('✅ Toutes les classes chargées en mode partagé');
+                } else {
+                  // Ancien format (rétrocompatibilité)
+                  console.log('Format v1.0 détecté');
+                  if (decoded.talents) {
+                    setTalents(decoded.talents);
+                  }
+                  if (decoded.talentsActifs) {
+                    setTalentsActifs(decoded.talentsActifs);
+                  }
+                  if (decoded.nomArbre) {
+                    setNomArbrePartage(decoded.nomArbre);
+                    setArbreActuel(decoded.nomArbre);
+                  }
+                  if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
+                  if (decoded.niveau) setNiveau(decoded.niveau);
+                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
                 }
-                if (decoded.talentsActifs) {
-                  setTalentsActifs(decoded.talentsActifs);
-                  console.log('✅ Talents actifs mis à jour avec les données partagées');
-                }
-                // pointsMax et pointsDisponibles seront recalculés automatiquement par le useEffect basé sur niveau
-                if (decoded.nomArbre) {
-                  setNomArbrePartage(decoded.nomArbre);
-                  setArbreActuel(decoded.nomArbre); // Mettre à jour la classe affichée dans le sélecteur
-                }
-                if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
-                if (decoded.niveau) setNiveau(decoded.niveau);
-                if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
               } catch (e) {
@@ -643,12 +689,12 @@
               const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
 
               if (!prerequisRemplis) {
-                alert('Vous devez d\'abord débloquer au moins un des talents prérequis !');
+                alert('Vous devez sélectionner les talents prérequis !');
                 return;
               }
 
               if (pointsDisponibles < talent.cout) {
-                alert('Points insuffisants !');
+                alert('Vous n\'avez plus assez de point de talents !');
                 return;
               }
 
@@ -712,14 +758,23 @@
             console.log('État des talents au moment du partage:', talents);
             console.log('Nombre de talents:', Object.keys(talents).length);
 
-            // S'assurer de capturer l'état actuel des talents avec toutes les modifications
-            const talentsToShare = JSON.parse(JSON.stringify(talents)); // Deep copy
+            // Récupérer toutes les classes depuis localStorage
+            const toutesLesClasses = {};
+            CLASSES.forEach(classe => {
+              const savedData = localStorage.getItem(`classe_${classe}`);
+              if (savedData) {
+                try {
+                  toutesLesClasses[classe] = JSON.parse(savedData);
+                } catch (e) {
+                  console.error(`Erreur lors du chargement de la classe ${classe}:`, e);
+                }
+              }
+            });
+
             const data = {
-              talents: talentsToShare,
-              talentsActifs,
-              // pointsMax sera recalculé à partir du niveau
-              version: '1.0',
-              nomArbre: arbreActuel,
+              classes: toutesLesClasses, // Partager toutes les classes
+              version: '2.0',
+              classeActive: arbreActuel, // Quelle classe est actuellement affichée
               nomPersonnage,
               niveau,
               bonus
@@ -1012,7 +1067,7 @@
                 </div>
 
                 {/* Caractéristiques du personnage */}
-                <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-6 no-print`}>
+                <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
                   {/* Nom */}
                   <div className="flex items-center gap-2">
                     <label className="text-white font-semibold">Nom :</label>
@@ -1032,7 +1087,6 @@
                       value={arbreActuel}
                       onChange={(e) => chargerArbre(e.target.value)}
                       className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
-                      disabled={modeLectureSeule}
                     >
                       {CLASSES.map(classe => (
                         <option key={classe} value={classe}>{classe}</option>
