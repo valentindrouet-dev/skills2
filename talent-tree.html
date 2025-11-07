@@ -168,7 +168,7 @@
           const isInitialMount = React.useRef(true);
 
           // Les 8 classes fixes
-          const CLASSES = ['Alchimiste', 'Gardien', 'Déviant', 'Pyromane', 'Destructeur', 'Apothicaire', 'Lamevent', 'Chasseur'];
+          const CLASSES = ['Artificier', 'Gardien', 'Déviant', 'Pyromane', 'Destructeur', 'Apothicaire', 'Lamevent', 'Chasseur'];
 
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState('Gardien');
@@ -911,20 +911,6 @@
                     />
                   </div>
 
-                  {/* Niveau */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Niveau :</label>
-                    <select
-                      value={niveau}
-                      onChange={(e) => setNiveau(parseInt(e.target.value))}
-                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
-                  </div>
-
                   {/* Classe */}
                   <div className="flex items-center gap-2">
                     <label className="text-white font-semibold">Classe :</label>
@@ -940,6 +926,23 @@
                     </select>
                   </div>
 
+                  {/* Niveau */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Niveau :</label>
+                    <select
+                      value={niveau}
+                      onChange={(e) => setNiveau(parseInt(e.target.value))}
+                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Séparateur de ligne */}
+                  <div className="w-full"></div>
+
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
                     <span className="text-white font-semibold">DÉGÂTS :</span>
@@ -947,6 +950,9 @@
                       {getTotalDegats()}
                     </span>
                   </div>
+
+                  {/* Séparateur vertical */}
+                  <span className="text-white font-bold text-xl">|</span>
 
                   {/* Formule PV = VIE + ENDU + BONUS */}
                   <div className="flex items-center gap-2">
