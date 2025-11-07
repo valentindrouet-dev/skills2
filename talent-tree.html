@@ -167,9 +167,11 @@
           // Ref pour éviter la sauvegarde automatique au premier rendu
           const isInitialMount = React.useRef(true);
 
+          // Les 8 classes fixes
+          const CLASSES = ['Alchimiste', 'Gardien', 'Déviant', 'Pyromane', 'Destructeur', 'Apothicaire', 'Lamevent', 'Chasseur'];
+
           // États pour la gestion des arbres GM
-          const [arbreActuel, setArbreActuel] = useState('Arbre par défaut');
-          const [arbresDisponibles, setArbresDisponibles] = useState(['Arbre par défaut']);
+          const [arbreActuel, setArbreActuel] = useState('Gardien');
           const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(10);
@@ -423,6 +425,38 @@
 
           // ========== GESTION DE LA SAUVEGARDE GM ==========
 
+          // Créer le talent de départ pour une classe
+          const creerTalentDepart = (classe) => {
+            return {
+              [`talent_depart_${classe.toLowerCase()}`]: {
+                id: `talent_depart_${classe.toLowerCase()}`,
+                nom: `${classe} - Début`,
+                cout: 0,
+                description: 'Point de départ de l\'arbre',
+                position: { x: 400, y: 100 },
+                prerequis: [],
+                typeTalent: 'grand_carre',
+                couleurTalent: 'amelioration'
+              }
+            };
+          };
+
+          // Initialiser une classe si elle n'existe pas
+          const initialiserClasse = (classe) => {
+            const key = `classe_${classe}`;
+            if (!localStorage.getItem(key)) {
+              const defaultData = {
+                talents: creerTalentDepart(classe),
+                talentsActifs: {},
+                nomPersonnage: '',
+                niveau: 1,
+                bonus: 0
+              };
+              localStorage.setItem(key, JSON.stringify(defaultData));
+              console.log(`✨ Classe "${classe}" initialisée`);
+            }
+          };
+
           // Sauvegarder automatiquement l'arbre actuel
           useEffect(() => {
             // Sauter la sauvegarde au premier rendu pour éviter d'écraser le dernier arbre actif
@@ -440,118 +474,51 @@
                 niveau,
                 bonus
               };
-              localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
-              // Sauvegarder également quel arbre est actif
-              localStorage.setItem('dernierArbreActif', arbreActuel);
+              localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
+              // Sauvegarder également quelle classe est active
+              localStorage.setItem('derniereClasseActive', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
           }, [talents, talentsActifs, nomPersonnage, niveau, bonus, arbreActuel, modeLectureSeule]);
 
-          // Charger la liste des arbres sauvegardés au démarrage
+          // Initialiser toutes les classes au démarrage
           useEffect(() => {
-            const savedTrees = [];
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key.startsWith('arbre_')) {
-                savedTrees.push(key.replace('arbre_', ''));
-              }
-            }
-            if (savedTrees.length > 0) {
-              setArbresDisponibles(savedTrees);
-            } else {
-              // Sauvegarder l'arbre par défaut s'il n'y en a pas
-              const defaultData = {
-                talents: talentsParDefaut,
-                talentsActifs: {},
-                pointsDisponibles: 10,
-                pointsMax: 10
-              };
-              localStorage.setItem('arbre_Arbre par défaut', JSON.stringify(defaultData));
-            }
+            // Initialiser chaque classe si elle n'existe pas
+            CLASSES.forEach(classe => {
+              initialiserClasse(classe);
+            });
           }, []);
 
-          // Charger un arbre
-          const chargerArbre = (nomArbre) => {
-            const savedData = localStorage.getItem(`arbre_${nomArbre}`);
+          // Charger une classe
+          const chargerArbre = (classe) => {
+            const savedData = localStorage.getItem(`classe_${classe}`);
             if (savedData) {
               const data = JSON.parse(savedData);
-              setTalents(data.talents || talentsParDefaut);
+              setTalents(data.talents || creerTalentDepart(classe));
               setTalentsActifs(data.talentsActifs || {});
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               setNomPersonnage(data.nomPersonnage || '');
               setNiveau(data.niveau || 1);
               setBonus(data.bonus || 0);
-              setArbreActuel(nomArbre);
-              console.log('📂 Arbre chargé:', nomArbre);
+              setArbreActuel(classe);
+              console.log('📂 Classe chargée:', classe);
+            } else {
+              // Si la classe n'existe pas, la créer
+              initialiserClasse(classe);
+              chargerArbre(classe); // Recharger après initialisation
             }
           };
 
-          // Créer un nouvel arbre
-          const nouvelArbre = () => {
-            const nom = prompt('Nom du nouvel arbre de talents :');
-            if (nom && nom.trim()) {
-              const newData = {
-                talents: talentsParDefaut,
-                talentsActifs: {},
-                pointsDisponibles: 10,
-                pointsMax: 10
-              };
-              localStorage.setItem(`arbre_${nom}`, JSON.stringify(newData));
-              setArbresDisponibles(prev => [...prev, nom]);
-              chargerArbre(nom);
-            }
-          };
-
-          // Renommer l'arbre actuel
-          const renommerArbre = () => {
-            const nouveauNom = prompt('Nouveau nom pour cet arbre :', arbreActuel);
-            if (nouveauNom && nouveauNom.trim() && nouveauNom !== arbreActuel) {
-              // Copier les données
-              const data = localStorage.getItem(`arbre_${arbreActuel}`);
-              localStorage.setItem(`arbre_${nouveauNom}`, data);
-              localStorage.removeItem(`arbre_${arbreActuel}`);
-
-              // Mettre à jour la liste
-              setArbresDisponibles(prev => prev.map(a => a === arbreActuel ? nouveauNom : a));
-              setArbreActuel(nouveauNom);
-            }
-          };
-
-          // Dupliquer l'arbre actuel
-          const dupliquerArbre = () => {
-            const nom = prompt('Nom de la copie :', `${arbreActuel} (copie)`);
-            if (nom && nom.trim()) {
-              const data = localStorage.getItem(`arbre_${arbreActuel}`);
-              localStorage.setItem(`arbre_${nom}`, data);
-              setArbresDisponibles(prev => [...prev, nom]);
-              alert(`✅ Arbre "${nom}" créé !`);
-            }
-          };
-
-          // Supprimer l'arbre actuel
-          const supprimerArbre = () => {
-            if (arbresDisponibles.length <= 1) {
-              alert('❌ Vous ne pouvez pas supprimer le dernier arbre !');
-              return;
-            }
-            if (confirm(`Supprimer l'arbre "${arbreActuel}" ?`)) {
-              localStorage.removeItem(`arbre_${arbreActuel}`);
-              const nouveauxArbres = arbresDisponibles.filter(a => a !== arbreActuel);
-              setArbresDisponibles(nouveauxArbres);
-              chargerArbre(nouveauxArbres[0]);
-            }
-          };
-
-          // Charger l'arbre actuel au démarrage de la Page GM
+          // Charger la classe au démarrage de la Page GM
           useEffect(() => {
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('data');
 
             if (!dataParam) {
-              // Page GM - Charger le dernier arbre utilisé
-              const dernierArbre = localStorage.getItem('dernierArbreActif') || 'Arbre par défaut';
-              console.log('🔄 Chargement du dernier arbre actif:', dernierArbre);
-              chargerArbre(dernierArbre);
+              // Page GM - Charger la dernière classe utilisée
+              const derniereClasse = localStorage.getItem('derniereClasseActive') || 'Gardien';
+              console.log('🔄 Chargement de la dernière classe active:', derniereClasse);
+              chargerArbre(derniereClasse);
             }
           }, []); // Uniquement au démarrage
 
@@ -930,52 +897,20 @@
                   </h1>
                 </div>
 
-                {/* Gestion des Arbres GM - Visible uniquement pour le GM */}
-                {!modeLectureSeule && (
-                  <div className="bg-slate-750 border-x-2 border-amber-500 p-3 flex items-center gap-3 flex-wrap no-print" style={{ backgroundColor: '#334155' }}>
-                    <span className="text-amber-400 font-semibold">📚 Arbre actuel:</span>
-                    <select
-                      value={arbreActuel}
-                      onChange={(e) => chargerArbre(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-700 text-white rounded border border-slate-600 font-semibold"
-                    >
-                      {arbresDisponibles.map(arbre => (
-                        <option key={arbre} value={arbre}>{arbre}</option>
-                      ))}
-                    </select>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={nouvelArbre}
-                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-semibold transition-colors"
-                        title="Créer un nouvel arbre"
-                      >
-                        ➕ Nouveau
-                      </button>
-                      <button
-                        onClick={dupliquerArbre}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold transition-colors"
-                        title="Dupliquer cet arbre"
-                      >
-                        📋 Dupliquer
-                      </button>
-                      <button
-                        onClick={renommerArbre}
-                        className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm font-semibold transition-colors"
-                        title="Renommer cet arbre"
-                      >
-                        ✏️ Renommer
-                      </button>
-                      <button
-                        onClick={supprimerArbre}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
-                        title="Supprimer cet arbre"
-                      >
-                        🗑️ Supprimer
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Sélection de Classe - Toujours visible */}
+                <div className="bg-slate-750 border-x-2 border-amber-500 p-3 flex items-center gap-3 flex-wrap no-print" style={{ backgroundColor: '#334155' }}>
+                  <span className="text-amber-400 font-semibold">🎭 CLASSE :</span>
+                  <select
+                    value={arbreActuel}
+                    onChange={(e) => chargerArbre(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-700 text-white rounded border border-slate-600 font-semibold"
+                    disabled={modeLectureSeule}
+                  >
+                    {CLASSES.map(classe => (
+                      <option key={classe} value={classe}>{classe}</option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Caractéristiques du personnage */}
                 <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-6 no-print`}>
