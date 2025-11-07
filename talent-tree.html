@@ -281,7 +281,11 @@
           const [draggingTalent, setDraggingTalent] = useState(null);
           const [dragOffset, setDragOffset] = useState(null); // Offset entre la souris et le coin sup gauche du talent
           const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
-          const [modeLectureSeule, setModeLectureSeule] = useState(false);
+          // Détecter le mode lecture seule dès l'initialisation
+          const [modeLectureSeule, setModeLectureSeule] = useState(() => {
+            const params = new URLSearchParams(window.location.search);
+            return params.has('data'); // Mode lecture seule si paramètre 'data' présent
+          });
 
           const categories = {
             vie: { couleur: 'bg-orange-600', nom: 'Vie' },
