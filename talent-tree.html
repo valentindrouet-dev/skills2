@@ -366,7 +366,7 @@
             return Object.keys(talentsActifs).filter(id => {
               const talent = talents[id];
               return talent && talent.couleurTalent === 'vie';
-            }).length * 2; // Chaque talent Vie = +2
+            }).length * 1; // Chaque talent Vie = +1
           };
 
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
@@ -734,7 +734,7 @@
                 cout: 1,
                 bonus: '',
                 description: 'Description du talent',
-                position: { x: 100, y: 300 },
+                position: { x: 100, y: 20 },
                 prerequis: [],
                 categorie: 'vie',
                 typeTalent: 'grand_carre',
@@ -755,7 +755,7 @@
                 cout: 1,
                 bonus: '',
                 description: 'VIE +1',
-                position: { x: 100, y: 300 },
+                position: { x: 100, y: 20 },
                 prerequis: [],
                 categorie: 'vie',
                 typeTalent: 'petit_carre',
@@ -776,7 +776,7 @@
                 cout: 1,
                 bonus: '',
                 description: 'ENDU +2',
-                position: { x: 100, y: 300 },
+                position: { x: 100, y: 20 },
                 prerequis: [],
                 categorie: 'vie',
                 typeTalent: 'petit_carre',
@@ -797,7 +797,7 @@
                 cout: 1,
                 bonus: '',
                 description: 'DEGATS +2',
-                position: { x: 100, y: 300 },
+                position: { x: 100, y: 20 },
                 prerequis: [],
                 categorie: 'vie',
                 typeTalent: 'petit_carre',
