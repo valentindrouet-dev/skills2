@@ -187,6 +187,18 @@
           // Les 8 classes fixes
           const CLASSES = ['Apothicaire', 'Artificier', 'Chasseur', 'Destructeur', 'Déviant', 'Gardien', 'Lamevent', 'Pyromane'];
 
+          // Bonus de PV par classe (non-éditable)
+          const BONUS_PV_PAR_CLASSE = {
+            'Pyromane': 10,
+            'Déviant': 10,
+            'Artificier': 14,
+            'Apothicaire': 12,
+            'Chasseur': 16,
+            'Destructeur': 16,
+            'Gardien': 18,
+            'Lamevent': 14
+          };
+
           // Lexique des mots-clés utilisés dans les talents
           const LEXIQUE = {
             'À bout portant': 'Vous pouvez effectuer des attaques au contact sans subir d\'attaques d\'opportunité',
@@ -221,7 +233,9 @@
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
           const [niveau, setNiveau] = useState(1);
-          const [bonus, setBonus] = useState(0);
+
+          // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
+          const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
 
           // Mapping niveau -> points de talents max
           const pointsParNiveau = {
@@ -444,15 +458,16 @@
 
           // Calculer le total de VIE (talents Vie actifs)
           const getTotalVie = () => {
-            return Object.keys(talentsActifs).filter(id => {
+            const talentsVie = Object.keys(talentsActifs).filter(id => {
               const talent = talents[id];
               return talent && talent.couleurTalent === 'vie';
             }).length * 1; // Chaque talent Vie = +1
+            return 3 + talentsVie; // VIE de base = 3 pour toutes les classes
           };
 
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
           const getPointsDeVie = () => {
-            let total = getTotalVie() * getTotalEndu() + bonus;
+            let total = getTotalVie() * getTotalEndu() + getBonusPV();
 
             // Effets spéciaux: bonus de PV depuis d'autres talents
             Object.keys(talentsActifs).forEach(id => {
@@ -577,8 +592,8 @@
                 talents: creerTalentDepart(classe),
                 talentsActifs: {},
                 nomPersonnage: '',
-                niveau: 1,
-                bonus: 0
+                niveau: 1
+                // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(key, JSON.stringify(defaultData));
               console.log(`✨ Classe "${classe}" initialisée`);
@@ -599,15 +614,15 @@
                 talentsActifs,
                 // pointsDisponibles et pointsMax seront recalculés à partir du niveau
                 nomPersonnage,
-                niveau,
-                bonus
+                niveau
+                // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
               // Sauvegarder également quelle classe est active
               localStorage.setItem('derniereClasseActive', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, nomPersonnage, niveau, bonus, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule]);
 
           // Initialiser toutes les classes au démarrage
           useEffect(() => {
@@ -633,11 +648,11 @@
               setTalents(data.talents || creerTalentDepart(classe));
               setTalentsActifs(data.talentsActifs || {});
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
-              // Ne pas écraser nomPersonnage, niveau, bonus en mode partagé (ils sont communs à toutes les classes)
+              // Ne pas écraser nomPersonnage et niveau en mode partagé (ils sont communs à toutes les classes)
+              // Le bonus PV est calculé automatiquement selon la classe
               if (!modeLectureSeule) {
                 setNomPersonnage(data.nomPersonnage || '');
                 setNiveau(data.niveau || 1);
-                setBonus(data.bonus || 0);
               }
               setArbreActuel(classe);
               console.log('📂 Classe chargée:', classe, modeLectureSeule ? '(mode partagé)' : '(mode GM)');
@@ -695,15 +710,15 @@
                   setArbreActuel(decoded.classe);
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
                   if (decoded.niveau) setNiveau(decoded.niveau);
-                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+                  // Le bonus PV est calculé automatiquement selon la classe
 
                   // Optionnel : sauvegarder en localStorage pour navigation
                   const dataToSave = {
                     talents: decoded.talents || {},
                     talentsActifs: {},
                     nomPersonnage: decoded.nomPersonnage || '',
-                    niveau: decoded.niveau || 1,
-                    bonus: decoded.bonus || 0
+                    niveau: decoded.niveau || 1
+                    // bonus n'est plus sauvegardé, il est calculé selon la classe
                   };
                   localStorage.setItem(`classe_shared_${decoded.classe}`, JSON.stringify(dataToSave));
 
@@ -733,7 +748,7 @@
 
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
                   if (decoded.niveau) setNiveau(decoded.niveau);
-                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+                  // Le bonus PV est calculé automatiquement selon la classe
 
                   console.log('✅ Toutes les classes chargées en mode partagé');
                 } else {
@@ -751,7 +766,7 @@
                   }
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
                   if (decoded.niveau) setNiveau(decoded.niveau);
-                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+                  // Le bonus PV est calculé automatiquement selon la classe
                 }
 
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
@@ -934,8 +949,8 @@
                 talents,
                 talentsActifs,
                 nomPersonnage,
-                niveau,
-                bonus
+                niveau
+                // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
             }
@@ -951,8 +966,8 @@
               talents,
               talentsActifs,
               nomPersonnage,
-              niveau,
-              bonus
+              niveau
+              // bonus n'est plus partagé, il est calculé selon la classe
             };
 
             console.log('Données à encoder:', data);
@@ -1342,16 +1357,12 @@
 
                     <span className="text-white font-bold">+</span>
 
-                    {/* Bonus */}
+                    {/* Bonus (calculé selon la classe) */}
                     <div className="flex items-center gap-2">
-                      <label className="text-white font-semibold">Bonus :</label>
-                      <input
-                        type="number"
-                        value={bonus}
-                        onChange={(e) => setBonus(parseInt(e.target.value) || 0)}
-                        readOnly={modeLectureSeule}
-                        className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
-                      />
+                      <span className="text-white font-semibold">Bonus :</span>
+                      <span className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold min-w-[50px]">
+                        {getBonusPV()}
+                      </span>
                     </div>
                   </div>
 
@@ -2176,7 +2187,7 @@
                             {getPointsDeVie()}
                           </span>
                           <span className="text-xs text-slate-600">
-                            = {getTotalVie()} × {getTotalEndu()} + {bonus}
+                            = {getTotalVie()} × {getTotalEndu()} + {getBonusPV()}
                           </span>
                         </div>
                       </div>
