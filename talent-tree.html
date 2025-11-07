@@ -499,6 +499,10 @@
                   setTalents(decoded.talents);
                   console.log('✅ Talents mis à jour avec les données partagées');
                 }
+                if (decoded.talentsActifs) {
+                  setTalentsActifs(decoded.talentsActifs);
+                  console.log('✅ Talents actifs mis à jour avec les données partagées');
+                }
                 if (decoded.pointsMax) {
                   setPointsMax(decoded.pointsMax);
                   setPointsDisponibles(decoded.pointsMax);
@@ -641,6 +645,7 @@
             const talentsToShare = JSON.parse(JSON.stringify(talents)); // Deep copy
             const data = {
               talents: talentsToShare,
+              talentsActifs,
               pointsMax,
               version: '1.0',
               nomArbre: arbreActuel,
