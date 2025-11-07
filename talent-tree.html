@@ -333,10 +333,30 @@
 
           // Calculer le total de DEGATS (talents Degats actifs)
           const getTotalDegats = () => {
-            return Object.keys(talentsActifs).filter(id => {
+            // Base: talents Degats × 2
+            let total = Object.keys(talentsActifs).filter(id => {
               const talent = talents[id];
               return talent && talent.couleurTalent === 'degats';
-            }).length * 2; // Chaque talent Degats = +2
+            }).length * 2;
+
+            // Effets spéciaux: bonus de dégâts depuis d'autres talents
+            Object.keys(talentsActifs).forEach(id => {
+              const talent = talents[id];
+              if (talent?.effetSpecial?.type === 'bonus_degats') {
+                const source = talent.effetSpecial.source; // 'endu', 'vie', etc.
+                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+
+                if (source === 'endu') {
+                  total += Math.floor(getTotalEndu() * multiplicateur);
+                } else if (source === 'vie') {
+                  total += Math.floor(getTotalVie() * multiplicateur);
+                } else if (source === 'fixe') {
+                  total += Math.floor(talent.effetSpecial.valeur || 0);
+                }
+              }
+            });
+
+            return total;
           };
 
           // Calculer le total de VIE (talents Vie actifs)
@@ -349,7 +369,28 @@
 
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
           const getPointsDeVie = () => {
-            return getTotalVie() * getTotalEndu() + bonus;
+            let total = getTotalVie() * getTotalEndu() + bonus;
+
+            // Effets spéciaux: bonus de PV depuis d'autres talents
+            Object.keys(talentsActifs).forEach(id => {
+              const talent = talents[id];
+              if (talent?.effetSpecial?.type === 'bonus_pv') {
+                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', etc.
+                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+
+                if (source === 'endu') {
+                  total += Math.floor(getTotalEndu() * multiplicateur);
+                } else if (source === 'vie') {
+                  total += Math.floor(getTotalVie() * multiplicateur);
+                } else if (source === 'degats') {
+                  total += Math.floor(getTotalDegats() * multiplicateur);
+                } else if (source === 'fixe') {
+                  total += Math.floor(talent.effetSpecial.valeur || 0);
+                }
+              }
+            });
+
+            return total;
           };
 
           // Helper pour calculer la hauteur nécessaire de l'interface
@@ -1282,7 +1323,7 @@
                                   className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
                                   style={{
                                     width: '320px',
-                                    height: '480px',
+                                    maxHeight: '90vh',
                                     top: '0',
                                     left: '0',
                                     zIndex: 1000
@@ -1334,6 +1375,41 @@
                                       ))}
                                   </select>
 
+                                  {/* Effet Spécial */}
+                                  <div className="mb-2 p-2 bg-slate-700 rounded">
+                                    <div className="text-xs text-white mb-1 font-semibold">Effet Spécial:</div>
+                                    <select
+                                      defaultValue={talent.effetSpecial?.type || 'aucun'}
+                                      className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
+                                      id={`effet-type-${talent.id}`}
+                                    >
+                                      <option value="aucun">Aucun effet</option>
+                                      <option value="bonus_degats">Bonus DÉGÂTS</option>
+                                      <option value="bonus_pv">Bonus PV</option>
+                                    </select>
+                                    <select
+                                      defaultValue={talent.effetSpecial?.source || 'fixe'}
+                                      className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
+                                      id={`effet-source-${talent.id}`}
+                                    >
+                                      <option value="fixe">Valeur fixe</option>
+                                      <option value="endu">Basé sur ENDU</option>
+                                      <option value="vie">Basé sur VIE</option>
+                                      <option value="degats">Basé sur DÉGÂTS</option>
+                                    </select>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      defaultValue={talent.effetSpecial?.multiplicateur || 1}
+                                      placeholder="Multiplicateur (ex: 0.5 pour moitié)"
+                                      className="w-full p-1 text-xs bg-slate-600 text-white rounded"
+                                      id={`effet-mult-${talent.id}`}
+                                    />
+                                    <div className="text-xs text-slate-400 mt-1">
+                                      Ex: ENDU × 0.5 = moitié de l'ENDU
+                                    </div>
+                                  </div>
+
                                   {/* Sélecteur de prérequis */}
                                   <div className="mb-2 p-2 bg-slate-700 rounded">
                                     <div className="text-xs text-white mb-1 font-semibold">Prérequis:</div>
@@ -1365,13 +1441,26 @@
                                           const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
                                             .map(checkbox => checkbox.getAttribute('data-prereq-id'));
 
+                                          // Récupérer les effets spéciaux
+                                          const effetType = document.getElementById(`effet-type-${talent.id}`).value;
+                                          const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
+                                          const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
+
+                                          const effetSpecial = effetType !== 'aucun' ? {
+                                            type: effetType,
+                                            source: effetSource,
+                                            multiplicateur: effetMult,
+                                            valeur: effetSource === 'fixe' ? effetMult : undefined
+                                          } : undefined;
+
                                           sauvegarderTalent(talent.id, {
                                             nom: document.getElementById(`nom-${talent.id}`).value,
                                             description: document.getElementById(`desc-${talent.id}`).value,
                                             cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
                                             typeTalent: document.getElementById(`type-${talent.id}`).value,
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
-                                            prerequis: prerequis
+                                            prerequis: prerequis,
+                                            effetSpecial: effetSpecial
                                           });
                                         }}
                                         className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
