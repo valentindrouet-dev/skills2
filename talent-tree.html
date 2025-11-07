@@ -322,7 +322,7 @@
           const couleursTalent = {
             action: { code: '#4F46E6', nom: 'Action' },           // Indigo (comme bouton Imprimer)
             amelioration: { code: '#16a34a', nom: 'Amélioration' }, // Green (Nouveau Talent)
-            competence: { code: '#ea580c', nom: 'Compétence' },   // Orange (Talents COMP)
+            competence: { code: '#E57036', nom: 'Compétence' },   // Orange (Talents COMP)
             degats: { code: '#d56161', nom: 'Dégâts' },
             endu: { code: '#49d6c8', nom: 'Endu' },
             maitrise: { code: '#ca8a04', nom: 'Maîtrise' },        // Yellow (Renommer)
@@ -341,6 +341,21 @@
           const getCouleurTalent = (talent) => {
             const couleur = talent?.couleurTalent || 'action'; // Par défaut: action
             return couleursTalent[couleur]?.code || couleursTalent.action.code;
+          };
+
+          // Couleurs de bandeau par classe
+          const getCouleurClasse = (classe) => {
+            const couleurs = {
+              'Apothicaire': 'from-green-600 to-green-500',
+              'Artificier': 'from-cyan-600 to-cyan-500',
+              'Chasseur': 'from-amber-700 to-amber-600',
+              'Destructeur': 'from-red-600 to-red-500',
+              'Déviant': 'from-purple-600 to-purple-500',
+              'Gardien': 'from-blue-600 to-blue-500',
+              'Lamevent': 'from-slate-600 to-slate-500',
+              'Pyromane': 'from-orange-600 to-orange-500'
+            };
+            return couleurs[classe] || 'from-amber-600 to-amber-500';
           };
 
           // Calculer le total d'ENDU (talents Endu actifs)
@@ -418,7 +433,7 @@
           };
 
           // Les 8 compétences
-          const COMPETENCES = ['FORCE', 'AGILITE', 'ENDURANCE', 'SAVOIR', 'MYSTICISME', 'RUSE', 'TECHNIQUE', 'PERCEPTION'];
+          const COMPETENCES = ['FORCE', 'AGILITE', 'ROBUSTESSE', 'SAVOIR', 'MYSTICISME', 'RUSE', 'TECHNIQUE', 'PERCEPTION'];
 
           // Calculer le total d'une compétence spécifique
           const getTotalCompetence = (competence) => {
@@ -1167,9 +1182,9 @@
 
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {/* Header */}
-                <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg no-print">
+                <div className={`bg-gradient-to-r ${getCouleurClasse(arbreActuel)} rounded-t-lg p-6 shadow-lg no-print`}>
                   <h1 className="text-4xl font-bold text-center text-white tracking-wide">
-                    Arbre de Talents {modeLectureSeule ? (nomArbrePartage ? `- ${nomArbrePartage}` : '(PJ)') : `(GM)`}
+                    {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
                   </h1>
                 </div>
 
