@@ -333,74 +333,6 @@
             return typesTalent[type] || typesTalent.grand_carre;
           };
 
-          // Obtenir les points d'ancrage possibles d'un talent (pour les liens)
-          const getPointsAncrage = (talent) => {
-            const points = [];
-            const type = talent?.typeTalent || 'grand_carre';
-
-            if (type === 'grand_carre' || type === 'action') {
-              // Grand carré 200x200 : grille 3x3 aux positions 50, 100, 150
-              [50, 100, 150].forEach(y => {
-                [50, 100, 150].forEach(x => {
-                  points.push({ x, y });
-                });
-              });
-            } else if (type === 'rectangle' || type === 'passif') {
-              // Rectangle 200x80 : 3 points en largeur, 1 au milieu en hauteur
-              [50, 100, 150].forEach(x => {
-                points.push({ x, y: 40 }); // 40 = milieu de 80px
-              });
-            } else if (type === 'petit_carre' || type === 'bonus') {
-              // Petit carré 80x80 : juste le centre
-              points.push({ x: 40, y: 40 }); // 40 = milieu de 80px
-            } else {
-              // Fallback : centre du talent
-              const dim = getDimensionsTalent(talent);
-              points.push({ x: dim.width / 2, y: dim.height / 2 });
-            }
-
-            return points;
-          };
-
-          // Choisir le meilleur point d'ancrage pour avoir une ligne droite
-          const choisirMeilleurPoint = (pointsPossibles, positionTalent, pointCible) => {
-            let meilleurPoint = pointsPossibles[0];
-            let meilleurScore = Infinity;
-
-            for (const point of pointsPossibles) {
-              const pointAbsolu = {
-                x: positionTalent.x + point.x + 32, // +32 pour le padding p-8
-                y: positionTalent.y + point.y + 32
-              };
-
-              // Priorité 1 : ligne verticale parfaite (même x)
-              if (Math.abs(pointAbsolu.x - pointCible.x) < 1) {
-                return point;
-              }
-
-              // Priorité 2 : ligne horizontale parfaite (même y)
-              if (Math.abs(pointAbsolu.y - pointCible.y) < 1) {
-                if (meilleurScore > 1) {
-                  meilleurPoint = point;
-                  meilleurScore = 1;
-                }
-              }
-
-              // Sinon : distance euclidienne (point le plus proche)
-              const distance = Math.sqrt(
-                Math.pow(pointAbsolu.x - pointCible.x, 2) +
-                Math.pow(pointAbsolu.y - pointCible.y, 2)
-              );
-
-              if (distance < meilleurScore) {
-                meilleurPoint = point;
-                meilleurScore = distance;
-              }
-            }
-
-            return meilleurPoint;
-          };
-
           // Helper pour obtenir la couleur d'un talent
           const getCouleurTalent = (talent) => {
             const couleur = talent?.couleurTalent || 'action'; // Par défaut: action
@@ -1502,16 +1434,16 @@
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
-                            // Point d'arrivée : toujours le coin supérieur gauche du talent de destination
-                            const x2 = talent.position.x + 32; // +32 pour le padding p-8
-                            const y2 = talent.position.y + 32;
+                            // Calculer les centres des talents selon leurs dimensions réelles
+                            const prereqDim = getDimensionsTalent(prereq);
+                            const talentDim = getDimensionsTalent(talent);
 
-                            // Point de départ : choisir le meilleur point d'ancrage du prérequis
-                            const pointsPossibles = getPointsAncrage(prereq);
-                            const meilleurPoint = choisirMeilleurPoint(pointsPossibles, prereq.position, {x: x2, y: y2});
-
-                            const x1 = prereq.position.x + meilleurPoint.x + 32;
-                            const y1 = prereq.position.y + meilleurPoint.y + 32;
+                            // Centres des talents (ajout de 32px pour le padding du container p-8)
+                            // Le centre dépend maintenant de la taille du talent
+                            const x1 = prereq.position.x + (prereqDim.width / 2) + 32;
+                            const y1 = prereq.position.y + (prereqDim.height / 2) + 32;
+                            const x2 = talent.position.x + (talentDim.width / 2) + 32;
+                            const y2 = talent.position.y + (talentDim.height / 2) + 32;
 
                             const strokeColor = isActive ? '#fbbf24' : isHighlighted ? '#94a3b8' : '#475569';
                             const strokeW = isActive ? 3 : isHighlighted ? 2 : 2;
