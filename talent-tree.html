@@ -183,7 +183,6 @@
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
           const [niveau, setNiveau] = useState(1);
-          const [vie, setVie] = useState(0);
           const [bonus, setBonus] = useState(0);
 
           // Mapping niveau -> points de talents max
@@ -340,9 +339,17 @@
             }).length * 2; // Chaque talent Degats = +2
           };
 
+          // Calculer le total de VIE (talents Vie actifs)
+          const getTotalVie = () => {
+            return Object.keys(talentsActifs).filter(id => {
+              const talent = talents[id];
+              return talent && talent.couleurTalent === 'vie';
+            }).length * 2; // Chaque talent Vie = +2
+          };
+
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
           const getPointsDeVie = () => {
-            return vie * getTotalEndu() + bonus;
+            return getTotalVie() * getTotalEndu() + bonus;
           };
 
           // Helper pour calculer la hauteur nécessaire de l'interface
@@ -390,7 +397,6 @@
                 // pointsDisponibles et pointsMax seront recalculés à partir du niveau
                 nomPersonnage,
                 niveau,
-                vie,
                 bonus
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
@@ -398,7 +404,7 @@
               localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, nomPersonnage, niveau, vie, bonus, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, nomPersonnage, niveau, bonus, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -433,7 +439,6 @@
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               setNomPersonnage(data.nomPersonnage || '');
               setNiveau(data.niveau || 1);
-              setVie(data.vie || 0);
               setBonus(data.bonus || 0);
               setArbreActuel(nomArbre);
               console.log('📂 Arbre chargé:', nomArbre);
@@ -539,7 +544,6 @@
                 if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
                 if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
                 if (decoded.niveau) setNiveau(decoded.niveau);
-                if (decoded.vie !== undefined) setVie(decoded.vie);
                 if (decoded.bonus !== undefined) setBonus(decoded.bonus);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
@@ -681,7 +685,6 @@
               nomArbre: arbreActuel,
               nomPersonnage,
               niveau,
-              vie,
               bonus
             };
 
@@ -937,20 +940,33 @@
                 <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-6 no-print`}>
                   {/* Nom */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Nom:</label>
+                    <label className="text-white font-semibold">Nom :</label>
                     <input
                       type="text"
                       value={nomPersonnage}
                       onChange={(e) => setNomPersonnage(e.target.value)}
-                      readOnly={modeLectureSeule}
                       placeholder="Nom du personnage"
-                      className={`px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500"
                     />
+                  </div>
+
+                  {/* Niveau */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Niveau :</label>
+                    <select
+                      value={niveau}
+                      onChange={(e) => setNiveau(parseInt(e.target.value))}
+                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* ENDU */}
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">ENDU:</span>
+                    <span className="text-white font-semibold">ENDU :</span>
                     <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
                       {getTotalEndu()}
                     </span>
@@ -958,7 +974,7 @@
 
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">DÉGÂTS:</span>
+                    <span className="text-white font-semibold">DÉGÂTS :</span>
                     <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                       {getTotalDegats()}
                     </span>
@@ -966,20 +982,15 @@
 
                   {/* VIE */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">VIE:</label>
-                    <input
-                      type="number"
-                      value={vie}
-                      onChange={(e) => setVie(parseInt(e.target.value) || 0)}
-                      readOnly={modeLectureSeule}
-                      min="0"
-                      className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
-                    />
+                    <span className="text-white font-semibold">VIE :</span>
+                    <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
+                      {getTotalVie()}
+                    </span>
                   </div>
 
                   {/* Bonus */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Bonus:</label>
+                    <label className="text-white font-semibold">Bonus :</label>
                     <input
                       type="number"
                       value={bonus}
@@ -989,27 +1000,15 @@
                     />
                   </div>
 
-                  {/* Points de Vie (calculés) */}
+                  {/* Points de Vie (formule complète) */}
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">Points de Vie:</span>
-                    <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
+                    <span className="text-white font-semibold">PV :</span>
+                    <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold text-center">
                       {getPointsDeVie()}
                     </span>
-                  </div>
-
-                  {/* Niveau */}
-                  <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Niveau:</label>
-                    <select
-                      value={niveau}
-                      onChange={(e) => setNiveau(parseInt(e.target.value))}
-                      disabled={modeLectureSeule}
-                      className={`px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
-                    </select>
+                    <span className="text-slate-300 text-sm">
+                      = {getTotalVie()} × {getTotalEndu()} + {bonus}
+                    </span>
                   </div>
                 </div>
 
