@@ -1069,29 +1069,6 @@
             setEditingTalent(newId);
           };
 
-          // Ajouter un talent COMPETENCE
-          const ajouterTalentCompetence = () => {
-            const newId = `talent_comp_${Date.now()}`;
-            setTalents(prev => ({
-              ...prev,
-              [newId]: {
-                id: newId,
-                nom: 'COMP',
-                cout: 1,
-                bonus: '',
-                description: '+1 COMP',
-                position: { x: 100, y: 20 },
-                prerequis: [],
-                categorie: 'vie',
-                typeTalent: 'competence',
-                couleurTalent: 'competence',  // Orange vif comme les badges de compétences
-                competence: 'FORCE', // Compétence par défaut
-                motsCles: []
-              }
-            }));
-            setEditingTalent(newId);
-          };
-
           // Supprimer un talent
           const supprimerTalent = (talentId) => {
             if (!confirm('Voulez-vous vraiment supprimer ce talent ?')) return;
@@ -1460,12 +1437,6 @@
                               onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
                             >
                               + DEGATS
-                            </button>
-                            <button
-                              onClick={ajouterTalentCompetence}
-                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold transition-colors"
-                            >
-                              + COMP
                             </button>
                             <button
                               onClick={dupliquerArbre}
@@ -1978,14 +1949,16 @@
                                       {talent.cout}
                                     </div>
 
-                                    {/* Bonus */}
-                                    {talent.bonus && (
+                                    {/* Badge Compétence */}
+                                    {talent.competence && (
                                       <div className={`
                                         absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold
-                                        ${isActive ? 'bg-green-500 text-white' : 'bg-slate-500 text-white'}
-                                        border ${isActive ? 'border-green-400' : 'border-slate-400'}
-                                      `}>
-                                        {talent.bonus}
+                                        ${isActive ? 'text-white' : 'bg-slate-500 text-white'}
+                                        border ${isActive ? 'border-orange-400' : 'border-slate-400'}
+                                      `}
+                                      style={{ backgroundColor: isActive ? couleursTalent.competence.code : undefined }}
+                                      >
+                                        {talent.competence}
                                       </div>
                                     )}
 
@@ -2240,9 +2213,9 @@
                                         <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-amber-500 text-white border-2 border-amber-300 flex items-center justify-center font-bold text-sm">
                                           {talent.cout}
                                         </div>
-                                        {talent.bonus && (
-                                          <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold bg-green-500 text-white border border-green-400">
-                                            {talent.bonus}
+                                        {talent.competence && (
+                                          <div className="absolute -top-4 -left-4 px-2 py-1 rounded text-xs font-bold text-white border border-orange-400" style={{ backgroundColor: couleursTalent.competence.code }}>
+                                            {talent.competence}
                                           </div>
                                         )}
                                         <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden text-white">
