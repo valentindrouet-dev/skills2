@@ -712,37 +712,21 @@
                   if (decoded.niveau) setNiveau(decoded.niveau);
                   // Le bonus PV est calculé automatiquement selon la classe
 
-                  // Optionnel : sauvegarder en localStorage pour navigation
-                  const dataToSave = {
-                    talents: decoded.talents || {},
-                    talentsActifs: {},
-                    nomPersonnage: decoded.nomPersonnage || '',
-                    niveau: decoded.niveau || 1
-                    // bonus n'est plus sauvegardé, il est calculé selon la classe
-                  };
-                  localStorage.setItem(`classe_shared_${decoded.classe}`, JSON.stringify(dataToSave));
+                  // NE PAS sauvegarder dans localStorage pour éviter de cacher les données partagées
+                  // Le mode partagé reste temporaire et ne doit pas interférer avec les données locales
 
                   console.log('✅ Classe chargée en mode partagé');
                 } else if (decoded.version === '2.0' && decoded.classes) {
                   // Ancien format v2.0 : toutes les classes sont partagées
                   console.log('Format v2.0 complet détecté - Chargement de toutes les classes');
 
-                  // Sauvegarder toutes les classes en localStorage pour ce mode lecture seule
-                  // IMPORTANT: On retire talentsActifs pour que les arbres soient vierges au départ
-                  Object.entries(decoded.classes).forEach(([classe, data]) => {
-                    const dataToSave = {
-                      ...data,
-                      talentsActifs: {} // Toujours vierge au premier chargement
-                    };
-                    localStorage.setItem(`classe_shared_${classe}`, JSON.stringify(dataToSave));
-                  });
-
-                  // Charger la classe active avec talents vierges
+                  // Ancien format : toutes les classes partagées (pour compatibilité)
+                  // Charger la classe active
                   const classeActive = decoded.classeActive || CLASSES[0];
                   const dataClasseActive = decoded.classes[classeActive];
                   if (dataClasseActive) {
                     setTalents(dataClasseActive.talents || {});
-                    setTalentsActifs({}); // Toujours vide au départ pour mode partagé
+                    setTalentsActifs(dataClasseActive.talentsActifs || {}); // Charger les talents actifs
                     setArbreActuel(classeActive);
                   }
 
@@ -750,7 +734,7 @@
                   if (decoded.niveau) setNiveau(decoded.niveau);
                   // Le bonus PV est calculé automatiquement selon la classe
 
-                  console.log('✅ Toutes les classes chargées en mode partagé');
+                  console.log('✅ Classe chargée depuis ancien format');
                 } else {
                   // Ancien format (rétrocompatibilité)
                   console.log('Format v1.0 détecté');
