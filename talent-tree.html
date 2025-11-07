@@ -684,9 +684,31 @@
                 console.log('Données décodées:', decoded);
 
                 // Vérifier la version
-                if (decoded.version === '2.0' && decoded.classes) {
-                  // Nouveau format : toutes les classes sont partagées
-                  console.log('Format v2.0 détecté - Chargement de toutes les classes');
+                if (decoded.version === '2.0' && decoded.classe) {
+                  // Nouveau format simplifié v2.0 : une seule classe partagée
+                  console.log('Format v2.0 simplifié détecté - Chargement d\'une classe');
+
+                  setTalents(decoded.talents || {});
+                  setTalentsActifs(decoded.talentsActifs || {}); // Charger les talents actifs
+                  setArbreActuel(decoded.classe);
+                  if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
+                  if (decoded.niveau) setNiveau(decoded.niveau);
+                  if (decoded.bonus !== undefined) setBonus(decoded.bonus);
+
+                  // Optionnel : sauvegarder en localStorage pour navigation
+                  const dataToSave = {
+                    talents: decoded.talents || {},
+                    talentsActifs: {},
+                    nomPersonnage: decoded.nomPersonnage || '',
+                    niveau: decoded.niveau || 1,
+                    bonus: decoded.bonus || 0
+                  };
+                  localStorage.setItem(`classe_shared_${decoded.classe}`, JSON.stringify(dataToSave));
+
+                  console.log('✅ Classe chargée en mode partagé');
+                } else if (decoded.version === '2.0' && decoded.classes) {
+                  // Ancien format v2.0 : toutes les classes sont partagées
+                  console.log('Format v2.0 complet détecté - Chargement de toutes les classes');
 
                   // Sauvegarder toutes les classes en localStorage pour ce mode lecture seule
                   // IMPORTANT: On retire talentsActifs pour que les arbres soient vierges au départ
@@ -920,35 +942,12 @@
             console.log('État des talents au moment du partage:', talents);
             console.log('Nombre de talents:', Object.keys(talents).length);
 
-            // Récupérer toutes les classes depuis localStorage
-            const toutesLesClasses = {};
-            CLASSES.forEach(classe => {
-              if (classe === arbreActuel) {
-                // Pour la classe actuelle, utiliser l'état en mémoire (le plus à jour)
-                toutesLesClasses[classe] = {
-                  talents,
-                  talentsActifs,
-                  nomPersonnage,
-                  niveau,
-                  bonus
-                };
-              } else {
-                // Pour les autres classes, lire depuis localStorage
-                const savedData = localStorage.getItem(`classe_${classe}`);
-                if (savedData) {
-                  try {
-                    toutesLesClasses[classe] = JSON.parse(savedData);
-                  } catch (e) {
-                    console.error(`Erreur lors du chargement de la classe ${classe}:`, e);
-                  }
-                }
-              }
-            });
-
+            // Partager uniquement la classe active pour éviter URI Too Long
             const data = {
-              classes: toutesLesClasses, // Partager toutes les classes
               version: '2.0',
-              classeActive: arbreActuel, // Quelle classe est actuellement affichée
+              classe: arbreActuel,
+              talents,
+              talentsActifs,
               nomPersonnage,
               niveau,
               bonus
