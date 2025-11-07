@@ -318,6 +318,7 @@
           const couleursTalent = {
             action: { code: '#2563eb', nom: 'Action' },           // Blue (Mode Édition)
             amelioration: { code: '#16a34a', nom: 'Amélioration' }, // Green (Nouveau Talent)
+            competence: { code: '#ea580c', nom: 'Compétence' },   // Orange (Talents COMP)
             degats: { code: '#d56161', nom: 'Dégâts' },
             endu: { code: '#49d6c8', nom: 'Endu' },
             maitrise: { code: '#ca8a04', nom: 'Maîtrise' },        // Yellow (Renommer)
@@ -358,13 +359,15 @@
             Object.keys(talentsActifs).forEach(id => {
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_degats') {
-                const source = talent.effetSpecial.source; // 'endu', 'vie', etc.
+                const source = talent.effetSpecial.source; // 'endu', 'vie', 'niveau', etc.
                 const multiplicateur = talent.effetSpecial.multiplicateur || 1;
 
                 if (source === 'endu') {
                   total += Math.floor(getTotalEndu() * multiplicateur);
                 } else if (source === 'vie') {
                   total += Math.floor(getTotalVie() * multiplicateur);
+                } else if (source === 'niveau') {
+                  total += Math.floor(niveau * multiplicateur);
                 } else if (source === 'fixe') {
                   total += Math.floor(talent.effetSpecial.valeur || 0);
                 }
@@ -390,7 +393,7 @@
             Object.keys(talentsActifs).forEach(id => {
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_pv') {
-                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', etc.
+                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', etc.
                 const multiplicateur = talent.effetSpecial.multiplicateur || 1;
 
                 if (source === 'endu') {
@@ -399,6 +402,8 @@
                   total += Math.floor(getTotalVie() * multiplicateur);
                 } else if (source === 'degats') {
                   total += Math.floor(getTotalDegats() * multiplicateur);
+                } else if (source === 'niveau') {
+                  total += Math.floor(niveau * multiplicateur);
                 } else if (source === 'fixe') {
                   total += Math.floor(talent.effetSpecial.valeur || 0);
                 }
@@ -766,12 +771,24 @@
             // Récupérer toutes les classes depuis localStorage
             const toutesLesClasses = {};
             CLASSES.forEach(classe => {
-              const savedData = localStorage.getItem(`classe_${classe}`);
-              if (savedData) {
-                try {
-                  toutesLesClasses[classe] = JSON.parse(savedData);
-                } catch (e) {
-                  console.error(`Erreur lors du chargement de la classe ${classe}:`, e);
+              if (classe === arbreActuel) {
+                // Pour la classe actuelle, utiliser l'état en mémoire (le plus à jour)
+                toutesLesClasses[classe] = {
+                  talents,
+                  talentsActifs,
+                  nomPersonnage,
+                  niveau,
+                  bonus
+                };
+              } else {
+                // Pour les autres classes, lire depuis localStorage
+                const savedData = localStorage.getItem(`classe_${classe}`);
+                if (savedData) {
+                  try {
+                    toutesLesClasses[classe] = JSON.parse(savedData);
+                  } catch (e) {
+                    console.error(`Erreur lors du chargement de la classe ${classe}:`, e);
+                  }
                 }
               }
             });
@@ -911,7 +928,7 @@
                 prerequis: [],
                 categorie: 'vie',
                 typeTalent: 'petit_carre',
-                couleurTalent: 'maitrise',  // Orange comme le bouton Arbre
+                couleurTalent: 'competence',  // Orange vif comme les badges de compétences
                 competence: 'FORCE' // Compétence par défaut
               }
             }));
@@ -1002,9 +1019,10 @@
 
             // Calculer où sera le coin supérieur gauche du talent
             const rect = e.currentTarget.getBoundingClientRect();
+            // Prendre en compte le zoom dans les calculs
             // Position de la souris moins l'offset de clic moins le padding du container (32px = p-8)
-            let x = e.clientX - rect.left - dragOffset.x - 32;
-            let y = e.clientY - rect.top - dragOffset.y - 32;
+            let x = (e.clientX - rect.left) / zoom - dragOffset.x / zoom - 32;
+            let y = (e.clientY - rect.top) / zoom - dragOffset.y / zoom - 32;
 
             // Trouver la position X la plus proche
             let closestX = gridColumns[0];
@@ -1496,14 +1514,53 @@
                                     zIndex: 1000
                                   }}
                                 >
-                                  {/* Bouton fermer */}
-                                  <button
-                                    onClick={() => setEditingTalent(null)}
-                                    className="absolute top-2 right-2 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold text-xs transition-colors"
-                                    title="Fermer"
-                                  >
-                                    ×
-                                  </button>
+                                  {/* Boutons sauvegarde et fermeture */}
+                                  <div className="absolute top-2 right-2 flex gap-1">
+                                    <button
+                                      onClick={() => {
+                                        // Récupérer les prérequis cochés
+                                        const prerequis = Array.from(document.querySelectorAll(`.prereq-check[data-talent-id="${talent.id}"]:checked`))
+                                          .map(checkbox => checkbox.getAttribute('data-prereq-id'));
+
+                                        // Récupérer les effets spéciaux
+                                        const effetType = document.getElementById(`effet-type-${talent.id}`).value;
+                                        const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
+                                        const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
+
+                                        const effetSpecial = effetType !== 'aucun' ? {
+                                          type: effetType,
+                                          source: effetSource,
+                                          multiplicateur: effetMult,
+                                          valeur: effetSource === 'fixe' ? effetMult : undefined
+                                        } : undefined;
+
+                                        // Récupérer la compétence
+                                        const competence = document.getElementById(`competence-${talent.id}`).value || undefined;
+
+                                        sauvegarderTalent(talent.id, {
+                                          nom: document.getElementById(`nom-${talent.id}`).value,
+                                          description: document.getElementById(`desc-${talent.id}`).value,
+                                          cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                          typeTalent: document.getElementById(`type-${talent.id}`).value,
+                                          couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
+                                          prerequis: prerequis,
+                                          effetSpecial: effetSpecial,
+                                          competence: competence
+                                        });
+                                      }}
+                                      className="w-6 h-6 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center font-bold text-sm transition-colors"
+                                      title="Sauvegarder et fermer"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingTalent(null)}
+                                      className="w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold text-xs transition-colors"
+                                      title="Fermer sans sauvegarder"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
 
                                   <input
                                     type="text"
@@ -1572,6 +1629,7 @@
                                       <option value="endu">Basé sur ENDU</option>
                                       <option value="vie">Basé sur VIE</option>
                                       <option value="degats">Basé sur DÉGÂTS</option>
+                                      <option value="niveau">Basé sur NIVEAU</option>
                                     </select>
                                     <input
                                       type="number"
