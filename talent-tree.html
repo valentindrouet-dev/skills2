@@ -88,7 +88,7 @@
             /* Styles pour la feuille de perso */
             .print-feuille {
                 page: feuille;
-                transform: scale(0.9) !important;
+                transform: scale(0.85) !important;
                 transform-origin: top left !important;
                 max-width: 100%;
                 overflow: hidden !important;
@@ -192,6 +192,7 @@
             const savedZoom = localStorage.getItem('zoomLevel');
             return savedZoom ? parseFloat(savedZoom) : 1;
           }); // Zoom level: 0.5 à 1.5
+          const [notification, setNotification] = useState(null); // Pour les messages temporaires
 
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
@@ -714,12 +715,12 @@
               const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
 
               if (!prerequisRemplis) {
-                alert('Vous devez sélectionner les talents prérequis !');
+                showNotification('Vous devez sélectionner les talents prérequis !');
                 return;
               }
 
               if (pointsDisponibles < talent.cout) {
-                alert('Vous n\'avez plus assez de point de talents !');
+                showNotification('Vous n\'avez plus assez de point de talents !');
                 return;
               }
 
@@ -733,6 +734,54 @@
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
             const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
             return prerequisRemplis && (talentsActifs[talentId] || pointsDisponibles >= talent.cout);
+          };
+
+          // Afficher une notification temporaire (auto-dismiss après 3s)
+          const showNotification = (message) => {
+            setNotification(message);
+            setTimeout(() => setNotification(null), 3000);
+          };
+
+          // Dupliquer l'arbre actuel vers une autre classe
+          const dupliquerArbre = () => {
+            const classeCible = prompt(
+              `Dupliquer l'arbre "${arbreActuel}" vers quelle classe ?\n\n` +
+              `Classes disponibles:\n${CLASSES.join(', ')}\n\n` +
+              `⚠️ ATTENTION : Cela écrasera tous les talents de la classe cible !`,
+              ''
+            );
+
+            if (!classeCible) return; // Annulé
+
+            if (!CLASSES.includes(classeCible)) {
+              showNotification(`Classe "${classeCible}" invalide !`);
+              return;
+            }
+
+            if (classeCible === arbreActuel) {
+              showNotification('Impossible de dupliquer sur la même classe !');
+              return;
+            }
+
+            // Confirmation finale
+            const confirmation = confirm(
+              `Êtes-vous sûr de vouloir dupliquer "${arbreActuel}" vers "${classeCible}" ?\n\n` +
+              `Tous les talents de "${classeCible}" seront écrasés !`
+            );
+
+            if (!confirmation) return;
+
+            // Dupliquer les données
+            const arbreData = {
+              talents,
+              talentsActifs: {}, // Vierge pour la classe cible
+              nomPersonnage,
+              niveau,
+              bonus
+            };
+
+            localStorage.setItem(`classe_${classeCible}`, JSON.stringify(arbreData));
+            showNotification(`Arbre dupliqué vers ${classeCible} avec succès !`);
           };
 
           const resetTalents = () => {
@@ -779,6 +828,18 @@
 
           // Générer URL de partage
           const genererLienPartage = async () => {
+            // Forcer la sauvegarde de la classe actuelle avant le partage
+            if (!modeLectureSeule) {
+              const arbreData = {
+                talents,
+                talentsActifs,
+                nomPersonnage,
+                niveau,
+                bonus
+              };
+              localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
+            }
+
             // Déboguer : afficher l'état actuel
             console.log('État des talents au moment du partage:', talents);
             console.log('Nombre de talents:', Object.keys(talents).length);
@@ -1096,6 +1157,13 @@
 
           return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+              {/* Notification temporaire */}
+              {notification && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-pulse">
+                  {notification}
+                </div>
+              )}
+
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-amber-600 to-amber-500 rounded-t-lg p-6 shadow-lg no-print">
@@ -1325,6 +1393,13 @@
                             >
                               + COMP
                             </button>
+                            <button
+                              onClick={dupliquerArbre}
+                              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded font-semibold transition-colors"
+                              title="Dupliquer cet arbre vers une autre classe"
+                            >
+                              📋 Dupliquer
+                            </button>
                           </>
                         )}
                       </>
@@ -1353,24 +1428,7 @@
                   <>
                     {/* Compteurs de points */}
                     <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print">
-                      {Object.entries(categories).map(([key, cat]) => {
-                        const count = Object.keys(talentsActifs).filter(
-                          id => talents[id]?.categorie === key
-                        ).length;
-                        const total = Object.values(talents).filter(
-                          t => t.categorie === key
-                        ).length;
-
-                        return (
-                          <div key={key} className="flex items-center gap-2">
-                            <div className={`w-4 h-4 ${cat.couleur} rounded`}></div>
-                            <span className="text-white font-semibold">
-                              {count} / {total}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center gap-4 ml-8">
+                      <div className="flex items-center gap-4">
                         <span className="text-amber-400 font-bold text-lg">
                           {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
                         </span>
@@ -2041,11 +2099,12 @@
                         Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
                       </div>
                     ) : (
-                      <div className="space-y-6">
-                        {/* Itérer sur tous les types de talents (triés alphabétiquement) */}
-                        {Object.entries(couleursTalent)
-                          .sort((a, b) => a[1].nom.localeCompare(b[1].nom))
-                          .map(([typeKey, typeInfo]) => {
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-6">
+                        {/* Itérer sur tous les types de talents dans l'ordre défini */}
+                        {['action', 'reaction', 'amelioration', 'passif', 'degats', 'endu', 'vie', 'competence', 'maitrise']
+                          .map(typeKey => {
+                            const typeInfo = couleursTalent[typeKey];
+                            if (!typeInfo) return null;
                             const talentsDeCeType = Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === typeKey);
 
                             if (talentsDeCeType.length === 0) return null;
