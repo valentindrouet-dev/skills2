@@ -311,6 +311,7 @@
             grand_carre: { width: 200, height: 200, nom: 'Grand Carré' },
             rectangle: { width: 200, height: 80, nom: 'Rectangle' },
             petit_carre: { width: 80, height: 80, nom: 'Petit Carré' },
+            competence: { width: 80, height: 80, nom: 'Compétence' },
             // Compatibilité anciens noms
             action: { width: 200, height: 200, nom: 'Grand Carré' },
             passif: { width: 200, height: 80, nom: 'Rectangle' },
@@ -1003,7 +1004,7 @@
                 position: { x: 100, y: 20 },
                 prerequis: [],
                 categorie: 'vie',
-                typeTalent: 'petit_carre',
+                typeTalent: 'competence',
                 couleurTalent: 'competence',  // Orange vif comme les badges de compétences
                 competence: 'FORCE' // Compétence par défaut
               }
@@ -1678,7 +1679,7 @@
                                     className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                     id={`type-${talent.id}`}
                                   >
-                                    {['grand_carre', 'rectangle', 'petit_carre'].map(type => (
+                                    {['grand_carre', 'rectangle', 'petit_carre', 'competence'].map(type => (
                                       <option key={type} value={type}>
                                         {typesTalent[type].nom} ({typesTalent[type].width}x{typesTalent[type].height})
                                       </option>
@@ -1909,7 +1910,7 @@
                                         </>
                                       )}
 
-                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                      {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus' || talent.typeTalent === 'competence') && (
                                         <>
                                           <div className="text-slate-200 font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>
                                             {talent.description}
@@ -2152,7 +2153,7 @@
                                               <div className="font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>{talent.description}</div>
                                             </>
                                           )}
-                                          {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus') && (
+                                          {(talent.typeTalent === 'petit_carre' || talent.typeTalent === 'bonus' || talent.typeTalent === 'competence') && (
                                             <>
                                               <div className="font-bold text-center leading-tight line-clamp-3" style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}>{talent.description}</div>
                                             </>
