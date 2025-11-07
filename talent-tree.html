@@ -63,25 +63,27 @@
                 box-shadow: none !important;
                 transform: none !important;
                 opacity: 1 !important;
-                /* Talents non-actifs : fond blanc, texte noir */
+            }
+
+            /* Talents NON-ACTIFS : fond blanc, texte noir */
+            .print-talent:not(.active) {
                 background-color: white !important;
                 color: black !important;
             }
 
-            /* Talents non-actifs : texte en noir */
-            .print-talent *:not(.print-talent.active *) {
+            .print-talent:not(.active) * {
                 color: black !important;
             }
 
-            /* Talents actifs : garder les couleurs */
+            /* Talents ACTIFS : garder les couleurs */
             .print-talent.active {
                 border-width: 3px !important;
                 border-color: #000 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                background-color: inherit !important;
             }
 
-            /* Talents actifs : garder les couleurs du texte */
             .print-talent.active * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
@@ -345,12 +347,12 @@
             action: { code: '#4F46E6', nom: 'Action' },           // Indigo (comme bouton Imprimer)
             amelioration: { code: '#16a34a', nom: 'Amélio' },     // Green (Nouveau Talent)
             competence: { code: '#E57036', nom: 'Comp' },         // Orange (Talents COMP)
-            degats: { code: '#d56161', nom: 'Bonus' },            // Regroupé avec VIE et ENDU
-            endu: { code: '#49d6c8', nom: 'Bonus' },
+            degats: { code: '#d56161', nom: 'Dégâts' },
+            endu: { code: '#49d6c8', nom: 'Endu' },
             maitrise: { code: '#ca8a04', nom: 'Maîtrise' },        // Yellow (Renommer)
             passif: { code: '#999999', nom: 'Passif' },
             reaction: { code: '#9333ea', nom: 'Réac' },           // Purple (Partager)
-            vie: { code: '#e281d1', nom: 'Bonus' }                // Rose
+            vie: { code: '#e281d1', nom: 'Vie' }                   // Rose
           };
 
           // Helper pour obtenir les dimensions d'un talent
