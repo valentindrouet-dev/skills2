@@ -592,16 +592,21 @@
                   console.log('Format v2.0 détecté - Chargement de toutes les classes');
 
                   // Sauvegarder toutes les classes en localStorage pour ce mode lecture seule
+                  // IMPORTANT: On retire talentsActifs pour que les arbres soient vierges au départ
                   Object.entries(decoded.classes).forEach(([classe, data]) => {
-                    localStorage.setItem(`classe_shared_${classe}`, JSON.stringify(data));
+                    const dataToSave = {
+                      ...data,
+                      talentsActifs: {} // Toujours vierge au premier chargement
+                    };
+                    localStorage.setItem(`classe_shared_${classe}`, JSON.stringify(dataToSave));
                   });
 
-                  // Charger la classe active
+                  // Charger la classe active avec talents vierges
                   const classeActive = decoded.classeActive || CLASSES[0];
                   const dataClasseActive = decoded.classes[classeActive];
                   if (dataClasseActive) {
                     setTalents(dataClasseActive.talents || {});
-                    setTalentsActifs(dataClasseActive.talentsActifs || {});
+                    setTalentsActifs({}); // Toujours vide au départ pour mode partagé
                     setArbreActuel(classeActive);
                   }
 
@@ -1178,7 +1183,7 @@
                         <div key={comp} className="flex items-center gap-2">
                           <span className="text-white font-semibold">{comp} :</span>
                           <span className="px-3 py-1.5 bg-orange-600 text-white rounded font-bold min-w-[50px] text-center">
-                            {getTotalCompetence(comp)}
+                            +{getTotalCompetence(comp)}
                           </span>
                         </div>
                       ))}
@@ -1212,7 +1217,7 @@
                       <div className="flex items-center gap-2 border-r border-slate-600 pr-4">
                         <span className="text-white text-sm font-semibold">Zoom:</span>
                         <button
-                          onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                          onClick={() => setZoom(Math.max(0.5, zoom - 0.05))}
                           className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
                           title="Dézoomer"
                         >
@@ -1220,7 +1225,7 @@
                         </button>
                         <span className="text-white text-sm font-mono">{Math.round(zoom * 100)}%</span>
                         <button
-                          onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                          onClick={() => setZoom(Math.min(1.5, zoom + 0.05))}
                           className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
                           title="Zoomer"
                         >
@@ -1491,6 +1496,15 @@
                                     zIndex: 1000
                                   }}
                                 >
+                                  {/* Bouton fermer */}
+                                  <button
+                                    onClick={() => setEditingTalent(null)}
+                                    className="absolute top-2 right-2 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold text-xs transition-colors"
+                                    title="Fermer"
+                                  >
+                                    ×
+                                  </button>
+
                                   <input
                                     type="text"
                                     defaultValue={talent.nom}
@@ -1683,7 +1697,6 @@
                                 <div className="relative">
                                   <button
                                     onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
-                                    disabled={!modeEdition && !isAvailable && !isActive}
                                     style={{
                                       backgroundColor: isActive ? getCouleurTalent(talent) : undefined,
                                       boxSizing: 'border-box',
@@ -1757,7 +1770,7 @@
                                       )}
                                     </div>
 
-                                    {/* Checkbox indicator */}
+                                    {/* Checkbox indicator - HIDDEN
                                     <div className={`
                                       absolute -top-2 -left-2 w-5 h-5 border-2 rounded flex items-center justify-center
                                       ${isActive ? 'bg-amber-400 border-amber-300' : 'bg-slate-500 border-slate-400'}
@@ -1768,6 +1781,7 @@
                                         </svg>
                                       )}
                                     </div>
+                                    */}
                                   </button>
 
                                   {/* Boutons d'édition */}
