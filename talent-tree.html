@@ -183,7 +183,34 @@
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
           const [niveau, setNiveau] = useState(1);
-          const [pointsDeVie, setPointsDeVie] = useState(0);
+          const [vie, setVie] = useState(0);
+          const [bonus, setBonus] = useState(0);
+
+          // Mapping niveau -> points de talents max
+          const pointsParNiveau = {
+            1: 10,
+            2: 13,
+            3: 16,
+            4: 20,
+            5: 25,
+            6: 30,
+            7: 35,
+            8: 40,
+            9: 45,
+            10: 50
+          };
+
+          // Mettre à jour les points max quand le niveau change
+          useEffect(() => {
+            const nouveauxPointsMax = pointsParNiveau[niveau] || 10;
+            setPointsMax(nouveauxPointsMax);
+
+            // Recalculer les points disponibles en fonction des talents actifs
+            const pointsDepenses = Object.keys(talentsActifs).reduce((total, id) => {
+              return total + (talents[id]?.cout || 0);
+            }, 0);
+            setPointsDisponibles(nouveauxPointsMax - pointsDepenses);
+          }, [niveau, talentsActifs, talents]);
 
           const talentsParDefaut = {
             vie1: {
@@ -302,7 +329,7 @@
             return Object.keys(talentsActifs).filter(id => {
               const talent = talents[id];
               return talent && talent.couleurTalent === 'endu';
-            }).length;
+            }).length * 2; // Chaque talent Endu = +2
           };
 
           // Calculer le total de DEGATS (talents Degats actifs)
@@ -310,7 +337,12 @@
             return Object.keys(talentsActifs).filter(id => {
               const talent = talents[id];
               return talent && talent.couleurTalent === 'degats';
-            }).length;
+            }).length * 2; // Chaque talent Degats = +2
+          };
+
+          // Calculer les Points de Vie (VIE x ENDU + Bonus)
+          const getPointsDeVie = () => {
+            return vie * getTotalEndu() + bonus;
           };
 
           // Helper pour calculer la hauteur nécessaire de l'interface
@@ -355,18 +387,18 @@
               const arbreData = {
                 talents,
                 talentsActifs,
-                pointsDisponibles,
-                pointsMax,
+                // pointsDisponibles et pointsMax seront recalculés à partir du niveau
                 nomPersonnage,
                 niveau,
-                pointsDeVie
+                vie,
+                bonus
               };
               localStorage.setItem(`arbre_${arbreActuel}`, JSON.stringify(arbreData));
               // Sauvegarder également quel arbre est actif
               localStorage.setItem('dernierArbreActif', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, pointsDisponibles, pointsMax, nomPersonnage, niveau, pointsDeVie, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, nomPersonnage, niveau, vie, bonus, arbreActuel, modeLectureSeule]);
 
           // Charger la liste des arbres sauvegardés au démarrage
           useEffect(() => {
@@ -398,11 +430,11 @@
               const data = JSON.parse(savedData);
               setTalents(data.talents || talentsParDefaut);
               setTalentsActifs(data.talentsActifs || {});
-              setPointsDisponibles(data.pointsDisponibles || 10);
-              setPointsMax(data.pointsMax || 10);
+              // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               setNomPersonnage(data.nomPersonnage || '');
               setNiveau(data.niveau || 1);
-              setPointsDeVie(data.pointsDeVie || 0);
+              setVie(data.vie || 0);
+              setBonus(data.bonus || 0);
               setArbreActuel(nomArbre);
               console.log('📂 Arbre chargé:', nomArbre);
             }
@@ -503,14 +535,12 @@
                   setTalentsActifs(decoded.talentsActifs);
                   console.log('✅ Talents actifs mis à jour avec les données partagées');
                 }
-                if (decoded.pointsMax) {
-                  setPointsMax(decoded.pointsMax);
-                  setPointsDisponibles(decoded.pointsMax);
-                }
+                // pointsMax et pointsDisponibles seront recalculés automatiquement par le useEffect basé sur niveau
                 if (decoded.nomArbre) setNomArbrePartage(decoded.nomArbre);
                 if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
                 if (decoded.niveau) setNiveau(decoded.niveau);
-                if (decoded.pointsDeVie !== undefined) setPointsDeVie(decoded.pointsDeVie);
+                if (decoded.vie !== undefined) setVie(decoded.vie);
+                if (decoded.bonus !== undefined) setBonus(decoded.bonus);
                 setModeLectureSeule(true); // Mode lecture seule pour les liens partagés
                 console.log('🔒 Mode lecture seule activé');
               } catch (e) {
@@ -646,12 +676,13 @@
             const data = {
               talents: talentsToShare,
               talentsActifs,
-              pointsMax,
+              // pointsMax sera recalculé à partir du niveau
               version: '1.0',
               nomArbre: arbreActuel,
               nomPersonnage,
               niveau,
-              pointsDeVie
+              vie,
+              bonus
             };
 
             console.log('Données à encoder:', data);
@@ -933,17 +964,37 @@
                     </span>
                   </div>
 
-                  {/* Points de Vie */}
+                  {/* VIE */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Points de Vie:</label>
+                    <label className="text-white font-semibold">VIE:</label>
                     <input
                       type="number"
-                      value={pointsDeVie}
-                      onChange={(e) => setPointsDeVie(parseInt(e.target.value) || 0)}
+                      value={vie}
+                      onChange={(e) => setVie(parseInt(e.target.value) || 0)}
                       readOnly={modeLectureSeule}
                       min="0"
                       className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
                     />
+                  </div>
+
+                  {/* Bonus */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white font-semibold">Bonus:</label>
+                    <input
+                      type="number"
+                      value={bonus}
+                      onChange={(e) => setBonus(parseInt(e.target.value) || 0)}
+                      readOnly={modeLectureSeule}
+                      className={`w-20 px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold ${modeLectureSeule ? 'cursor-not-allowed' : ''}`}
+                    />
+                  </div>
+
+                  {/* Points de Vie (calculés) */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">Points de Vie:</span>
+                    <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
+                      {getPointsDeVie()}
+                    </span>
                   </div>
 
                   {/* Niveau */}
