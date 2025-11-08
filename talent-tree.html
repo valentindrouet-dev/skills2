@@ -1181,7 +1181,7 @@
                 <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
                   {/* Nom */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Nom :</label>
+                    <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Nom :</label>
                     <input
                       type="text"
                       value={nomPersonnage}
@@ -1193,7 +1193,7 @@
 
                   {/* Classe */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Classe :</label>
+                    <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Classe :</label>
                     {modeLectureSeule ? (
                       <span className="px-3 py-1.5 bg-slate-700 text-amber-400 rounded border border-amber-500 font-bold">{arbreActuel}</span>
                     ) : (
@@ -1211,7 +1211,7 @@
 
                   {/* Niveau */}
                   <div className="flex items-center gap-2">
-                    <label className="text-white font-semibold">Niveau :</label>
+                    <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Niveau :</label>
                     <select
                       value={niveau}
                       onChange={(e) => setNiveau(parseInt(e.target.value))}
@@ -1228,50 +1228,50 @@
 
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">DÉGÂTS :</span>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS :</span>
                     <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                       +{getTotalDegats()}
                     </span>
                   </div>
 
                   {/* Séparateur vertical */}
-                  <span className="text-white font-bold text-xl">|</span>
+                  <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-bold text-xl`}>|</span>
 
                   {/* Formule PV = VIE + ENDU + BONUS */}
                   <div className="flex items-center gap-2">
                     {/* PV */}
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold">PV :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV :</span>
                       <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
                         {getPointsDeVie()}
                       </span>
                     </div>
 
-                    <span className="text-white font-bold">=</span>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-bold`}>=</span>
 
                     {/* VIE */}
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold">VIE :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>VIE :</span>
                       <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
                         {getTotalVie()}
                       </span>
                     </div>
 
-                    <span className="text-white font-bold">×</span>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-bold`}>×</span>
 
                     {/* ENDU */}
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold">ENDU :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>ENDU :</span>
                       <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
                         {getTotalEndu()}
                       </span>
                     </div>
 
-                    <span className="text-white font-bold">+</span>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-bold`}>+</span>
 
                     {/* Bonus (calculé selon la classe) */}
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold">Bonus :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus :</span>
                       <span className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold min-w-[50px]">
                         {getBonusPV()}
                       </span>
@@ -1284,7 +1284,7 @@
                       <div className="w-full"></div>
                       {getCompetencesActives().map(comp => (
                         <div key={comp} className="flex items-center gap-2">
-                          <span className="text-white font-semibold">{comp} :</span>
+                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp} :</span>
                           <span className="px-3 py-1.5 bg-orange-600 text-white rounded font-bold min-w-[50px] text-center">
                             +{getTotalCompetence(comp)}
                           </span>
@@ -1848,7 +1848,7 @@
                                   <button
                                     onClick={() => modeEdition ? setEditingTalent(talent.id) : toggleTalent(talent.id)}
                                     style={{
-                                      backgroundColor: isActive ? getCouleurTalent(talent) : undefined,
+                                      backgroundColor: isActive ? getCouleurTalent(talent) : (modePrint ? 'white' : undefined),
                                       boxSizing: 'border-box',
                                       height: `${dimensions.height}px`,
                                       maxHeight: `${dimensions.height}px`,
@@ -1862,8 +1862,8 @@
                                       ${isActive
                                         ? 'border-amber-400 shadow-lg shadow-amber-500/50 active'
                                         : isAvailable
-                                        ? 'bg-slate-600 border-slate-400 hover:border-amber-400 hover:shadow-lg'
-                                        : 'bg-slate-800 border-slate-700 cursor-not-allowed'
+                                        ? `${modePrint ? 'bg-white' : 'bg-slate-600'} border-slate-400 hover:border-amber-400 hover:shadow-lg`
+                                        : `${modePrint ? 'bg-white' : 'bg-slate-800'} border-slate-700 cursor-not-allowed`
                                       }
                                       ${isHovered ? 'ring-2 ring-amber-400' : ''}
                                       ${modeEdition ? 'cursor-move' : ''}
