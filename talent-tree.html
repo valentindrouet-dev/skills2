@@ -208,7 +208,10 @@
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
-          const [vueActive, setVueActive] = useState('arbre'); // 'arbre' ou 'feuille'
+          const [vueActive, setVueActive] = useState(() => {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('view') || 'arbre'; // 'arbre' ou 'feuille'
+          });
           const [zoom, setZoom] = useState(() => {
             const savedZoom = localStorage.getItem('zoomLevel');
             return savedZoom ? parseFloat(savedZoom) : 1;
@@ -326,6 +329,12 @@
           const [modePlayer, setModePlayer] = useState(() => {
             const params = new URLSearchParams(window.location.search);
             return params.get('player') === 'true';
+          });
+
+          // Détecter le mode print (impression avec fond blanc)
+          const [modePrint, setModePrint] = useState(() => {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('print') === 'true';
           });
 
           const categories = {
@@ -1140,17 +1149,19 @@
 
           // Imprimer
           const imprimerArbre = () => {
-            setVueActive('arbre');
-            setTimeout(() => window.print(), 100);
+            const baseUrl = window.location.origin + window.location.pathname;
+            const url = `${baseUrl}?print=true&view=arbre`;
+            window.open(url, '_blank');
           };
 
           const imprimerFeuille = () => {
-            setVueActive('feuille');
-            setTimeout(() => window.print(), 100);
+            const baseUrl = window.location.origin + window.location.pathname;
+            const url = `${baseUrl}?print=true&view=feuille`;
+            window.open(url, '_blank');
           };
 
           return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+            <div className={`min-h-screen p-8 ${modePrint ? 'bg-white' : 'bg-gradient-to-br from-slate-900 to-slate-800'}`}>
               {/* Notification temporaire */}
               {notification && (
                 <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-pulse">
@@ -1160,14 +1171,14 @@
 
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {/* Header */}
-                <div className={`bg-gradient-to-r ${getCouleurClasse(arbreActuel)} rounded-t-lg p-6 shadow-lg no-print`}>
-                  <h1 className="text-4xl font-bold text-center text-white tracking-wide">
+                <div className={`${modePrint ? 'bg-white' : `bg-gradient-to-r ${getCouleurClasse(arbreActuel)}`} rounded-t-lg p-6 shadow-lg no-print`}>
+                  <h1 className={`text-4xl font-bold text-center tracking-wide ${modePrint ? 'text-black' : 'text-white'}`}>
                     {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
                   </h1>
                 </div>
 
                 {/* Caractéristiques du personnage */}
-                <div className={`bg-slate-700 ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
+                <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
                   {/* Nom */}
                   <div className="flex items-center gap-2">
                     <label className="text-white font-semibold">Nom :</label>
@@ -1284,7 +1295,7 @@
                 </div>
 
                 {/* Barre d'outils */}
-                <div className={`bg-slate-800 ${modeLectureSeule ? 'border-2' : 'border-x-2'} border-amber-500 p-4 flex justify-between items-center flex-wrap gap-4 no-print`}>
+                <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} ${modeLectureSeule ? 'border-2' : 'border-x-2'} border-amber-500 p-4 flex justify-between items-center flex-wrap gap-4 no-print`}>
                   <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setVueActive('arbre')}
@@ -1418,7 +1429,7 @@
                 {vueActive === 'arbre' && (
                   <>
                     {/* Compteurs de points */}
-                    <div className="bg-slate-800 border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print">
+                    <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print`}>
                       <div className="flex items-center gap-4">
                         <span className="text-amber-400 font-bold text-lg">
                           {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
@@ -1466,7 +1477,7 @@
                     </div>
 
                     {/* Arbre de talents */}
-                    <div className="bg-slate-700 rounded-b-lg shadow-2xl overflow-auto">
+                    <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} rounded-b-lg shadow-2xl overflow-auto`}>
                       <div className="flex justify-center w-full">
                         <div
                           className="p-8 relative print-talent-tree origin-top-left"
@@ -1950,7 +1961,7 @@
                     </h2>
 
                     {/* Caractéristiques du personnage */}
-                    <div className="mb-4 p-3 bg-slate-100 border-2 border-slate-300 rounded">
+                    <div className={`mb-4 p-3 ${modePrint ? 'bg-white' : 'bg-slate-100'} border-2 border-slate-300 rounded`}>
                       {/* Infos de base */}
                       <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
                         <div className="flex items-center gap-2">
