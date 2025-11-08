@@ -358,14 +358,14 @@
 
           // Couleurs de talents
           const couleursTalent = {
-            action: { code: '#4F46E6', nom: 'Action' },           // Indigo
-            amelioration: { code: '#16a34a', nom: 'Amélio' },     // Green
+            action: { code: '#4278ac', nom: 'Action' },           // Blue
+            amelioration: { code: '#4e8b51', nom: 'Amélio' },     // Green
             competence: { code: '#E57036', nom: 'Comp (legacy)' },  // Orange - Rétrocompatibilité
             degats: { code: '#d56161', nom: 'Dégâts' },
             endu: { code: '#49d6c8', nom: 'Endu' },
             maitrise: { code: '#ca8a04', nom: 'Maîtrise' },        // Yellow
             passif: { code: '#999999', nom: 'Passif' },
-            reaction: { code: '#9333ea', nom: 'Réac' },           // Purple
+            reaction: { code: '#7d5f92', nom: 'Réac' },           // Purple
             vie: { code: '#e281d1', nom: 'Vie' }                   // Rose
           };
 
@@ -1899,7 +1899,7 @@
                                             {talent.nom}
                                           </div>
                                           <div
-                                            className="text-slate-200 font-bold text-center leading-relaxed line-clamp-5"
+                                            className="text-slate-200 font-bold text-center leading-tight line-clamp-5"
                                             style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}
                                             dangerouslySetInnerHTML={{ __html: talent.description }}
                                           />
@@ -2072,7 +2072,7 @@
                                             <>
                                               <div className="font-bold mb-2 text-center line-clamp-2" style={{ fontSize: '1.3rem' }}>{talent.nom}</div>
                                               <div
-                                                className="font-bold text-center leading-relaxed line-clamp-5"
+                                                className="font-bold text-center leading-tight line-clamp-5"
                                                 style={{ whiteSpace: 'pre-line', fontSize: '0.9375rem' }}
                                                 dangerouslySetInnerHTML={{ __html: talent.description }}
                                               />
