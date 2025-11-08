@@ -157,6 +157,16 @@
             </svg>
         );
 
+        const Share = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+        );
+
         const Printer = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -310,6 +320,12 @@
           const [modeLectureSeule, setModeLectureSeule] = useState(() => {
             const params = new URLSearchParams(window.location.search);
             return params.has('data'); // Mode lecture seule si paramètre 'data' présent
+          });
+
+          // Détecter le mode player (partage pour les joueurs)
+          const [modePlayer, setModePlayer] = useState(() => {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('player') === 'true';
           });
 
           const categories = {
@@ -1106,6 +1122,22 @@
             setTargetGridPoint(null);
           };
 
+          // Générer lien de partage pour les joueurs
+          const genererLienPartage = () => {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const url = `${baseUrl}?player=true`;
+
+            // Copier dans le presse-papier
+            navigator.clipboard.writeText(url).then(() => {
+              alert('Lien copié dans le presse-papier !\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.');
+            }).catch(err => {
+              console.error('Erreur lors de la copie:', err);
+            });
+
+            // Ouvrir dans un nouvel onglet
+            window.open(url, '_blank');
+          };
+
           // Imprimer
           const imprimerArbre = () => {
             setVueActive('arbre');
@@ -1300,7 +1332,13 @@
                       </div>
                     )}
 
-                    {!modeLectureSeule && (
+                    {modePlayer && (
+                      <div className="px-4 py-2 bg-purple-600 text-white rounded font-semibold flex items-center gap-2">
+                        👥 Mode Joueur
+                      </div>
+                    )}
+
+                    {!modeLectureSeule && !modePlayer && (
                       <>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
@@ -1356,6 +1394,15 @@
                           </>
                         )}
                       </>
+                    )}
+
+                    {!modeLectureSeule && !modePlayer && (
+                      <button
+                        onClick={genererLienPartage}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Share /> Partager
+                      </button>
                     )}
 
                     <button
