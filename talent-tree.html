@@ -2018,28 +2018,22 @@
                           <span className="px-2 py-1 bg-green-700 text-white rounded font-bold">
                             {getPointsDeVie()}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                          <span className="font-bold">=</span>
                           <span className="font-bold">VIE :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.vie.code }}>
                             {getTotalVie()}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                          <span className="font-bold">×</span>
                           <span className="font-bold">ENDU :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.endu.code }}>
                             {getTotalEndu()}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                          <span className="font-bold">+</span>
                           <span className="font-bold">BONUS :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                             {getBonusPV()}
                           </span>
                         </div>
-                        <span className="text-xs text-slate-600">
-                          = VIE × ENDU + BONUS
-                        </span>
                       </div>
 
                       {/* Compétences sur une seule ligne */}
@@ -2070,49 +2064,96 @@
                         Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-6">
-                        {/* Itérer sur tous les types de talents dans l'ordre défini */}
-                        {['action', 'reaction', 'passif', 'amelioration', 'maitrise']
-                          .map(typeKey => {
-                            const typeInfo = couleursTalent[typeKey];
-                            if (!typeInfo) return null;
-                            const talentsDeCeType = Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === typeKey);
+                      <div className="flex gap-6">
+                        {/* Colonne gauche */}
+                        <div className="flex-1 flex flex-col gap-6">
+                          {['action', 'passif', 'maitrise']
+                            .map(typeKey => {
+                              const typeInfo = couleursTalent[typeKey];
+                              if (!typeInfo) return null;
+                              const talentsDeCeType = Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === typeKey);
 
-                            if (talentsDeCeType.length === 0) return null;
+                              if (talentsDeCeType.length === 0) return null;
 
-                            return (
-                              <div key={typeKey}>
-                                <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: typeInfo.code }}>
-                                  {typeInfo.nom}
-                                </h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                  {talentsDeCeType.map(([id]) => {
-                                    const talent = talents[id];
-                                    const couleur = getCouleurTalent(talent);
+                              return (
+                                <div key={typeKey}>
+                                  <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: typeInfo.code }}>
+                                    {typeInfo.nom}
+                                  </h3>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {talentsDeCeType.map(([id]) => {
+                                      const talent = talents[id];
+                                      const couleur = getCouleurTalent(talent);
 
-                                    return (
-                                      <div
-                                        key={id}
-                                        className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
-                                      >
-                                        {/* Titre en couleur */}
-                                        <div className="font-bold text-left mb-1" style={{ color: couleur, fontSize: '0.95rem' }}>
-                                          {talent.nom}
-                                        </div>
-
-                                        {/* Description alignée à gauche */}
+                                      return (
                                         <div
-                                          className="text-slate-700 text-left leading-tight"
-                                          style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: talent.description }}
-                                        />
-                                      </div>
-                                    );
-                                  })}
+                                          key={id}
+                                          className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
+                                        >
+                                          {/* Titre en couleur */}
+                                          <div className="font-bold text-left mb-1" style={{ color: couleur, fontSize: '0.95rem' }}>
+                                            {talent.nom}
+                                          </div>
+
+                                          {/* Description alignée à gauche */}
+                                          <div
+                                            className="text-slate-700 text-left leading-tight"
+                                            style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
+                                            dangerouslySetInnerHTML={{ __html: talent.description }}
+                                          />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                        </div>
+
+                        {/* Colonne droite */}
+                        <div className="flex-1 flex flex-col gap-6">
+                          {['reaction', 'amelioration']
+                            .map(typeKey => {
+                              const typeInfo = couleursTalent[typeKey];
+                              if (!typeInfo) return null;
+                              const talentsDeCeType = Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === typeKey);
+
+                              if (talentsDeCeType.length === 0) return null;
+
+                              return (
+                                <div key={typeKey}>
+                                  <h3 className="text-lg font-bold mb-3 pb-1 border-b border-slate-300" style={{ color: typeInfo.code }}>
+                                    {typeInfo.nom}
+                                  </h3>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {talentsDeCeType.map(([id]) => {
+                                      const talent = talents[id];
+                                      const couleur = getCouleurTalent(talent);
+
+                                      return (
+                                        <div
+                                          key={id}
+                                          className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
+                                        >
+                                          {/* Titre en couleur */}
+                                          <div className="font-bold text-left mb-1" style={{ color: couleur, fontSize: '0.95rem' }}>
+                                            {talent.nom}
+                                          </div>
+
+                                          {/* Description alignée à gauche */}
+                                          <div
+                                            className="text-slate-700 text-left leading-tight"
+                                            style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
+                                            dangerouslySetInnerHTML={{ __html: talent.description }}
+                                          />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
                       </div>
                     )}
                   </div>
