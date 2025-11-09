@@ -177,9 +177,9 @@
 
         function ArbreTalents() {
           // Grille de placement : points d'ancrage tous les 20px
-          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 1200 (61 lignes)
+          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 2000 (101 lignes)
           const gridColumns = Array.from({ length: 68 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1340]
-          const gridRows = Array.from({ length: 61 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1200]
+          const gridRows = Array.from({ length: 101 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 2000]
 
           // Ref pour éviter la sauvegarde automatique au premier rendu
           const isInitialMount = React.useRef(true);
@@ -543,9 +543,9 @@
 
           // Helper pour calculer la hauteur nécessaire de l'interface
           const getRequiredHeight = () => {
-            if (Object.keys(talents).length === 0) return 800;
+            if (Object.keys(talents).length === 0) return 2100;
 
-            let maxY = 800; // Hauteur minimale
+            let maxY = 2100; // Hauteur minimale augmentée pour permettre plus d'espace
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
               const talentBottom = talent.position.y + dim.height + 150; // +150 pour marge
@@ -1286,7 +1286,7 @@
                     {/* Bonus (calculé selon la classe) */}
                     <div className="flex items-center gap-2">
                       <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus :</span>
-                      <span className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 text-center font-bold min-w-[50px]">
+                      <span className="px-3 py-1.5 text-white rounded text-center font-bold min-w-[50px]" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                         {getBonusPV()}
                       </span>
                     </div>
