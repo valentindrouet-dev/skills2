@@ -447,6 +447,17 @@
             return result;
           };
 
+          // Obtenir les classes de couleur selon le coût du talent
+          const getCoutColorClasses = (cout, isActive) => {
+            if (!isActive) return 'bg-slate-500 border-slate-400';
+
+            if (cout === 1) return 'bg-green-500 border-green-300';
+            if (cout === 2) return 'bg-amber-500 border-amber-300';
+            if (cout >= 3) return 'bg-orange-500 border-orange-300';
+
+            return 'bg-amber-500 border-amber-300'; // Par défaut
+          };
+
           // Calculer la taille de police dynamique selon la longueur du texte et largeur du talent
           const getDynamicFontSize = (text, baseSize, talentWidth) => {
             if (!text) return baseSize;
@@ -1963,10 +1974,10 @@
                                   >
                                     {/* Coût */}
                                     <div className={`
-                                      absolute -top-4 -right-4 w-8 h-8 rounded-full
-                                      flex items-center justify-center font-bold text-sm
-                                      ${isActive ? 'bg-amber-500 text-white' : 'bg-slate-500 text-white'}
-                                      border-2 ${isActive ? 'border-amber-300' : 'border-slate-400'}
+                                      absolute -top-3 -right-3 w-6 h-6 rounded-full
+                                      flex items-center justify-center font-bold text-xs
+                                      text-white border-2
+                                      ${getCoutColorClasses(talent.cout, isActive)}
                                     `}>
                                       {talent.cout}
                                     </div>
