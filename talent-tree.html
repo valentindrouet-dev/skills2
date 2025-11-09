@@ -415,6 +415,38 @@
             return couleurs[classe] || '#d97706';
           };
 
+          // Remplacer les marqueurs dynamiques dans les descriptions
+          const replaceMarkers = (description) => {
+            if (!description) return description;
+
+            let result = description;
+
+            // Remplacer les marqueurs simples et avec formules
+            result = result.replace(/\{([^}]+)\}/g, (match, formula) => {
+              try {
+                // Remplacer les variables par leurs valeurs
+                let expr = formula
+                  .replace(/ENDU/g, getTotalEndu())
+                  .replace(/VIE/g, getTotalVie())
+                  .replace(/DEGATS/g, getTotalDegats())
+                  .replace(/NIVEAU/g, niveau)
+                  .replace(/PV/g, getPointsDeVie());
+
+                // Évaluer la formule de manière sûre (seulement +, -, *, /)
+                if (/^[\d\s+\-*/.()]+$/.test(expr)) {
+                  const value = eval(expr);
+                  return Math.floor(value);
+                }
+
+                return match; // Si la formule est invalide, laisser tel quel
+              } catch (e) {
+                return match; // En cas d'erreur, laisser tel quel
+              }
+            });
+
+            return result;
+          };
+
           // Calculer la taille de police dynamique selon la longueur du texte et largeur du talent
           const getDynamicFontSize = (text, baseSize, talentWidth) => {
             if (!text) return baseSize;
@@ -1490,6 +1522,27 @@
                       </div>
                     </div>
 
+                    {/* Lexique des marqueurs - visible en mode édition */}
+                    {modeEdition && (
+                      <div className="bg-amber-50 border-x-2 border-amber-500 p-3 no-print">
+                        <div className="text-sm">
+                          <span className="font-bold text-amber-900">📝 Marqueurs dynamiques :</span>
+                          <span className="text-slate-700 ml-2">
+                            <code className="bg-white px-1 rounded">{'{ENDU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{VIE}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{NIVEAU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{PV}'}</code>
+                            <span className="mx-2">•</span>
+                            <span className="text-xs">Formules : </span>
+                            <code className="bg-white px-1 rounded">{'{ENDU*2}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{VIE+NIVEAU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS/2}'}</code>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Arbre de talents */}
                     <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} rounded-b-lg shadow-2xl`}>
                       <div className="flex justify-center w-full">
@@ -1915,7 +1968,7 @@
                                           <div
                                             className="text-slate-200 font-bold text-center leading-tight line-clamp-7"
                                             style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}
-                                            dangerouslySetInnerHTML={{ __html: talent.description }}
+                                            dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.description) }}
                                           />
                                         </>
                                       )}
@@ -1924,7 +1977,7 @@
                                         <div
                                           className="text-slate-200 font-bold text-center leading-tight line-clamp-3"
                                           style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}
-                                          dangerouslySetInnerHTML={{ __html: talent.description }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.description) }}
                                         />
                                       )}
 
@@ -1932,7 +1985,7 @@
                                         <div
                                           className="text-slate-200 font-bold text-center leading-tight line-clamp-3"
                                           style={{ whiteSpace: 'pre-line', fontSize: `${getDynamicFontSize(talent.description, 0.9375, dimensions.width - 20)}rem` }}
-                                          dangerouslySetInnerHTML={{ __html: talent.description }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.description) }}
                                         />
                                       )}
                                     </div>
@@ -2099,7 +2152,7 @@
                                           <div
                                             className="text-slate-700 text-left leading-tight"
                                             style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                            dangerouslySetInnerHTML={{ __html: talent.description }}
+                                            dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.description) }}
                                           />
                                         </div>
                                       );
@@ -2144,7 +2197,7 @@
                                           <div
                                             className="text-slate-700 text-left leading-tight"
                                             style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                            dangerouslySetInnerHTML={{ __html: talent.description }}
+                                            dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.description) }}
                                           />
                                         </div>
                                       );
