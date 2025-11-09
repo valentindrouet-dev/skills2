@@ -469,27 +469,37 @@
             return baseSize;
           };
 
-          // Calculer le total d'ENDU (talents Endu actifs)
+          // Calculer le total d'ENDU (via effets spéciaux uniquement)
           const getTotalEndu = () => {
-            return Object.keys(talentsActifs).filter(id => {
+            let total = 0;
+
+            // Effets spéciaux: bonus d'ENDU depuis les talents
+            Object.keys(talentsActifs).forEach(id => {
               const talent = talents[id];
-              return talent && talent.couleurTalent === 'endu';
-            }).length * 2; // Chaque talent Endu = +2
+              if (talent?.effetSpecial?.type === 'bonus_endu') {
+                const source = talent.effetSpecial.source;
+                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+
+                if (source === 'fixe') {
+                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
+                } else if (source === 'niveau') {
+                  total += Math.floor(niveau * multiplicateur);
+                }
+              }
+            });
+
+            return total;
           };
 
-          // Calculer le total de DEGATS (talents Degats actifs)
+          // Calculer le total de DEGATS (via effets spéciaux uniquement)
           const getTotalDegats = () => {
-            // Base: talents Degats × 2
-            let total = Object.keys(talentsActifs).filter(id => {
-              const talent = talents[id];
-              return talent && talent.couleurTalent === 'degats';
-            }).length * 2;
+            let total = 0;
 
-            // Effets spéciaux: bonus de dégâts depuis d'autres talents
+            // Effets spéciaux: bonus de dégâts depuis les talents
             Object.keys(talentsActifs).forEach(id => {
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_degats') {
-                const source = talent.effetSpecial.source; // 'endu', 'vie', 'niveau', etc.
+                const source = talent.effetSpecial.source;
                 const multiplicateur = talent.effetSpecial.multiplicateur || 1;
 
                 if (source === 'endu') {
@@ -499,7 +509,7 @@
                 } else if (source === 'niveau') {
                   total += Math.floor(niveau * multiplicateur);
                 } else if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || 0);
+                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
                 }
               }
             });
@@ -507,13 +517,26 @@
             return total;
           };
 
-          // Calculer le total de VIE (talents Vie actifs)
+          // Calculer le total de VIE (via effets spéciaux uniquement)
           const getTotalVie = () => {
-            const talentsVie = Object.keys(talentsActifs).filter(id => {
+            let total = 3; // VIE de base = 3 pour toutes les classes
+
+            // Effets spéciaux: bonus de VIE depuis les talents
+            Object.keys(talentsActifs).forEach(id => {
               const talent = talents[id];
-              return talent && talent.couleurTalent === 'vie';
-            }).length * 1; // Chaque talent Vie = +1
-            return 3 + talentsVie; // VIE de base = 3 pour toutes les classes
+              if (talent?.effetSpecial?.type === 'bonus_vie') {
+                const source = talent.effetSpecial.source;
+                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+
+                if (source === 'fixe') {
+                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
+                } else if (source === 'niveau') {
+                  total += Math.floor(niveau * multiplicateur);
+                }
+              }
+            });
+
+            return total;
           };
 
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
@@ -1776,6 +1799,8 @@
                                       id={`effet-type-${talent.id}`}
                                     >
                                       <option value="aucun">Aucun effet</option>
+                                      <option value="bonus_vie">Bonus VIE</option>
+                                      <option value="bonus_endu">Bonus ENDU</option>
                                       <option value="bonus_degats">Bonus DÉGÂTS</option>
                                       <option value="bonus_pv">Bonus PV</option>
                                     </select>
@@ -2112,12 +2137,7 @@
                     </div>
 
                     {/* Talents actifs groupés par type */}
-                    {Object.keys(talentsActifs).length === 0 ? (
-                      <div className="text-center text-gray-500 py-12">
-                        Aucun talent sélectionné. Retournez à l'arbre pour choisir vos talents.
-                      </div>
-                    ) : (
-                      <div className="flex gap-6">
+                    <div className="flex gap-6">
                         {/* Colonne gauche */}
                         <div className="flex-1 flex flex-col gap-6">
                           {['action', 'passif', 'maitrise']
@@ -2126,7 +2146,9 @@
                               if (!typeInfo) return null;
                               const talentsDeCeType = Object.entries(talentsActifs).filter(([id]) => talents[id]?.couleurTalent === typeKey);
 
-                              if (talentsDeCeType.length === 0) return null;
+                              // Pour les actions, toujours afficher même si vide (pour Attaque de Base)
+                              // Pour les autres, ne rien afficher si aucun talent
+                              if (talentsDeCeType.length === 0 && typeKey !== 'action') return null;
 
                               return (
                                 <div key={typeKey}>
@@ -2134,6 +2156,27 @@
                                     {typeInfo.nom}
                                   </h3>
                                   <div className="grid grid-cols-2 gap-3">
+                                    {/* Attaque de Base - automatique pour tous */}
+                                    {typeKey === 'action' && (
+                                      <div
+                                        key="attaque-base"
+                                        className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
+                                      >
+                                        {/* Titre en couleur */}
+                                        <div className="font-bold text-left mb-1" style={{ color: couleursTalent.action.code, fontSize: '0.95rem' }}>
+                                          Attaque de Base
+                                        </div>
+
+                                        {/* Description alignée à gauche */}
+                                        <div
+                                          className="text-slate-700 text-left leading-tight"
+                                          style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
+                                        >
+                                          Vous effectuez 1 attaque
+                                        </div>
+                                      </div>
+                                    )}
+
                                     {talentsDeCeType.map(([id]) => {
                                       const talent = talents[id];
                                       const couleur = getCouleurTalent(talent);
@@ -2208,7 +2251,6 @@
                             })}
                         </div>
                       </div>
-                    )}
                   </div>
                 )}
               </div>
