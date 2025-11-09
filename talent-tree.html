@@ -1971,15 +1971,15 @@
                       {/* Infos de base */}
                       <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">Nom :</span>
-                          <span>{nomPersonnage || '(Non défini)'}</span>
+                          <span className="font-bold">NOM :</span>
+                          <span className="uppercase">{nomPersonnage || '(Non défini)'}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">Classe :</span>
-                          <span>{arbreActuel}</span>
+                          <span className="font-bold">CLASSE :</span>
+                          <span className="uppercase">{arbreActuel}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">Niveau :</span>
+                          <span className="font-bold">NIVEAU :</span>
                           <span>{niveau}</span>
                         </div>
                       </div>
@@ -1998,7 +1998,7 @@
                             {getPointsDeVie()}
                           </span>
                           <span className="text-xs text-slate-600">
-                            = {getTotalVie()} × {getTotalEndu()} + {getBonusPV()}
+                            VIE ({getTotalVie()}) × ENDU ({getTotalEndu()}) + BONUS ({getBonusPV()})
                           </span>
                         </div>
                       </div>
@@ -2033,7 +2033,7 @@
                     ) : (
                       <div className="grid grid-cols-2 gap-x-6 gap-y-6">
                         {/* Itérer sur tous les types de talents dans l'ordre défini */}
-                        {['action', 'reaction', 'maitrise', 'passif']
+                        {['action', 'reaction', 'amelioration', 'maitrise', 'passif']
                           .map(typeKey => {
                             const typeInfo = couleursTalent[typeKey];
                             if (!typeInfo) return null;
