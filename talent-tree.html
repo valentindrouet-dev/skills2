@@ -358,14 +358,14 @@
 
           // Couleurs de talents
           const couleursTalent = {
-            action: { code: '#4278ac', nom: 'Action' },           // Blue
-            amelioration: { code: '#4e8b51', nom: 'Amélio' },     // Green
+            action: { code: '#4278ac', nom: 'Actions' },           // Blue
+            amelioration: { code: '#4e8b51', nom: 'Améliorations' },     // Green
             competence: { code: '#E57036', nom: 'Comp (legacy)' },  // Orange - Rétrocompatibilité
             degats: { code: '#d56161', nom: 'Dégâts' },
             endu: { code: '#49d6c8', nom: 'Endu' },
-            maitrise: { code: '#ca8a04', nom: 'Maîtrise' },        // Yellow
-            passif: { code: '#999999', nom: 'Passif' },
-            reaction: { code: '#7d5f92', nom: 'Réac' },           // Purple
+            maitrise: { code: '#ca8a04', nom: 'Maîtrises' },        // Yellow
+            passif: { code: '#999999', nom: 'Passifs' },
+            reaction: { code: '#7d5f92', nom: 'Réactions' },           // Purple
             vie: { code: '#e281d1', nom: 'Vie' }                   // Rose
           };
 
@@ -399,6 +399,20 @@
               'Pyromane': 'from-orange-600 to-orange-500'
             };
             return couleurs[classe] || 'from-amber-600 to-amber-500';
+          };
+
+          const getCouleurClasseHex = (classe) => {
+            const couleurs = {
+              'Apothicaire': '#16a34a',
+              'Artificier': '#0891b2',
+              'Chasseur': '#b45309',
+              'Destructeur': '#dc2626',
+              'Déviant': '#9333ea',
+              'Gardien': '#2563eb',
+              'Lamevent': '#475569',
+              'Pyromane': '#ea580c'
+            };
+            return couleurs[classe] || '#d97706';
           };
 
           // Calculer la taille de police dynamique selon la longueur du texte et largeur du talent
@@ -1972,15 +1986,21 @@
                       <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
                         <div className="flex items-center gap-2">
                           <span className="font-bold">NOM :</span>
-                          <span className="uppercase">{nomPersonnage || '(Non défini)'}</span>
+                          <span className="px-2 py-1 rounded font-bold text-white uppercase" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
+                            {nomPersonnage || '(Non défini)'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold">CLASSE :</span>
-                          <span className="uppercase">{arbreActuel}</span>
+                          <span className="px-2 py-1 rounded font-bold text-white uppercase" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
+                            {arbreActuel}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold">NIVEAU :</span>
-                          <span>{niveau}</span>
+                          <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
+                            {niveau}
+                          </span>
                         </div>
                       </div>
 
@@ -1997,8 +2017,23 @@
                           <span className="px-2 py-1 bg-green-700 text-white rounded font-bold">
                             {getPointsDeVie()}
                           </span>
-                          <span className="text-xs text-slate-600">
-                            VIE ({getTotalVie()}) × ENDU ({getTotalEndu()}) + BONUS ({getBonusPV()})
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">VIE :</span>
+                          <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.vie.code }}>
+                            {getTotalVie()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">ENDU :</span>
+                          <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.endu.code }}>
+                            {getTotalEndu()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">BONUS :</span>
+                          <span className="px-2 py-1 bg-amber-600 text-white rounded font-bold">
+                            {getBonusPV()}
                           </span>
                         </div>
                       </div>
@@ -2033,7 +2068,7 @@
                     ) : (
                       <div className="grid grid-cols-2 gap-x-6 gap-y-6">
                         {/* Itérer sur tous les types de talents dans l'ordre défini */}
-                        {['action', 'reaction', 'amelioration', 'maitrise', 'passif']
+                        {['action', 'reaction', 'passif', 'amelioration', 'maitrise']
                           .map(typeKey => {
                             const typeInfo = couleursTalent[typeKey];
                             if (!typeInfo) return null;
