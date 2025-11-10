@@ -978,6 +978,12 @@
             // Bloqué par exclusion mutuelle
             if (estBloqueParExclusion(talentId)) return false;
 
+            // Vérifier les points de talents requis (gate)
+            if (talent.pointsRequis && talent.pointsRequis > 0) {
+              const pointsDepenses = pointsMax - pointsDisponibles;
+              if (pointsDepenses < talent.pointsRequis) return false;
+            }
+
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
             const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
             return prerequisRemplis && pointsDisponibles >= talent.cout;
@@ -1876,6 +1882,17 @@
                                     className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                     id={`cout-${talent.id}`}
                                   />
+                                  <input
+                                    type="number"
+                                    defaultValue={talent.pointsRequis || 0}
+                                    placeholder="Points de talents requis (0 = aucun)"
+                                    min="0"
+                                    className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                    id={`points-requis-${talent.id}`}
+                                  />
+                                  <div className="text-xs text-slate-400 mb-2">
+                                    Nombre de points déjà dépensés nécessaires pour débloquer
+                                  </div>
                                   <select
                                     defaultValue={talent.typeTalent || 'grand_carre'}
                                     className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
@@ -2032,10 +2049,14 @@
                                           // Récupérer la compétence
                                           const competence = document.getElementById(`competence-${talent.id}`).value || undefined;
 
+                                          // Récupérer les points requis
+                                          const pointsRequis = parseInt(document.getElementById(`points-requis-${talent.id}`).value) || 0;
+
                                           sauvegarderTalent(talent.id, {
                                             nom: document.getElementById(`nom-${talent.id}`).value,
                                             description: document.getElementById(`desc-${talent.id}`).value,
                                             cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                            pointsRequis: pointsRequis > 0 ? pointsRequis : undefined,
                                             typeTalent: document.getElementById(`type-${talent.id}`).value,
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                             prerequis: prerequis,
@@ -2102,6 +2123,21 @@
                                       ${modeEdition ? 'cursor-move' : ''}
                                     `}
                                   >
+                                    {/* Points requis (gate) */}
+                                    {talent.pointsRequis && talent.pointsRequis > 0 && (
+                                      <div className={`
+                                        absolute -top-3 -right-12 w-8 h-6 rounded
+                                        flex items-center justify-center gap-0.5 font-bold text-xs
+                                        ${isActive || (pointsMax - pointsDisponibles >= talent.pointsRequis)
+                                          ? 'bg-orange-600 border-orange-500'
+                                          : 'bg-red-700 border-red-600'}
+                                        text-white border-2
+                                      `}>
+                                        <span style={{ fontSize: '0.6rem' }}>🔒</span>
+                                        <span>{talent.pointsRequis}</span>
+                                      </div>
+                                    )}
+
                                     {/* Coût */}
                                     <div className={`
                                       absolute -top-3 -right-3 w-6 h-6 rounded-full
