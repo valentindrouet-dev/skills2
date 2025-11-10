@@ -1871,7 +1871,7 @@
                                   key={talent.id}
                                   className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
                                   style={{
-                                    width: '640px',
+                                    width: '480px',
                                     maxHeight: '90vh',
                                     top: '0',
                                     // Si le talent est à droite (x > 900), positionner à gauche du talent
@@ -1942,7 +1942,7 @@
                                         defaultValue={talent.description}
                                         placeholder="Description"
                                         className="w-full mb-2 p-1 text-xs bg-slate-700 text-white rounded"
-                                        rows="6"
+                                        rows="4"
                                         id={`desc-${talent.id}`}
                                       />
                                       <input
@@ -1952,17 +1952,17 @@
                                         className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                         id={`cout-${talent.id}`}
                                       />
+                                      <div className="text-xs text-slate-400 mb-1">
+                                        Points dépensés nécessaires
+                                      </div>
                                       <input
                                         type="number"
                                         defaultValue={talent.pointsRequis || 0}
-                                        placeholder="Points de talents requis (0 = aucun)"
+                                        placeholder="0 = aucun"
                                         min="0"
                                         className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                         id={`points-requis-${talent.id}`}
                                       />
-                                      <div className="text-xs text-slate-400 mb-2">
-                                        Nombre de points déjà dépensés nécessaires pour débloquer
-                                      </div>
                                       <select
                                         defaultValue={talent.typeTalent || 'grand_carre'}
                                         className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
@@ -2050,7 +2050,7 @@
                                   {/* Sélecteur de prérequis */}
                                   <div className="mb-2 p-2 bg-slate-700 rounded">
                                     <div className="text-xs text-white mb-1 font-semibold">Prérequis:</div>
-                                    <div className="max-h-24 overflow-y-auto text-xs">
+                                    <div className="max-h-60 overflow-y-auto text-xs">
                                       {Object.values(talents)
                                         .filter(t => t.id !== talent.id)
                                         .sort((a, b) => a.nom.localeCompare(b.nom))
