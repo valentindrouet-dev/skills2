@@ -1740,7 +1740,7 @@
 
                         {/* Lignes de connexion */}
                         {Object.values(talents).map(talent =>
-                          talent.prerequis.map(prereqId => {
+                          talent.prerequis.map((prereqId, prereqIndex) => {
                             const prereq = talents[prereqId];
                             if (!prereq) return null;
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
@@ -1761,6 +1761,30 @@
                             const strokeW = isActive ? 3 : isHighlighted ? 3 : 3;
                             const dashArray = isActive ? '0' : '0';
 
+                            // Calculer le centre de la ligne pour le badge de points requis
+                            const midX = (x1 + x2) / 2;
+                            const midY = (y1 + y2) / 2;
+
+                            // Vérifier si ce talent a des points requis
+                            const hasPointsRequis = talent.pointsRequis && talent.pointsRequis > 0;
+                            let pointsRestants = 0;
+                            let badgeColor = '';
+                            let lockIcon = '🔒';
+
+                            if (hasPointsRequis) {
+                              const pointsDepenses = pointsMax - pointsDisponibles;
+                              pointsRestants = Math.max(0, talent.pointsRequis - pointsDepenses);
+
+                              if (talentsActifs[talent.id] || pointsRestants === 0) {
+                                badgeColor = '#16a34a'; // Green
+                                lockIcon = '🔓';
+                              } else if (pointsRestants <= talent.pointsRequis * 0.5) {
+                                badgeColor = '#eab308'; // Yellow
+                              } else {
+                                badgeColor = '#ea580c'; // Orange
+                              }
+                            }
+
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
                                 {/* Ligne droite entre les centres */}
@@ -1774,6 +1798,34 @@
                                   strokeDasharray={dashArray}
                                   className="transition-all duration-300"
                                 />
+
+                                {/* Badge de points requis au centre de la ligne (seulement sur la première ligne) */}
+                                {hasPointsRequis && prereqIndex === 0 && (
+                                  <g>
+                                    {/* Rectangle du badge */}
+                                    <rect
+                                      x={midX - 20}
+                                      y={midY - 12}
+                                      width="40"
+                                      height="24"
+                                      rx="4"
+                                      fill={badgeColor}
+                                      stroke="white"
+                                      strokeWidth="2"
+                                    />
+                                    {/* Texte du badge */}
+                                    <text
+                                      x={midX}
+                                      y={midY + 5}
+                                      textAnchor="middle"
+                                      fill="white"
+                                      fontSize="14"
+                                      fontWeight="bold"
+                                    >
+                                      {lockIcon}{pointsRestants}
+                                    </text>
+                                  </g>
+                                )}
                               </g>
                             );
                           })
@@ -2137,43 +2189,6 @@
                                       ${modeEdition ? 'cursor-move' : ''}
                                     `}
                                   >
-                                    {/* Points requis (gate) */}
-                                    {talent.pointsRequis && talent.pointsRequis > 0 && (() => {
-                                      const pointsDepenses = pointsMax - pointsDisponibles;
-                                      const pointsRestants = Math.max(0, talent.pointsRequis - pointsDepenses);
-                                      const pourcentage = pointsRestants / talent.pointsRequis;
-
-                                      // Gradient de couleur selon le pourcentage restant
-                                      let bgColor, borderColor;
-                                      if (isActive || pointsRestants === 0) {
-                                        bgColor = 'bg-green-600';
-                                        borderColor = 'border-green-500';
-                                      } else if (pourcentage <= 0.33) {
-                                        bgColor = 'bg-green-600';
-                                        borderColor = 'border-green-500';
-                                      } else if (pourcentage <= 0.66) {
-                                        bgColor = 'bg-yellow-500';
-                                        borderColor = 'border-yellow-400';
-                                      } else {
-                                        bgColor = 'bg-orange-600';
-                                        borderColor = 'border-orange-500';
-                                      }
-
-                                      const lockIcon = (isActive || pointsRestants === 0) ? '🔓' : '🔒';
-
-                                      return (
-                                        <div className={`
-                                          absolute -top-3 -left-9 w-10 h-6 rounded
-                                          flex items-center justify-center gap-0.5 font-bold text-xs
-                                          ${bgColor} ${borderColor}
-                                          text-white border-2
-                                        `}>
-                                          <span style={{ fontSize: '0.6rem' }}>{lockIcon}</span>
-                                          <span>{pointsRestants}</span>
-                                        </div>
-                                      );
-                                    })()}
-
                                     {/* Coût */}
                                     <div className={`
                                       absolute -top-3 -right-3 w-6 h-6 rounded-full
