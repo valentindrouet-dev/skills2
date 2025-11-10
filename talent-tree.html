@@ -911,7 +911,8 @@
               if (talent.pointsRequis && talent.pointsRequis > 0) {
                 const pointsDepenses = pointsMax - pointsDisponibles;
                 if (pointsDepenses < talent.pointsRequis) {
-                  showNotification(`Vous devez dépenser ${talent.pointsRequis} points de talents avant de débloquer celui-ci !`);
+                  const pointsRestants = talent.pointsRequis - pointsDepenses;
+                  showNotification(`Vous devez encore dépenser ${pointsRestants} points de talents avant de débloquer celui-ci !`);
                   return;
                 }
               }
@@ -2140,16 +2141,34 @@
                                     {talent.pointsRequis && talent.pointsRequis > 0 && (() => {
                                       const pointsDepenses = pointsMax - pointsDisponibles;
                                       const pointsRestants = Math.max(0, talent.pointsRequis - pointsDepenses);
+                                      const pourcentage = pointsRestants / talent.pointsRequis;
+
+                                      // Gradient de couleur selon le pourcentage restant
+                                      let bgColor, borderColor;
+                                      if (isActive || pointsRestants === 0) {
+                                        bgColor = 'bg-green-600';
+                                        borderColor = 'border-green-500';
+                                      } else if (pourcentage <= 0.33) {
+                                        bgColor = 'bg-green-600';
+                                        borderColor = 'border-green-500';
+                                      } else if (pourcentage <= 0.66) {
+                                        bgColor = 'bg-yellow-500';
+                                        borderColor = 'border-yellow-400';
+                                      } else {
+                                        bgColor = 'bg-orange-600';
+                                        borderColor = 'border-orange-500';
+                                      }
+
+                                      const lockIcon = (isActive || pointsRestants === 0) ? '🔓' : '🔒';
+
                                       return (
                                         <div className={`
-                                          absolute -top-3 -left-12 w-10 h-6 rounded
+                                          absolute -top-3 -left-9 w-10 h-6 rounded
                                           flex items-center justify-center gap-0.5 font-bold text-xs
-                                          ${isActive || pointsRestants === 0
-                                            ? 'bg-orange-600 border-orange-500'
-                                            : 'bg-red-700 border-red-600'}
+                                          ${bgColor} ${borderColor}
                                           text-white border-2
                                         `}>
-                                          <span style={{ fontSize: '0.6rem' }}>🔒</span>
+                                          <span style={{ fontSize: '0.6rem' }}>{lockIcon}</span>
                                           <span>{pointsRestants}</span>
                                         </div>
                                       );
