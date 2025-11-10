@@ -927,6 +927,14 @@
             });
           };
 
+          // Vérifier si un talent automatique est remplacé
+          const estTalentAutoRemplace = (autoId) => {
+            return Object.keys(talentsActifs).some(activeId => {
+              const activeTalent = talents[activeId];
+              return activeTalent?.remplace === autoId;
+            });
+          };
+
           // Obtenir le nom du talent qui bloque (pour tooltip)
           const getTalentBloquant = (talentId) => {
             const talent = talents[talentId];
@@ -1951,6 +1959,10 @@
                                       id={`remplace-${talent.id}`}
                                     >
                                       <option value="">Aucun</option>
+                                      {/* Talents automatiques de base */}
+                                      <option value="auto_attaque">Attaque</option>
+                                      <option value="auto_degats_opportunite">Dégâts d'Opportunité</option>
+                                      {/* Talents de l'arbre */}
                                       {Object.values(talents)
                                         .filter(t => t.id !== talent.id)
                                         .sort((a, b) => a.nom.localeCompare(b.nom))
@@ -2249,8 +2261,9 @@
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
                               });
 
-                              // Pour les actions, toujours afficher même si vide (pour Attaque)
+                              // Pour les actions, toujours afficher si Attaque n'est pas remplacée
                               // Pour les autres, ne rien afficher si aucun talent
+                              if (talentsDeCeType.length === 0 && typeKey === 'action' && estTalentAutoRemplace('auto_attaque')) return null;
                               if (talentsDeCeType.length === 0 && typeKey !== 'action') return null;
 
                               return (
@@ -2259,8 +2272,8 @@
                                     {typeInfo.nom}
                                   </h3>
                                   <div className="grid grid-cols-2 gap-3">
-                                    {/* Attaque - automatique pour tous */}
-                                    {typeKey === 'action' && (
+                                    {/* Attaque - automatique pour tous (sauf si remplacée) */}
+                                    {typeKey === 'action' && !estTalentAutoRemplace('auto_attaque') && (
                                       <div
                                         key="attaque-base"
                                         className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
@@ -2321,8 +2334,9 @@
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
                               });
 
-                              // Pour les réactions, toujours afficher même si vide (pour Dégâts d'Opportunité)
+                              // Pour les réactions, toujours afficher si Dégâts d'Opportunité n'est pas remplacée
                               // Pour les autres, ne rien afficher si aucun talent
+                              if (talentsDeCeType.length === 0 && typeKey === 'reaction' && estTalentAutoRemplace('auto_degats_opportunite')) return null;
                               if (talentsDeCeType.length === 0 && typeKey !== 'reaction') return null;
 
                               return (
@@ -2331,8 +2345,8 @@
                                     {typeInfo.nom}
                                   </h3>
                                   <div className="grid grid-cols-2 gap-3">
-                                    {/* Dégâts d'Opportunité - automatique pour tous */}
-                                    {typeKey === 'reaction' && (
+                                    {/* Dégâts d'Opportunité - automatique pour tous (sauf si remplacée) */}
+                                    {typeKey === 'reaction' && !estTalentAutoRemplace('auto_degats_opportunite') && (
                                       <div
                                         key="degats-opportunite"
                                         className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
