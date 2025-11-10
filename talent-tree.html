@@ -360,6 +360,7 @@
           const couleursTalent = {
             action: { code: '#4278ac', nom: 'Actions' },           // Blue
             amelioration: { code: '#4e8b51', nom: 'Améliorations' },     // Green
+            aventure: { code: '#8B6F47', nom: 'Aventure' },        // Brown
             competence: { code: '#E57036', nom: 'Comp (legacy)' },  // Orange - Rétrocompatibilité
             degats: { code: '#d56161', nom: 'Dégâts' },
             endu: { code: '#49d6c8', nom: 'Endu' },
@@ -1572,13 +1573,19 @@
                           <div className="flex items-center gap-2 ml-4">
                             {Object.entries(getTalentsParType())
                               .sort((a, b) => couleursTalent[a[0]]?.nom.localeCompare(couleursTalent[b[0]]?.nom))
-                              .map(([type, count]) => (
-                                <div key={type} className="flex items-center gap-1">
-                                  <span className="px-2 py-1 rounded font-bold text-white text-sm" style={{ backgroundColor: couleursTalent[type]?.code || '#666' }}>
-                                    {couleursTalent[type]?.nom || type}: {count}
-                                  </span>
-                                </div>
-                              ))
+                              .map(([type, count]) => {
+                                // Raccourcir les noms pour les badges
+                                const nomCourt = type === 'amelioration' ? 'Amélio' :
+                                                type === 'reaction' ? 'Réac' :
+                                                couleursTalent[type]?.nom || type;
+                                return (
+                                  <div key={type} className="flex items-center gap-1">
+                                    <span className="px-2 py-1 rounded font-bold text-white text-sm" style={{ backgroundColor: couleursTalent[type]?.code || '#666' }}>
+                                      {nomCourt}: {count}
+                                    </span>
+                                  </div>
+                                );
+                              })
                             }
                           </div>
                         )}
@@ -2072,13 +2079,6 @@
                                       </div>
                                     )}
 
-                                    {/* Overlay pastel pour talent remplacé */}
-                                    {estRemplace(talent.id) && isActive && (
-                                      <div className="absolute inset-0 pointer-events-none rounded-lg overflow-hidden">
-                                        <div className="absolute inset-0 bg-white opacity-70"></div>
-                                      </div>
-                                    )}
-
                                     {/* Contenu texte avec overflow contrôlé */}
                                     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
                                       {isGrandCarre(talent) && (
@@ -2308,7 +2308,7 @@
 
                         {/* Colonne droite */}
                         <div className="flex-1 flex flex-col gap-6">
-                          {['reaction', 'amelioration']
+                          {['reaction', 'amelioration', 'aventure']
                             .map(typeKey => {
                               const typeInfo = couleursTalent[typeKey];
                               if (!typeInfo) return null;
@@ -2343,7 +2343,7 @@
                                         <div
                                           className="text-slate-700 text-left leading-tight"
                                           style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers('Quand un adversaire quitte votre contact,\n\nVous lui infligez {DEGATS} dégâts') }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers('<em>Quand un adversaire quitte votre contact,</em>\n\nVous lui infligez {DEGATS} dégâts') }}
                                         />
                                       </div>
                                     )}
