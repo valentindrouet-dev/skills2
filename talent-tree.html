@@ -1056,6 +1056,26 @@
             setPointsDisponibles(pointsMax);
           };
 
+          // Gestion du changement de niveau avec protection anti-triche
+          const handleNiveauChange = (nouveauNiveau) => {
+            // Si le nouveau niveau est inférieur à l'ancien
+            if (nouveauNiveau < niveau) {
+              const confirmation = window.confirm(
+                "⚠️ ATTENTION ⚠️\n\nVous perdrez tous vos talents débloqués en réduisant votre niveau !\n\nVoulez-vous continuer ?"
+              );
+
+              if (confirmation) {
+                setNiveau(nouveauNiveau);
+                resetTalents();
+                showNotification("Niveau réduit - Arbre de talents réinitialisé");
+              }
+              // Si pas de confirmation, on ne fait rien (le niveau reste inchangé)
+            } else {
+              // Niveau augmenté ou identique, pas de problème
+              setNiveau(nouveauNiveau);
+            }
+          };
+
           // Fonction d'export en JSON
           const exportJSON = () => {
             const data = {
@@ -1408,7 +1428,7 @@
                     <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Niveau :</label>
                     <select
                       value={niveau}
-                      onChange={(e) => setNiveau(parseInt(e.target.value))}
+                      onChange={(e) => handleNiveauChange(parseInt(e.target.value))}
                       className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
