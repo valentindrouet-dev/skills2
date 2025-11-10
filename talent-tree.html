@@ -2239,7 +2239,7 @@
                     <div className="flex gap-6">
                         {/* Colonne gauche */}
                         <div className="flex-1 flex flex-col gap-6">
-                          {['action', 'maitrise', 'passif']
+                          {['action', 'passif', 'maitrise']
                             .map(typeKey => {
                               const typeInfo = couleursTalent[typeKey];
                               if (!typeInfo) return null;
@@ -2311,7 +2311,7 @@
 
                         {/* Colonne droite */}
                         <div className="flex-1 flex flex-col gap-6">
-                          {['amelioration', 'aventure', 'reaction']
+                          {['reaction', 'amelioration', 'aventure']
                             .map(typeKey => {
                               const typeInfo = couleursTalent[typeKey];
                               if (!typeInfo) return null;
