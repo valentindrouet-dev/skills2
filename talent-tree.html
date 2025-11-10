@@ -649,16 +649,6 @@
                 prerequis: [],
                 typeTalent: 'grand_carre',
                 couleurTalent: 'amelioration'
-              },
-              [`attaque_opportunite_${classe.toLowerCase()}`]: {
-                id: `attaque_opportunite_${classe.toLowerCase()}`,
-                nom: 'Attaque d\'Opportunité',
-                cout: 1,
-                description: 'Quand un adversaire quitte votre contact,\n\nVous lui infligez {DEGATS} dégâts',
-                position: { x: 600, y: 100 },
-                prerequis: [],
-                typeTalent: 'grand_carre',
-                couleurTalent: 'reaction'
               }
             };
           };
@@ -2256,7 +2246,7 @@
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
                               });
 
-                              // Pour les actions, toujours afficher même si vide (pour Attaque de Base)
+                              // Pour les actions, toujours afficher même si vide (pour Attaque)
                               // Pour les autres, ne rien afficher si aucun talent
                               if (talentsDeCeType.length === 0 && typeKey !== 'action') return null;
 
@@ -2266,7 +2256,7 @@
                                     {typeInfo.nom}
                                   </h3>
                                   <div className="grid grid-cols-2 gap-3">
-                                    {/* Attaque de Base - automatique pour tous */}
+                                    {/* Attaque - automatique pour tous */}
                                     {typeKey === 'action' && (
                                       <div
                                         key="attaque-base"
@@ -2274,7 +2264,7 @@
                                       >
                                         {/* Titre en couleur */}
                                         <div className="font-bold text-left mb-1" style={{ color: couleursTalent.action.code, fontSize: '0.95rem' }}>
-                                          Attaque de Base
+                                          Attaque
                                         </div>
 
                                         {/* Description alignée à gauche */}
@@ -2328,7 +2318,9 @@
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
                               });
 
-                              if (talentsDeCeType.length === 0) return null;
+                              // Pour les réactions, toujours afficher même si vide (pour Dégâts d'Opportunité)
+                              // Pour les autres, ne rien afficher si aucun talent
+                              if (talentsDeCeType.length === 0 && typeKey !== 'reaction') return null;
 
                               return (
                                 <div key={typeKey}>
@@ -2336,6 +2328,26 @@
                                     {typeInfo.nom}
                                   </h3>
                                   <div className="grid grid-cols-2 gap-3">
+                                    {/* Dégâts d'Opportunité - automatique pour tous */}
+                                    {typeKey === 'reaction' && (
+                                      <div
+                                        key="degats-opportunite"
+                                        className="rounded-lg border border-slate-300 p-2 shadow-sm bg-white"
+                                      >
+                                        {/* Titre en couleur */}
+                                        <div className="font-bold text-left mb-1" style={{ color: couleursTalent.reaction.code, fontSize: '0.95rem' }}>
+                                          Dégâts d'Opportunité
+                                        </div>
+
+                                        {/* Description alignée à gauche */}
+                                        <div
+                                          className="text-slate-700 text-left leading-tight"
+                                          style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers('Quand un adversaire quitte votre contact,\n\nVous lui infligez {DEGATS} dégâts') }}
+                                        />
+                                      </div>
+                                    )}
+
                                     {talentsDeCeType.map(([id]) => {
                                       const talent = talents[id];
                                       const couleur = getCouleurTalent(talent);
