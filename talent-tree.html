@@ -797,21 +797,24 @@
               arbreActuel
             };
 
-            // Set flag to ignore next Firebase update (it will be our own save coming back)
-            ignoreNextUpdate = true;
+            // Only set flag if not already set (to avoid resetting timeout from sauvegarderTalent)
+            if (!ignoreNextUpdate) {
+              ignoreNextUpdate = true;
+              console.log('🚫 Flag ignoreNextUpdate SET dans useEffect');
+
+              // Reset flag after 1 second (in case Firebase is slow)
+              setTimeout(() => {
+                if (ignoreNextUpdate) {
+                  console.log('⏰ Reset ignoreNextUpdate flag depuis useEffect (timeout 1s)');
+                  ignoreNextUpdate = false;
+                }
+              }, 1000);
+            }
 
             // Update hash before saving to prevent loop
             lastSyncedDataHash = getDataHash(talents, talentsActifs, nomPersonnage, niveau, arbreActuel);
 
             saveToFirebase(arbreData);
-
-            // Reset flag after 1 second (in case Firebase is slow)
-            setTimeout(() => {
-              if (ignoreNextUpdate) {
-                console.log('⏰ Reset ignoreNextUpdate flag (timeout)');
-                ignoreNextUpdate = false;
-              }
-            }, 1000);
           }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel]);
 
           // Note: Ancien système d'initialisation des classes localStorage supprimé
@@ -1434,6 +1437,11 @@
           // Sauvegarder les modifications d'un talent
           const sauvegarderTalent = (talentId, updates) => {
             console.log('📝 ÉDITION TALENT:', talentId, 'Updates:', updates);
+
+            // Set flag BEFORE state update to prevent race condition
+            ignoreNextUpdate = true;
+            console.log('🚫 Flag ignoreNextUpdate SET dans sauvegarderTalent');
+
             setTalents(prev => {
               const newTalents = {
                 ...prev,
@@ -1443,9 +1451,22 @@
                 }
               };
               console.log('📝 Nouveau state talents après édition:', Object.keys(newTalents).length, 'talents');
+
+              // Update hash with new data
+              lastSyncedDataHash = getDataHash(newTalents, talentsActifs, nomPersonnage, niveau, arbreActuel);
+              console.log('🔑 Hash mis à jour dans sauvegarderTalent');
+
               return newTalents;
             });
             setEditingTalent(null);
+
+            // Reset flag after 2 seconds
+            setTimeout(() => {
+              if (ignoreNextUpdate) {
+                console.log('⏰ Reset ignoreNextUpdate flag après édition (timeout 2s)');
+                ignoreNextUpdate = false;
+              }
+            }, 2000);
           };
 
           // Drag & Drop
