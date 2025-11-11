@@ -180,9 +180,9 @@
 
         function ArbreTalents() {
           // Grille de placement : points d'ancrage tous les 20px
-          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 2000 (101 lignes)
+          // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 2400 (121 lignes)
           const gridColumns = Array.from({ length: 68 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1340]
-          const gridRows = Array.from({ length: 101 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 2000]
+          const gridRows = Array.from({ length: 121 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 2400]
 
           // Ref pour éviter la sauvegarde automatique au premier rendu
           const isInitialMount = React.useRef(true);
@@ -613,9 +613,9 @@
 
           // Helper pour calculer la hauteur nécessaire de l'interface
           const getRequiredHeight = () => {
-            if (Object.keys(talents).length === 0) return 2100;
+            if (Object.keys(talents).length === 0) return 2500;
 
-            let maxY = 2100; // Hauteur minimale augmentée pour permettre plus d'espace
+            let maxY = 2500; // Hauteur minimale augmentée pour permettre plus d'espace
             Object.values(talents).forEach(talent => {
               const dim = getDimensionsTalent(talent);
               const talentBottom = talent.position.y + dim.height + 150; // +150 pour marge
@@ -1759,10 +1759,16 @@
                         )}
 
                         {/* Lignes de connexion */}
-                        {Object.values(talents).map(talent =>
+                        {Object.values(talents).filter(talent => {
+                          // En mode édition, afficher toutes les connexions
+                          // Sinon, afficher seulement les connexions vers des talents visibles
+                          return modeEdition || talent.visible !== false;
+                        }).map(talent =>
                           talent.prerequis.map((prereqId, prereqIndex) => {
                             const prereq = talents[prereqId];
                             if (!prereq) return null;
+                            // Masquer les connexions vers des prérequis invisibles en mode non-édition
+                            if (!modeEdition && prereq.visible === false) return null;
                             const isActive = talentsActifs[prereqId] && talentsActifs[talent.id];
                             const isHighlighted = hoveredTalent === talent.id || hoveredTalent === prereqId;
 
@@ -1854,7 +1860,11 @@
 
                       {/* Talents */}
                       <div className="relative" style={{ zIndex: 2 }}>
-                        {Object.values(talents).map(talent => {
+                        {Object.values(talents).filter(talent => {
+                          // En mode édition, afficher tous les talents
+                          // Sinon, afficher seulement les talents visibles
+                          return modeEdition || talent.visible !== false;
+                        }).map(talent => {
                           const isActive = talentsActifs[talent.id];
                           const isAvailable = peutEtreActive(talent.id);
                           const isHovered = hoveredTalent === talent.id;
@@ -1899,6 +1909,21 @@
                                     zIndex: 1000
                                   }}
                                 >
+                                  {/* Bouton visibilité en haut à gauche */}
+                                  <div className="absolute top-2 left-2">
+                                    <button
+                                      onClick={() => {
+                                        sauvegarderTalent(talent.id, {
+                                          visible: !talent.visible
+                                        });
+                                      }}
+                                      className={`w-8 h-8 ${talent.visible !== false ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'} text-white rounded-full flex items-center justify-center text-lg transition-colors`}
+                                      title={talent.visible !== false ? "Talent visible - Cliquer pour masquer" : "Talent masqué - Cliquer pour afficher"}
+                                    >
+                                      {talent.visible !== false ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                  </div>
+
                                   {/* Boutons sauvegarde et fermeture */}
                                   <div className="absolute top-2 right-2 flex gap-1">
                                     <button
@@ -2217,6 +2242,7 @@
                                       }
                                       ${isHovered ? 'ring-2 ring-amber-400' : ''}
                                       ${modeEdition ? 'cursor-move' : ''}
+                                      ${modeEdition && talent.visible === false ? 'opacity-50 border-dashed' : ''}
                                     `}
                                   >
                                     {/* Coût */}
@@ -2406,6 +2432,11 @@
                                 const talent = talents[id];
                                 // Exclure les talents remplacés par une version améliorée
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
+                              }).sort((a, b) => {
+                                // Tri alphabétique par nom de talent
+                                const talentA = talents[a[0]];
+                                const talentB = talents[b[0]];
+                                return talentA.nom.localeCompare(talentB.nom);
                               });
 
                               // Pour les actions, toujours afficher si Attaque n'est pas remplacée
@@ -2479,6 +2510,11 @@
                                 const talent = talents[id];
                                 // Exclure les talents remplacés par une version améliorée
                                 return talent?.couleurTalent === typeKey && !estRemplace(id);
+                              }).sort((a, b) => {
+                                // Tri alphabétique par nom de talent
+                                const talentA = talents[a[0]];
+                                const talentB = talents[b[0]];
+                                return talentA.nom.localeCompare(talentB.nom);
                               });
 
                               // Pour les réactions, toujours afficher si Dégâts d'Opportunité n'est pas remplacée
