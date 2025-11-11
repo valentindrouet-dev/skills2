@@ -212,6 +212,7 @@
 
         // Store last synced state to detect real changes
         let lastSyncedDataHash = null;
+        let ignoreNextUpdate = false; // Flag to ignore immediate update after local change
 
         function getDataHash(talents, talentsActifs, nomPersonnage, niveau, arbreActuel) {
           return JSON.stringify({ talents, talentsActifs, nomPersonnage, niveau, arbreActuel });
@@ -796,10 +797,21 @@
               arbreActuel
             };
 
+            // Set flag to ignore next Firebase update (it will be our own save coming back)
+            ignoreNextUpdate = true;
+
             // Update hash before saving to prevent loop
             lastSyncedDataHash = getDataHash(talents, talentsActifs, nomPersonnage, niveau, arbreActuel);
 
             saveToFirebase(arbreData);
+
+            // Reset flag after 1 second (in case Firebase is slow)
+            setTimeout(() => {
+              if (ignoreNextUpdate) {
+                console.log('⏰ Reset ignoreNextUpdate flag (timeout)');
+                ignoreNextUpdate = false;
+              }
+            }, 1000);
           }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel]);
 
           // Note: Ancien système d'initialisation des classes localStorage supprimé
@@ -815,6 +827,13 @@
               if (doc.exists) {
                 const data = doc.data();
 
+                // If we just made a local change, ignore this update
+                if (ignoreNextUpdate && !isLoadingFromFirebase.current) {
+                  console.log('⏭️ Update ignorée (modification locale en cours)');
+                  ignoreNextUpdate = false;
+                  return;
+                }
+
                 // Calculate hash of incoming data
                 const incomingHash = getDataHash(
                   data.talents || {},
@@ -826,11 +845,11 @@
 
                 // If data hasn't changed, skip update (prevent loops)
                 if (!isLoadingFromFirebase.current && lastSyncedDataHash === incomingHash) {
-                  console.log('⏭️ Update ignorée (données identiques)');
+                  console.log('⏭️ Update ignorée (données identiques - hash match)');
                   return;
                 }
 
-                console.log(isLoadingFromFirebase.current ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel');
+                console.log(isLoadingFromFirebase.current ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel (hash différent)');
 
                 // Update last synced hash
                 lastSyncedDataHash = incomingHash;
