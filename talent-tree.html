@@ -185,12 +185,23 @@
         function saveToFirebase(data) {
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
+            console.log('🔥 Envoi vers Firebase, ID:', TALENT_TREE_ID, 'Données:', {
+              nbTalents: Object.keys(data.talents || {}).length,
+              nbActifs: Object.keys(data.talentsActifs || {}).length
+            });
+
             talentTreeRef.set({
               ...data,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true })
-            .then(() => console.log('✅ Sauvegardé dans Firebase'))
-            .catch((error) => console.error('❌ Erreur sauvegarde Firebase:', error));
+            .then(() => {
+              console.log('✅ SAUVEGARDÉ AVEC SUCCÈS dans Firebase');
+            })
+            .catch((error) => {
+              console.error('❌ ERREUR SAUVEGARDE Firebase:', error);
+              console.error('Code erreur:', error.code);
+              console.error('Message:', error.message);
+            });
           }, 300); // Wait 300ms before saving
         }
 
@@ -751,7 +762,18 @@
               return;
             }
 
-            console.log('💾 Sauvegarde vers Firebase...');
+            // Ne pas sauvegarder si les talents sont vides (protection)
+            if (!talents || Object.keys(talents).length === 0) {
+              console.log('⏸️ Sauvegarde ignorée (talents vides)');
+              return;
+            }
+
+            console.log('💾 Sauvegarde vers Firebase...', {
+              nbTalents: Object.keys(talents).length,
+              nbActifs: Object.keys(talentsActifs).length,
+              classe: arbreActuel
+            });
+
             // Sauvegarder dans Firebase (remplace localStorage)
             const arbreData = {
               talents,
