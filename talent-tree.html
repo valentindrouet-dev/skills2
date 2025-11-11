@@ -213,7 +213,7 @@
         // Check if we should ignore an update (too soon after save)
         function shouldIgnoreUpdate() {
           const timeSinceLastSave = Date.now() - lastSaveTime;
-          return timeSinceLastSave < 1000; // Ignore updates within 1 second of saving
+          return timeSinceLastSave < 2000; // Ignore updates within 2 seconds of saving
         }
 
         // Load data from Firebase
@@ -799,13 +799,7 @@
 
           // Note: Ancien système d'initialisation des classes localStorage supprimé
           // Maintenant tout est dans Firebase
-
-          // Changer de classe (simplifié pour Firebase)
-          const chargerArbre = (classe) => {
-            setArbreActuel(classe);
-            console.log('📂 Classe changée:', classe);
-            // Les données sont déjà en mémoire et partagées via Firebase
-          };
+          // Note: Une URL = une classe (changement de classe = nouvelle URL)
 
           // Charger depuis Firebase et écouter les changements en temps réel
           useEffect(() => {
@@ -1117,11 +1111,68 @@
             setTimeout(() => setNotification(null), 3000);
           };
 
+          // Créer un nouvel arbre pour une autre classe
+          const creerNouvelleClasse = async () => {
+            const classesDisponibles = CLASSES.join(', ');
+            const classeChoisie = prompt(
+              `Créer un nouvel arbre de talents pour quelle classe ?\n\n` +
+              `Classes disponibles : ${classesDisponibles}`,
+              ''
+            );
+
+            if (!classeChoisie) return; // Annulé
+
+            if (!CLASSES.includes(classeChoisie)) {
+              showNotification(`❌ Classe "${classeChoisie}" invalide !`);
+              return;
+            }
+
+            try {
+              // Generate new ID for the new class
+              const newId = Math.random().toString(36).substring(2, 15) +
+                           Math.random().toString(36).substring(2, 15);
+
+              // Create talent de départ for this class
+              const talentDepart = {
+                [`talent_depart_${classeChoisie.toLowerCase()}`]: {
+                  id: `talent_depart_${classeChoisie.toLowerCase()}`,
+                  nom: `${classeChoisie} - Début`,
+                  cout: 0,
+                  description: 'Point de départ de l\'arbre',
+                  position: { x: 400, y: 100 },
+                  prerequis: [],
+                  typeTalent: 'grand_carre',
+                  couleurTalent: 'amelioration'
+                }
+              };
+
+              // Create new tree in Firebase
+              const newTreeRef = db.collection('talent-trees').doc(newId);
+              await newTreeRef.set({
+                talents: talentDepart,
+                talentsActifs: {},
+                nomPersonnage: '',
+                niveau: 1,
+                arbreActuel: classeChoisie,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+
+              // Open new URL in new tab
+              const newUrl = `${window.location.pathname}?id=${newId}`;
+              window.open(newUrl, '_blank');
+
+              showNotification(`✅ Nouvel arbre ${classeChoisie} créé !`);
+            } catch (error) {
+              console.error('Erreur lors de la création:', error);
+              showNotification('❌ Erreur lors de la création');
+            }
+          };
+
           // Dupliquer l'arbre actuel (crée une nouvelle URL)
           const dupliquerArbre = async () => {
             const confirmation = confirm(
               `Créer une copie de cet arbre de talents ?\n\n` +
-              `Une nouvelle URL sera générée avec les mêmes données.`
+              `Une nouvelle URL sera générée avec les mêmes talents.`
             );
 
             if (!confirmation) return;
@@ -1529,19 +1580,7 @@
                   {/* Classe */}
                   <div className="flex items-center gap-2">
                     <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Classe :</label>
-                    {modeLectureSeule ? (
-                      <span className="px-3 py-1.5 bg-slate-700 text-amber-400 rounded border border-amber-500 font-bold">{arbreActuel}</span>
-                    ) : (
-                      <select
-                        value={arbreActuel}
-                        onChange={(e) => chargerArbre(e.target.value)}
-                        className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
-                      >
-                        {CLASSES.map(classe => (
-                          <option key={classe} value={classe}>{classe}</option>
-                        ))}
-                      </select>
-                    )}
+                    <span className="px-3 py-1.5 bg-slate-700 text-amber-400 rounded border border-amber-500 font-bold">{arbreActuel}</span>
                   </div>
 
                   {/* Niveau */}
@@ -1731,9 +1770,16 @@
                               + DEGATS
                             </button>
                             <button
+                              onClick={creerNouvelleClasse}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                              title="Créer un nouvel arbre pour une autre classe"
+                            >
+                              ✨ Nouvelle Classe
+                            </button>
+                            <button
                               onClick={dupliquerArbre}
                               className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded font-semibold transition-colors"
-                              title="Dupliquer cet arbre vers une autre classe"
+                              title="Dupliquer cet arbre (mêmes talents, talents actifs réinitialisés)"
                             >
                               📋 Dupliquer
                             </button>
