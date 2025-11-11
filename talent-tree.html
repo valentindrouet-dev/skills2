@@ -790,7 +790,26 @@
                   // Nouveau format simplifié v2.0 : une seule classe partagée
                   console.log('Format v2.0 simplifié détecté - Chargement d\'une classe');
 
-                  setTalents(decoded.talents || {});
+                  // Normaliser les talents avec des valeurs par défaut
+                  const talentsNormalises = {};
+                  Object.keys(decoded.talents || {}).forEach(id => {
+                    const talent = decoded.talents[id];
+                    talentsNormalises[id] = {
+                      id: id,
+                      nom: 'Talent',
+                      description: '',
+                      cout: 1,
+                      prerequis: [],
+                      exclusif: [],
+                      visible: true,
+                      couleurTalent: 'action',
+                      typeTalent: 'grand_carre',
+                      position: { x: 0, y: 0 },
+                      ...talent // Écraser avec les valeurs réelles
+                    };
+                  });
+
+                  setTalents(talentsNormalises);
                   setTalentsActifs(decoded.talentsActifs || {}); // Charger les talents actifs
                   setArbreActuel(decoded.classe);
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
@@ -800,7 +819,7 @@
                   // NE PAS sauvegarder dans localStorage pour éviter de cacher les données partagées
                   // Le mode partagé reste temporaire et ne doit pas interférer avec les données locales
 
-                  console.log('✅ Classe chargée en mode partagé');
+                  console.log('✅ Classe chargée en mode partagé - Talents:', Object.keys(talentsNormalises).length);
                 } else if (decoded.version === '2.0' && decoded.classes) {
                   // Ancien format v2.0 : toutes les classes sont partagées
                   console.log('Format v2.0 complet détecté - Chargement de toutes les classes');
