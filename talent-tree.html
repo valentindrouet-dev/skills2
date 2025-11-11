@@ -189,9 +189,9 @@
               ...data,
               updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true })
-            .then(() => console.log('💾 Saved to Firebase'))
-            .catch((error) => console.error('❌ Firebase save error:', error));
-          }, 500); // Wait 500ms before saving
+            .then(() => console.log('✅ Sauvegardé dans Firebase'))
+            .catch((error) => console.error('❌ Erreur sauvegarde Firebase:', error));
+          }, 300); // Wait 300ms before saving
         }
 
         // Load data from Firebase
@@ -269,7 +269,8 @@
           const gridColumns = Array.from({ length: 68 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 1340]
           const gridRows = Array.from({ length: 121 }, (_, i) => i * 20); // [0, 20, 40, 60, ..., 2400]
 
-          // Ref pour éviter la sauvegarde automatique au premier rendu
+          // Ref pour éviter la sauvegarde automatique pendant le chargement
+          const isLoadingFromFirebase = React.useRef(true);
           const isInitialMount = React.useRef(true);
 
           // Les 8 classes fixes
@@ -744,12 +745,13 @@
 
           // Sauvegarder automatiquement dans Firebase
           useEffect(() => {
-            // Sauter la sauvegarde au premier rendu pour éviter d'écraser les données chargées
-            if (isInitialMount.current) {
-              isInitialMount.current = false;
+            // Ne pas sauvegarder pendant le chargement initial depuis Firebase
+            if (isLoadingFromFirebase.current) {
+              console.log('⏸️ Sauvegarde ignorée (chargement en cours)');
               return;
             }
 
+            console.log('💾 Sauvegarde vers Firebase...');
             // Sauvegarder dans Firebase (remplace localStorage)
             const arbreData = {
               talents,
@@ -773,13 +775,13 @@
 
           // Charger depuis Firebase et écouter les changements en temps réel
           useEffect(() => {
-            let isInitialLoad = true;
+            console.log('🔥 Initialisation du listener Firebase pour ID:', TALENT_TREE_ID);
 
             // Setup real-time listener with onSnapshot
             const unsubscribe = talentTreeRef.onSnapshot((doc) => {
               if (doc.exists) {
                 const data = doc.data();
-                console.log(isInitialLoad ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel');
+                console.log(isLoadingFromFirebase.current ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel');
 
                 // Update state with Firebase data
                 setTalents(data.talents || {});
@@ -788,31 +790,65 @@
                 setNiveau(data.niveau || 1);
                 setArbreActuel(data.arbreActuel || 'Gardien');
 
-                if (isInitialLoad) {
-                  isInitialLoad = false;
+                // After first load, enable saving
+                if (isLoadingFromFirebase.current) {
+                  console.log('✅ Chargement terminé, sauvegarde activée');
+                  isLoadingFromFirebase.current = false;
                 }
-              } else if (isInitialLoad) {
-                // Nouveau arbre : initialiser avec un talent de départ
-                console.log('✨ Nouvel arbre de talents créé');
-                const defaultClasse = 'Gardien';
-                const talentDepart = {
-                  [`talent_depart_${defaultClasse.toLowerCase()}`]: {
-                    id: `talent_depart_${defaultClasse.toLowerCase()}`,
-                    nom: `${defaultClasse} - Début`,
-                    cout: 0,
-                    description: 'Point de départ de l\'arbre',
-                    position: { x: 400, y: 100 },
-                    prerequis: [],
-                    typeTalent: 'grand_carre',
-                    couleurTalent: 'amelioration'
+              } else {
+                // Document n'existe pas : tenter migration localStorage
+                console.log('📦 Tentative de migration depuis localStorage...');
+
+                // Chercher la dernière classe active
+                const derniereClasse = localStorage.getItem('derniereClasseActive');
+                let migrated = false;
+
+                if (derniereClasse) {
+                  const savedData = localStorage.getItem(`classe_${derniereClasse}`);
+                  if (savedData) {
+                    try {
+                      const data = JSON.parse(savedData);
+                      console.log(`✅ Migration depuis localStorage: ${derniereClasse}`);
+                      setTalents(data.talents || {});
+                      setTalentsActifs(data.talentsActifs || {});
+                      setNomPersonnage(data.nomPersonnage || '');
+                      setNiveau(data.niveau || 1);
+                      setArbreActuel(derniereClasse);
+                      migrated = true;
+                    } catch (e) {
+                      console.warn('⚠️ Erreur migration localStorage:', e);
+                    }
                   }
-                };
-                setTalents(talentDepart);
-                setArbreActuel(defaultClasse);
-                isInitialLoad = false;
+                }
+
+                if (!migrated) {
+                  // Nouveau arbre : initialiser avec un talent de départ
+                  console.log('✨ Nouvel arbre de talents créé');
+                  const defaultClasse = 'Gardien';
+                  const talentDepart = {
+                    [`talent_depart_${defaultClasse.toLowerCase()}`]: {
+                      id: `talent_depart_${defaultClasse.toLowerCase()}`,
+                      nom: `${defaultClasse} - Début`,
+                      cout: 0,
+                      description: 'Point de départ de l\'arbre',
+                      position: { x: 400, y: 100 },
+                      prerequis: [],
+                      typeTalent: 'grand_carre',
+                      couleurTalent: 'amelioration'
+                    }
+                  };
+                  setTalents(talentDepart);
+                  setArbreActuel(defaultClasse);
+                }
+
+                // Enable saving for new tree
+                console.log('✅ Sauvegarde activée');
+                isLoadingFromFirebase.current = false;
               }
             }, (error) => {
               console.error('❌ Erreur de synchronisation Firebase:', error);
+              // Enable saving even on error
+              isLoadingFromFirebase.current = false;
             });
 
             // Cleanup listener on unmount
