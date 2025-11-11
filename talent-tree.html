@@ -206,8 +206,8 @@
           const [arbreActuel, setArbreActuel] = useState('Gardien');
           const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
-          const [pointsDisponibles, setPointsDisponibles] = useState(10);
-          const [pointsMax, setPointsMax] = useState(10);
+          const [pointsDisponibles, setPointsDisponibles] = useState(5);
+          const [pointsMax, setPointsMax] = useState(5);
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
           const [modeEdition, setModeEdition] = useState(false);
@@ -230,9 +230,9 @@
 
           // Mapping niveau -> points de talents max
           const pointsParNiveau = {
-            1: 10,
-            2: 13,
-            3: 16,
+            1: 5,
+            2: 10,
+            3: 15,
             4: 20,
             5: 25,
             6: 30,
@@ -244,7 +244,7 @@
 
           // Mettre à jour les points max quand le niveau change
           useEffect(() => {
-            const nouveauxPointsMax = pointsParNiveau[niveau] || 10;
+            const nouveauxPointsMax = pointsParNiveau[niveau] || 5;
             setPointsMax(nouveauxPointsMax);
 
             // Recalculer les points disponibles en fonction des talents actifs
@@ -1151,7 +1151,7 @@
           const exportJSON = () => {
             const data = {
               talents,
-              pointsMax: 10,
+              pointsMax: pointsMax,
               talentsActifs,
               version: '1.0'
             };
