@@ -210,10 +210,11 @@
           }, 300); // Wait 300ms before saving
         }
 
-        // Check if we should ignore an update (too soon after save)
-        function shouldIgnoreUpdate() {
-          const timeSinceLastSave = Date.now() - lastSaveTime;
-          return timeSinceLastSave < 2000; // Ignore updates within 2 seconds of saving
+        // Store last synced state to detect real changes
+        let lastSyncedDataHash = null;
+
+        function getDataHash(talents, talentsActifs, nomPersonnage, niveau, arbreActuel) {
+          return JSON.stringify({ talents, talentsActifs, nomPersonnage, niveau, arbreActuel });
         }
 
         // Load data from Firebase
@@ -794,6 +795,10 @@
               niveau,
               arbreActuel
             };
+
+            // Update hash before saving to prevent loop
+            lastSyncedDataHash = getDataHash(talents, talentsActifs, nomPersonnage, niveau, arbreActuel);
+
             saveToFirebase(arbreData);
           }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel]);
 
@@ -810,13 +815,25 @@
               if (doc.exists) {
                 const data = doc.data();
 
-                // Ignore updates that are too soon after our own save (prevent loops)
-                if (!isLoadingFromFirebase.current && shouldIgnoreUpdate()) {
-                  console.log('⏭️ Update ignorée (vient de notre propre sauvegarde)');
+                // Calculate hash of incoming data
+                const incomingHash = getDataHash(
+                  data.talents || {},
+                  data.talentsActifs || {},
+                  data.nomPersonnage || '',
+                  data.niveau || 1,
+                  data.arbreActuel || 'Gardien'
+                );
+
+                // If data hasn't changed, skip update (prevent loops)
+                if (!isLoadingFromFirebase.current && lastSyncedDataHash === incomingHash) {
+                  console.log('⏭️ Update ignorée (données identiques)');
                   return;
                 }
 
                 console.log(isLoadingFromFirebase.current ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel');
+
+                // Update last synced hash
+                lastSyncedDataHash = incomingHash;
 
                 // Update state with Firebase data
                 setTalents(data.talents || {});
@@ -1397,13 +1414,18 @@
 
           // Sauvegarder les modifications d'un talent
           const sauvegarderTalent = (talentId, updates) => {
-            setTalents(prev => ({
-              ...prev,
-              [talentId]: {
-                ...prev[talentId],
-                ...updates
-              }
-            }));
+            console.log('📝 ÉDITION TALENT:', talentId, 'Updates:', updates);
+            setTalents(prev => {
+              const newTalents = {
+                ...prev,
+                [talentId]: {
+                  ...prev[talentId],
+                  ...updates
+                }
+              };
+              console.log('📝 Nouveau state talents après édition:', Object.keys(newTalents).length, 'talents');
+              return newTalents;
+            });
             setEditingTalent(null);
           };
 
