@@ -790,17 +790,7 @@
                   // Nouveau format simplifié v2.0 : une seule classe partagée
                   console.log('Format v2.0 simplifié détecté - Chargement d\'une classe');
 
-                  // Ajouter des positions par défaut aux talents qui n'en ont pas (optimisation de partage)
-                  const talentsAvecPositions = {};
-                  Object.keys(decoded.talents || {}).forEach(id => {
-                    const talent = decoded.talents[id];
-                    talentsAvecPositions[id] = {
-                      ...talent,
-                      position: talent.position || { x: 0, y: 0 } // Position par défaut si absente
-                    };
-                  });
-
-                  setTalents(talentsAvecPositions);
+                  setTalents(decoded.talents || {});
                   setTalentsActifs(decoded.talentsActifs || {}); // Charger les talents actifs
                   setArbreActuel(decoded.classe);
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
@@ -1394,23 +1384,21 @@
 
           // Générer lien de partage pour les joueurs
           const genererLienPartage = () => {
-            // Filtrer et optimiser les talents pour le partage
-            const talentsOptimises = {};
+            // Filtrer les talents pour le partage (exclure les cachés uniquement)
+            const talentsVisibles = {};
             Object.keys(talents).forEach(id => {
               const talent = talents[id];
               // Ignorer les talents cachés
               if (talent.visible === false) return;
 
-              // Copier le talent sans le champ "position" pour réduire la taille
-              const { position, ...talentSansPosition } = talent;
-              talentsOptimises[id] = talentSansPosition;
+              talentsVisibles[id] = talent;
             });
 
-            // Créer l'objet avec les données optimisées
+            // Créer l'objet avec les données
             const dataToShare = {
               version: '2.0',
               classe: arbreActuel,
-              talents: talentsOptimises, // Tous les talents visibles, sans positions
+              talents: talentsVisibles, // Tous les talents visibles avec positions
               talentsActifs,
               nomPersonnage,
               niveau
@@ -1429,13 +1417,13 @@
 
             // Vérifier si l'URL est trop longue (limite ~8000 pour la plupart des navigateurs)
             if (url.length > 8000) {
-              alert(`⚠️ ERREUR : Arbre de talents trop grand pour être partagé par URL\n\nTaille actuelle : ${url.length} caractères\nLimite maximale : 8000 caractères\n\nOptimisations déjà appliquées :\n✓ Talents cachés exclus\n✓ Données de position supprimées\n✓ Compression LZString activée\n\nSolutions :\n1. Cachez plus de talents (bouton 👁️ en mode édition)\n2. Utilisez l'export JSON à la place (bouton "Exporter JSON")\n3. Réduisez les descriptions de talents`);
+              alert(`⚠️ ERREUR : Arbre de talents trop grand pour être partagé par URL\n\nTaille actuelle : ${url.length} caractères\nLimite maximale : 8000 caractères\n\nOptimisations déjà appliquées :\n✓ Talents cachés exclus\n✓ Compression LZString activée\n\nSolutions :\n1. Cachez plus de talents (bouton 👁️ en mode édition)\n2. Utilisez l'export JSON à la place (bouton "Exporter JSON")\n3. Réduisez les descriptions de talents`);
               return;
             }
 
             // Copier dans le presse-papier
             navigator.clipboard.writeText(url).then(() => {
-              alert(`✅ Lien copié dans le presse-papier !\n\nTaille : ${url.length} caractères\nTalents visibles : ${Object.keys(talentsOptimises).length}\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.`);
+              alert(`✅ Lien copié dans le presse-papier !\n\nTaille : ${url.length} caractères\nTalents visibles : ${Object.keys(talentsVisibles).length}\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.`);
             }).catch(err => {
               console.error('Erreur lors de la copie:', err);
             });
