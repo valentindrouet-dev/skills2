@@ -182,6 +182,7 @@
 
         // Save data to Firebase (debounced to avoid too many writes)
         let saveTimeout = null;
+        let lastSaveTime = 0;
         function saveToFirebase(data) {
           clearTimeout(saveTimeout);
           saveTimeout = setTimeout(() => {
@@ -190,9 +191,13 @@
               nbActifs: Object.keys(data.talentsActifs || {}).length
             });
 
+            // Mark that we're saving (used to ignore onSnapshot updates)
+            lastSaveTime = Date.now();
+
             talentTreeRef.set({
               ...data,
-              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              localTimestamp: Date.now() // Add local timestamp
             }, { merge: true })
             .then(() => {
               console.log('✅ SAUVEGARDÉ AVEC SUCCÈS dans Firebase');
@@ -203,6 +208,12 @@
               console.error('Message:', error.message);
             });
           }, 300); // Wait 300ms before saving
+        }
+
+        // Check if we should ignore an update (too soon after save)
+        function shouldIgnoreUpdate() {
+          const timeSinceLastSave = Date.now() - lastSaveTime;
+          return timeSinceLastSave < 1000; // Ignore updates within 1 second of saving
         }
 
         // Load data from Firebase
@@ -283,6 +294,7 @@
           // Ref pour éviter la sauvegarde automatique pendant le chargement
           const isLoadingFromFirebase = React.useRef(true);
           const isInitialMount = React.useRef(true);
+          const isSavingToFirebase = React.useRef(false); // Flag pour éviter les boucles de sync
 
           // Les 8 classes fixes
           const CLASSES = ['Apothicaire', 'Artificier', 'Chasseur', 'Destructeur', 'Déviant', 'Gardien', 'Lamevent', 'Pyromane'];
@@ -803,6 +815,13 @@
             const unsubscribe = talentTreeRef.onSnapshot((doc) => {
               if (doc.exists) {
                 const data = doc.data();
+
+                // Ignore updates that are too soon after our own save (prevent loops)
+                if (!isLoadingFromFirebase.current && shouldIgnoreUpdate()) {
+                  console.log('⏭️ Update ignorée (vient de notre propre sauvegarde)');
+                  return;
+                }
+
                 console.log(isLoadingFromFirebase.current ? '📂 Chargement initial depuis Firebase' : '🔄 Mise à jour en temps réel');
 
                 // Update state with Firebase data
