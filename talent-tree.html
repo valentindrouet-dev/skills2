@@ -889,6 +889,32 @@
             return dependents;
           };
 
+          // Calculer les points dépensés EN AMONT d'un talent (dans ses prérequis récursifs)
+          const getPointsEnAmont = (talentId, currentActifs = null, visited = new Set()) => {
+            if (visited.has(talentId)) return 0;
+            visited.add(talentId);
+
+            const talent = talents[talentId];
+            if (!talent || !talent.prerequis || talent.prerequis.length === 0) return 0;
+
+            // Utiliser le state courant ou le state fourni
+            const actifsToUse = currentActifs || talentsActifs;
+
+            let total = 0;
+
+            // Pour chaque prérequis actif
+            talent.prerequis.forEach(prereqId => {
+              if (actifsToUse[prereqId]) {
+                // Ajouter le coût de ce prérequis
+                total += talents[prereqId]?.cout || 0;
+                // Récursion : ajouter les points en amont de ce prérequis
+                total += getPointsEnAmont(prereqId, actifsToUse, visited);
+              }
+            });
+
+            return total;
+          };
+
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
 
@@ -906,19 +932,26 @@
                 }
               });
 
-              // Calculer les nouveaux points dépensés après décochage
-              const pointsDepensesActuels = pointsMax - pointsDisponibles;
-              const nouveauxPointsDepenses = pointsDepensesActuels - pointsToRestore;
+              // Simuler le state après décochage pour calculer les points en amont
+              const simulatedActifs = { ...talentsActifs };
+              delete simulatedActifs[talentId];
+              dependents.forEach(depId => {
+                delete simulatedActifs[depId];
+              });
 
-              // Trouver les talents actifs qui n'auront plus assez de points requis
+              // Trouver les talents actifs qui n'auront plus assez de points requis EN AMONT
               const talentsADecocher = [];
               Object.keys(talentsActifs).forEach(id => {
                 // Ignorer le talent qu'on décoche et ses dépendants (déjà gérés)
                 if (id === talentId || dependents.includes(id)) return;
 
                 const t = talents[id];
-                if (t && t.pointsRequis && t.pointsRequis > nouveauxPointsDepenses) {
-                  talentsADecocher.push({ id, nom: t.nom, pointsRequis: t.pointsRequis });
+                if (t && t.pointsRequis && t.pointsRequis > 0) {
+                  // Calculer les points en amont dans le state simulé
+                  const pointsEnAmontSimules = getPointsEnAmont(id, simulatedActifs);
+                  if (pointsEnAmontSimules < t.pointsRequis) {
+                    talentsADecocher.push({ id, nom: t.nom, pointsRequis: t.pointsRequis });
+                  }
                 }
               });
 
@@ -978,12 +1011,12 @@
                 return;
               }
 
-              // Vérifier les points de talents requis (gate)
+              // Vérifier les points de talents requis (gate) - EN AMONT uniquement
               if (talent.pointsRequis && talent.pointsRequis > 0) {
-                const pointsDepenses = pointsMax - pointsDisponibles;
-                if (pointsDepenses < talent.pointsRequis) {
-                  const pointsRestants = talent.pointsRequis - pointsDepenses;
-                  showNotification(`Vous devez encore dépenser ${pointsRestants} points de talents avant de débloquer celui-ci !`);
+                const pointsEnAmont = getPointsEnAmont(talentId);
+                if (pointsEnAmont < talent.pointsRequis) {
+                  const pointsRestants = talent.pointsRequis - pointsEnAmont;
+                  showNotification(`Vous devez encore dépenser ${pointsRestants} points de talents EN AMONT (prérequis) avant de débloquer celui-ci !`);
                   return;
                 }
               }
@@ -1063,10 +1096,10 @@
             // Bloqué par exclusion mutuelle
             if (estBloqueParExclusion(talentId)) return false;
 
-            // Vérifier les points de talents requis (gate)
+            // Vérifier les points de talents requis (gate) - EN AMONT uniquement
             if (talent.pointsRequis && talent.pointsRequis > 0) {
-              const pointsDepenses = pointsMax - pointsDisponibles;
-              if (pointsDepenses < talent.pointsRequis) return false;
+              const pointsEnAmont = getPointsEnAmont(talentId);
+              if (pointsEnAmont < talent.pointsRequis) return false;
             }
 
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
@@ -1888,8 +1921,8 @@
                             let lockIcon = '🔒';
 
                             if (hasPointsRequis) {
-                              const pointsDepenses = pointsMax - pointsDisponibles;
-                              pointsRestants = Math.max(0, talent.pointsRequis - pointsDepenses);
+                              const pointsEnAmont = getPointsEnAmont(talent.id);
+                              pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
 
                               if (talentsActifs[talent.id] || pointsRestants === 0) {
                                 badgeColor = '#16a34a'; // Green
