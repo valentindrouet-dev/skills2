@@ -890,48 +890,55 @@
           };
 
           // Calculer les points dépensés EN AMONT d'un talent (dans ses prérequis récursifs)
-          const getPointsEnAmont = (talentId, currentActifs = null, visited = new Set(), depth = 0) => {
-            if (visited.has(talentId)) {
-              console.log(`${'  '.repeat(depth)}⏭️  Talent "${talents[talentId]?.nom}" déjà visité - skip`);
-              return 0;
-            }
-            visited.add(talentId);
-
+          // Nouvelle version simplifiée : on collecte tous les talents uniques dans la chaîne, puis on somme leurs coûts
+          const getPointsEnAmont = (talentId, currentActifs = null) => {
             const talent = talents[talentId];
-            const indent = '  '.repeat(depth);
-
-            console.log(`${indent}🔍 Calcul pour talent "${talent?.nom}" (id: ${talentId})`);
-            console.log(`${indent}   prerequis:`, talent?.prerequis);
+            if (!talent) return 0;
 
             // Utiliser le state courant ou le state fourni
             const actifsToUse = currentActifs || talentsActifs;
 
-            // Commencer avec le coût de CE talent s'il est actif
+            console.log(`\n🎯 Calcul des points en amont de "${talent.nom}"`);
+
+            // Collecter tous les talents uniques dans la chaîne de prérequis
+            const talentsUniques = new Set();
+
+            // Fonction récursive pour collecter les talents
+            const collecterTalents = (currentTalentId, visited = new Set()) => {
+              // Éviter les cycles infinis
+              if (visited.has(currentTalentId)) return;
+              visited.add(currentTalentId);
+
+              const currentTalent = talents[currentTalentId];
+              if (!currentTalent || !currentTalent.prerequis) return;
+
+              // Pour chaque prérequis
+              currentTalent.prerequis.forEach(prereqId => {
+                // Si le prérequis est actif
+                if (actifsToUse[prereqId]) {
+                  // L'ajouter à la collection (Set empêche les doublons automatiquement)
+                  talentsUniques.add(prereqId);
+                  console.log(`  ✓ Ajout "${talents[prereqId]?.nom}" (cout: ${talents[prereqId]?.cout || 0})`);
+
+                  // Continuer récursivement
+                  collecterTalents(prereqId, visited);
+                } else {
+                  console.log(`  ✗ Skip "${talents[prereqId]?.nom}" (inactif)`);
+                }
+              });
+            };
+
+            // Lancer la collecte
+            collecterTalents(talentId);
+
+            // Calculer le total
             let total = 0;
-            if (actifsToUse[talentId]) {
-              total = talent?.cout || 0;
-              console.log(`${indent}   💰 Coût de ce talent: ${total}`);
-            }
-
-            if (!talent || !talent.prerequis || talent.prerequis.length === 0) {
-              console.log(`${indent}   ✅ Total final pour "${talent.nom}": ${total}`);
-              return total;
-            }
-
-            // Pour chaque prérequis actif, ajouter RÉCURSIVEMENT (le coût + ses prérequis)
-            talent.prerequis.forEach(prereqId => {
-              const prereq = talents[prereqId];
-              const isActif = actifsToUse[prereqId];
-              console.log(`${indent}  ↳ Prérequis "${prereq?.nom}" (cout: ${prereq?.cout || 0}) - actif: ${isActif}`);
-              if (isActif) {
-                // Récursion : cette fonction retourne maintenant le coût du prérequis + ses prérequis
-                const pointsRecursifs = getPointsEnAmont(prereqId, actifsToUse, visited, depth + 1);
-                total += pointsRecursifs;
-                console.log(`${indent}    ✓ Total après ajout de "${prereq?.nom}": ${total}`);
-              }
+            talentsUniques.forEach(tid => {
+              const cout = talents[tid]?.cout || 0;
+              total += cout;
             });
 
-            console.log(`${indent}   ✅ Total final pour "${talent.nom}": ${total}`);
+            console.log(`  📊 Total: ${total} points (${talentsUniques.size} talents uniques)`);
             return total;
           };
 
