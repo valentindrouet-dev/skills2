@@ -919,7 +919,7 @@
           const pointsEnAmontParTalent = React.useMemo(() => {
             const result = {};
             Object.keys(talents).forEach(talentId => {
-              result[talentId] = getPointsEnAmont(talentId);
+              result[talentId] = getPointsEnAmont(talentId, talentsActifs);
             });
             return result;
           }, [talents, talentsActifs]);
