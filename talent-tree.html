@@ -890,7 +890,7 @@
           };
 
           // Calculer les points dépensés EN AMONT d'un talent (dans ses prérequis récursifs)
-          const getPointsEnAmont = (talentId, currentActifs = null, visited = new Set()) => {
+          const getPointsEnAmont = (talentId, currentActifs = null, visited = new Set(), depth = 0) => {
             if (visited.has(talentId)) return 0;
             visited.add(talentId);
 
@@ -901,14 +901,20 @@
             const actifsToUse = currentActifs || talentsActifs;
 
             let total = 0;
+            const indent = '  '.repeat(depth);
 
             // Pour chaque prérequis actif
             talent.prerequis.forEach(prereqId => {
-              if (actifsToUse[prereqId]) {
+              const prereq = talents[prereqId];
+              const isActif = actifsToUse[prereqId];
+              console.log(`${indent}  ↳ Prérequis "${prereq?.nom}" (cout: ${prereq?.cout || 0}) - actif: ${isActif}`);
+              if (isActif) {
                 // Ajouter le coût de ce prérequis
-                total += talents[prereqId]?.cout || 0;
+                const cout = talents[prereqId]?.cout || 0;
+                total += cout;
                 // Récursion : ajouter les points en amont de ce prérequis
-                total += getPointsEnAmont(prereqId, actifsToUse, visited);
+                const pointsRecursifs = getPointsEnAmont(prereqId, actifsToUse, visited, depth + 1);
+                total += pointsRecursifs;
               }
             });
 
@@ -917,9 +923,17 @@
 
           // Précalculer les points en amont pour tous les talents (évite les closures stales)
           const pointsEnAmontParTalent = React.useMemo(() => {
+            console.log('🔄 Recalcul des points en amont, talentsActifs:', Object.keys(talentsActifs).length, 'actifs');
             const result = {};
             Object.keys(talents).forEach(talentId => {
-              result[talentId] = getPointsEnAmont(talentId, talentsActifs);
+              const talent = talents[talentId];
+              if (talent.pointsRequis && talent.pointsRequis > 0) {
+                const points = getPointsEnAmont(talentId, talentsActifs);
+                result[talentId] = points;
+                console.log(`  📊 Talent "${talent.nom}" (requis: ${talent.pointsRequis}) -> points en amont: ${points}`);
+              } else {
+                result[talentId] = getPointsEnAmont(talentId, talentsActifs);
+              }
             });
             return result;
           }, [talents, talentsActifs]);
