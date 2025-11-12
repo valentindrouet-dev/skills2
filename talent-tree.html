@@ -915,6 +915,15 @@
             return total;
           };
 
+          // Précalculer les points en amont pour tous les talents (évite les closures stales)
+          const pointsEnAmontParTalent = React.useMemo(() => {
+            const result = {};
+            Object.keys(talents).forEach(talentId => {
+              result[talentId] = getPointsEnAmont(talentId);
+            });
+            return result;
+          }, [talents, talentsActifs]);
+
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
 
@@ -1098,7 +1107,7 @@
 
             // Vérifier les points de talents requis (gate) - EN AMONT uniquement
             if (talent.pointsRequis && talent.pointsRequis > 0) {
-              const pointsEnAmont = getPointsEnAmont(talentId);
+              const pointsEnAmont = pointsEnAmontParTalent[talentId] || 0;
               if (pointsEnAmont < talent.pointsRequis) return false;
             }
 
@@ -1921,7 +1930,7 @@
                             let lockIcon = '🔒';
 
                             if (hasPointsRequis) {
-                              const pointsEnAmont = getPointsEnAmont(talent.id);
+                              const pointsEnAmont = pointsEnAmontParTalent[talent.id] || 0;
                               pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
 
                               if (talentsActifs[talent.id] || pointsRestants === 0) {
