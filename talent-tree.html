@@ -889,7 +889,43 @@
             return dependents;
           };
 
-          // Fonction supprimée : getPointsEnAmont
+          // Calculer les points dépensés EN AMONT d'un talent (prérequis récursifs)
+          const getPointsEnAmont = (talentId, actifsUtilises = null) => {
+            const talent = talents[talentId];
+            if (!talent) return 0;
+
+            const actifs = actifsUtilises || talentsActifs;
+
+            // Set pour collecter les IDs uniques des talents actifs en amont
+            const talentsEnAmont = new Set();
+
+            // Fonction récursive pour collecter
+            const collecter = (currentId) => {
+              const current = talents[currentId];
+              if (!current || !current.prerequis) return;
+
+              // Pour chaque prérequis
+              for (const prereqId of current.prerequis) {
+                // Si actif et pas déjà collecté
+                if (actifs[prereqId] && !talentsEnAmont.has(prereqId)) {
+                  talentsEnAmont.add(prereqId);
+                  // Continuer récursivement
+                  collecter(prereqId);
+                }
+              }
+            };
+
+            // Lancer la collecte
+            collecter(talentId);
+
+            // Calculer la somme des coûts
+            let total = 0;
+            talentsEnAmont.forEach(id => {
+              total += talents[id]?.cout || 0;
+            });
+
+            return total;
+          };
 
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
@@ -929,6 +965,16 @@
               if (!prerequisRemplis) {
                 showNotification('Vous devez sélectionner les talents prérequis !');
                 return;
+              }
+
+              // Vérifier les points requis en amont
+              if (talent.pointsRequis && talent.pointsRequis > 0) {
+                const pointsEnAmont = getPointsEnAmont(talentId);
+                if (pointsEnAmont < talent.pointsRequis) {
+                  const manquants = talent.pointsRequis - pointsEnAmont;
+                  showNotification(`Il vous manque ${manquants} points dépensés en amont pour débloquer ce talent !`);
+                  return;
+                }
               }
 
               if (pointsDisponibles < talent.cout) {
@@ -1005,6 +1051,12 @@
 
             // Bloqué par exclusion mutuelle
             if (estBloqueParExclusion(talentId)) return false;
+
+            // Vérifier les points requis en amont
+            if (talent.pointsRequis && talent.pointsRequis > 0) {
+              const pointsEnAmont = getPointsEnAmont(talentId);
+              if (pointsEnAmont < talent.pointsRequis) return false;
+            }
 
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
             const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
@@ -1814,6 +1866,29 @@
                             const strokeW = isActive ? 3 : isHighlighted ? 3 : 3;
                             const dashArray = isActive ? '0' : '0';
 
+                            // Badge de points requis (seulement sur la première ligne)
+                            const midX = (x1 + x2) / 2;
+                            const midY = (y1 + y2) / 2;
+                            const hasBadge = prereqIndex === 0 && talent.pointsRequis && talent.pointsRequis > 0;
+
+                            let badgeColor = '#ea580c'; // Orange par défaut
+                            let badgeText = '';
+                            if (hasBadge) {
+                              const pointsEnAmont = getPointsEnAmont(talent.id);
+                              const restants = Math.max(0, talent.pointsRequis - pointsEnAmont);
+
+                              if (talentsActifs[talent.id] || restants === 0) {
+                                badgeColor = '#16a34a'; // Vert - débloqué
+                                badgeText = '🔓' + restants;
+                              } else if (restants <= talent.pointsRequis * 0.5) {
+                                badgeColor = '#eab308'; // Jaune - à mi-chemin
+                                badgeText = '🔒' + restants;
+                              } else {
+                                badgeColor = '#ea580c'; // Orange - loin
+                                badgeText = '🔒' + restants;
+                              }
+                            }
+
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
                                 {/* Ligne droite entre les centres */}
@@ -1827,6 +1902,32 @@
                                   strokeDasharray={dashArray}
                                   className="transition-all duration-300"
                                 />
+
+                                {/* Badge de points requis */}
+                                {hasBadge && (
+                                  <g>
+                                    <rect
+                                      x={midX - 20}
+                                      y={midY - 12}
+                                      width="40"
+                                      height="24"
+                                      rx="4"
+                                      fill={badgeColor}
+                                      stroke="#333"
+                                      strokeWidth="2"
+                                    />
+                                    <text
+                                      x={midX}
+                                      y={midY + 5}
+                                      textAnchor="middle"
+                                      fill="white"
+                                      fontSize="13"
+                                      fontWeight="bold"
+                                    >
+                                      {badgeText}
+                                    </text>
+                                  </g>
+                                )}
                               </g>
                             );
                           })
