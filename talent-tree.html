@@ -891,7 +891,10 @@
 
           // Calculer les points dépensés EN AMONT d'un talent (dans ses prérequis récursifs)
           const getPointsEnAmont = (talentId, currentActifs = null, visited = new Set(), depth = 0) => {
-            if (visited.has(talentId)) return 0;
+            if (visited.has(talentId)) {
+              console.log(`${'  '.repeat(depth)}⏭️  Talent "${talents[talentId]?.nom}" déjà visité - skip`);
+              return 0;
+            }
             visited.add(talentId);
 
             const talent = talents[talentId];
@@ -900,30 +903,31 @@
             console.log(`${indent}🔍 Calcul pour talent "${talent?.nom}" (id: ${talentId})`);
             console.log(`${indent}   prerequis:`, talent?.prerequis);
 
-            if (!talent || !talent.prerequis || talent.prerequis.length === 0) {
-              console.log(`${indent}   ❌ Pas de prérequis - retourne 0`);
-              return 0;
-            }
-
             // Utiliser le state courant ou le state fourni
             const actifsToUse = currentActifs || talentsActifs;
 
+            // Commencer avec le coût de CE talent s'il est actif
             let total = 0;
+            if (actifsToUse[talentId]) {
+              total = talent?.cout || 0;
+              console.log(`${indent}   💰 Coût de ce talent: ${total}`);
+            }
 
-            // Pour chaque prérequis actif
+            if (!talent || !talent.prerequis || talent.prerequis.length === 0) {
+              console.log(`${indent}   ✅ Total final pour "${talent.nom}": ${total}`);
+              return total;
+            }
+
+            // Pour chaque prérequis actif, ajouter RÉCURSIVEMENT (le coût + ses prérequis)
             talent.prerequis.forEach(prereqId => {
               const prereq = talents[prereqId];
               const isActif = actifsToUse[prereqId];
               console.log(`${indent}  ↳ Prérequis "${prereq?.nom}" (cout: ${prereq?.cout || 0}) - actif: ${isActif}`);
               if (isActif) {
-                // Ajouter le coût de ce prérequis
-                const cout = talents[prereqId]?.cout || 0;
-                total += cout;
-                console.log(`${indent}    ✓ Ajout de ${cout} points`);
-                // Récursion : ajouter les points en amont de ce prérequis
+                // Récursion : cette fonction retourne maintenant le coût du prérequis + ses prérequis
                 const pointsRecursifs = getPointsEnAmont(prereqId, actifsToUse, visited, depth + 1);
                 total += pointsRecursifs;
-                console.log(`${indent}    ✓ Total après récursion: ${total}`);
+                console.log(`${indent}    ✓ Total après ajout de "${prereq?.nom}": ${total}`);
               }
             });
 
