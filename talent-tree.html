@@ -927,6 +927,15 @@
             return total;
           };
 
+          // Précalculer les points en amont pour TOUS les talents (pour le render)
+          const pointsEnAmontCache = React.useMemo(() => {
+            const cache = {};
+            Object.keys(talents).forEach(talentId => {
+              cache[talentId] = getPointsEnAmont(talentId, talentsActifs);
+            });
+            return cache;
+          }, [talents, talentsActifs]);
+
           const toggleTalent = (talentId) => {
             if (modeEdition) return; // Pas d'activation en mode édition
 
@@ -1054,7 +1063,7 @@
 
             // Vérifier les points requis en amont
             if (talent.pointsRequis && talent.pointsRequis > 0) {
-              const pointsEnAmont = getPointsEnAmont(talentId);
+              const pointsEnAmont = pointsEnAmontCache[talentId] || 0;
               if (pointsEnAmont < talent.pointsRequis) return false;
             }
 
@@ -1874,7 +1883,7 @@
                             let badgeColor = '#ea580c'; // Orange par défaut
                             let badgeText = '';
                             if (hasBadge) {
-                              const pointsEnAmont = getPointsEnAmont(talent.id);
+                              const pointsEnAmont = pointsEnAmontCache[talent.id] || 0;
                               const restants = Math.max(0, talent.pointsRequis - pointsEnAmont);
 
                               if (talentsActifs[talent.id] || restants === 0) {
