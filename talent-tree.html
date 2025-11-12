@@ -895,13 +895,20 @@
             visited.add(talentId);
 
             const talent = talents[talentId];
-            if (!talent || !talent.prerequis || talent.prerequis.length === 0) return 0;
+            const indent = '  '.repeat(depth);
+
+            console.log(`${indent}🔍 Calcul pour talent "${talent?.nom}" (id: ${talentId})`);
+            console.log(`${indent}   prerequis:`, talent?.prerequis);
+
+            if (!talent || !talent.prerequis || talent.prerequis.length === 0) {
+              console.log(`${indent}   ❌ Pas de prérequis - retourne 0`);
+              return 0;
+            }
 
             // Utiliser le state courant ou le state fourni
             const actifsToUse = currentActifs || talentsActifs;
 
             let total = 0;
-            const indent = '  '.repeat(depth);
 
             // Pour chaque prérequis actif
             talent.prerequis.forEach(prereqId => {
@@ -912,12 +919,15 @@
                 // Ajouter le coût de ce prérequis
                 const cout = talents[prereqId]?.cout || 0;
                 total += cout;
+                console.log(`${indent}    ✓ Ajout de ${cout} points`);
                 // Récursion : ajouter les points en amont de ce prérequis
                 const pointsRecursifs = getPointsEnAmont(prereqId, actifsToUse, visited, depth + 1);
                 total += pointsRecursifs;
+                console.log(`${indent}    ✓ Total après récursion: ${total}`);
               }
             });
 
+            console.log(`${indent}   ✅ Total final pour "${talent.nom}": ${total}`);
             return total;
           };
 
