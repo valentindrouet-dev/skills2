@@ -907,10 +907,11 @@
               try {
                 // Vérifier si on a un ID de snapshot dans l'URL (#snapshot=...)
                 const hash = window.location.hash;
+                console.log('🔍 Hash détecté:', hash);
                 const snapshotMatch = hash.match(/#snapshot=([^&]+)/);
 
                 if (!snapshotMatch) {
-                  console.log('📝 Pas de snapshot dans l\'URL');
+                  console.log('📝 Pas de snapshot dans l\'URL (hash:', hash, ')');
                   return;
                 }
 
