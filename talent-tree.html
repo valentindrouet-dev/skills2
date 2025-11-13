@@ -1753,6 +1753,7 @@
 
           // Sauvegarder les modifications d'un talent
           const sauvegarderTalent = (talentId, updates) => {
+            console.log('💾 Sauvegarde talent:', talentId, 'Updates:', updates);
             setTalents(prev => ({
               ...prev,
               [talentId]: {
@@ -1965,7 +1966,7 @@
                         onChange={(e) => chargerClasseDepuisSnapshot(e.target.value)}
                         className={`px-3 py-1.5 ${COULEURS_CLASSES[arbreActuel]?.bg || 'bg-slate-600'} text-white rounded border ${COULEURS_CLASSES[arbreActuel]?.border || 'border-slate-500'} font-bold`}
                       >
-                        {snapshotData.pageInfo && <option value="Informations">- Informations -</option>}
+                        {'pageInfo' in snapshotData && <option value="Informations">- Informations -</option>}
                         {Object.keys(snapshotData.classes || {}).map(classe => (
                           <option key={classe} value={classe}>{classe}</option>
                         ))}
@@ -2090,7 +2091,7 @@
                         vueActive === 'feuille' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
-                      Feuille
+                      Feuille de Perso
                     </button>
 
                     {vueActive === 'arbre' && (
@@ -3174,13 +3175,18 @@
                         const motsClesActifs = new Set();
                         Object.keys(talentsActifs).forEach(id => {
                           const talent = talents[id];
+                          console.log('🔍 Vérification talent actif:', id, 'motsCles:', talent?.motsCles);
                           if (talent?.motsCles) {
                             talent.motsCles.forEach(cle => motsClesActifs.add(cle));
                           }
                         });
 
+                        console.log('📋 Mots-clés actifs collectés:', Array.from(motsClesActifs));
+
                         // Filtrer l'index pour n'afficher que les mots-clés présents
                         const indexFiltre = Object.entries(MOTS_CLES_INDEX).filter(([cle]) => motsClesActifs.has(cle));
+
+                        console.log('📄 Index filtré:', indexFiltre);
 
                         // N'afficher l'index que s'il y a au moins un mot-clé
                         if (indexFiltre.length === 0) return null;
