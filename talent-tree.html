@@ -1107,6 +1107,11 @@
 
           // Sauvegarder les talents activés dans localStorage (mode player uniquement)
           useEffect(() => {
+            // Sauter la sauvegarde au premier rendu pour éviter d'écraser avec un état vide
+            if (isInitialMount.current) {
+              return;
+            }
+
             if (modePlayer && snapshotId && arbreActuel) {
               const key = `snapshot_${snapshotId}_${arbreActuel}_talentsActifs`;
               localStorage.setItem(key, JSON.stringify(talentsActifs));
