@@ -261,6 +261,9 @@
           const [nomPersonnage, setNomPersonnage] = useState('');
           const [niveau, setNiveau] = useState(1);
 
+          // État pour la page Informations (9e "classe" pour consignes/index)
+          const [pageInfoContenu, setPageInfoContenu] = useState('');
+
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
           const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
 
@@ -411,6 +414,15 @@
             passif: { code: '#999999', nom: 'Passifs' },
             reaction: { code: '#7d5f92', nom: 'Réactions' },           // Purple
             vie: { code: '#e281d1', nom: 'Vie' }                   // Rose
+          };
+
+          // Dictionnaire des mots-clés disponibles pour l'index
+          const MOTS_CLES_INDEX = {
+            'au_contact': {
+              titre: 'Au contact',
+              definition: 'Un combattant est au contact d\'un autre quand il se trouve dans un petit rayon autour de son socle.'
+            }
+            // Ajouter d'autres mots-clés ici dans le futur
           };
 
           // Helper pour obtenir les dimensions d'un talent
@@ -698,6 +710,38 @@
             };
           };
 
+          // Migration automatique des talents de base pour ajouter le gras
+          const migrerTalentsDeBase = (talents) => {
+            const talentsMigres = { ...talents };
+            let modifie = false;
+
+            Object.keys(talentsMigres).forEach(id => {
+              const talent = talentsMigres[id];
+
+              // Migrer "Attaque"
+              if (talent.nom === 'Attaque' && !talent.description.includes('<b>')) {
+                talentsMigres[id] = {
+                  ...talent,
+                  description: 'Vous effectuez <b>1 attaque</b>\n(<b>Arme</b> + <b>0 dégâts</b>)'
+                };
+                modifie = true;
+                console.log('✨ Talent "Attaque" migré avec gras');
+              }
+
+              // Migrer "Dégâts d'Opportunité"
+              if (talent.nom === "Dégâts d'Opportunité" && !talent.description.includes('<b>')) {
+                talentsMigres[id] = {
+                  ...talent,
+                  description: 'Quand un adversaire quitte votre contact,\n\nVous lui infligez <b>0 dégâts</b>'
+                };
+                modifie = true;
+                console.log('✨ Talent "Dégâts d\'Opportunité" migré avec gras');
+              }
+            });
+
+            return modifie ? talentsMigres : talents;
+          };
+
           // Initialiser une classe si elle n'existe pas
           const initialiserClasse = (classe) => {
             const key = `classe_${classe}`;
@@ -753,6 +797,20 @@
 
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
+            // Cas spécial : Page Informations
+            if (classe === 'Informations') {
+              if (snapshotData && snapshotData.pageInfo) {
+                setPageInfoContenu(snapshotData.pageInfo);
+              }
+              setArbreActuel('Informations');
+              // Sauvegarder la classe visitée
+              if (snapshotId) {
+                localStorage.setItem(`snapshot_${snapshotId}_lastVisitedClass`, 'Informations');
+              }
+              console.log('📄 Page Informations chargée depuis snapshot');
+              return;
+            }
+
             if (!snapshotData || !snapshotData.classes) {
               console.error('❌ Pas de snapshot disponible');
               return;
@@ -783,7 +841,9 @@
               };
             });
 
-            setTalents(talentsNormalises);
+            // Migrer les talents de base
+            const talentsMigres = migrerTalentsDeBase(talentsNormalises);
+            setTalents(talentsMigres);
             setArbreActuel(classe);
 
             // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
@@ -819,13 +879,26 @@
 
           // Charger une classe (mode GM)
           const chargerArbre = (classe) => {
+            // Cas spécial : Page Informations
+            if (classe === 'Informations') {
+              const savedInfo = localStorage.getItem('pageInfo');
+              if (savedInfo) {
+                setPageInfoContenu(savedInfo);
+              }
+              setArbreActuel('Informations');
+              console.log('📄 Page Informations chargée');
+              return;
+            }
+
             // En mode lecture seule, chercher d'abord dans classe_shared_
             const keyToCheck = modeLectureSeule ? `classe_shared_${classe}` : `classe_${classe}`;
             const savedData = localStorage.getItem(keyToCheck);
 
             if (savedData) {
               const data = JSON.parse(savedData);
-              setTalents(data.talents || creerTalentDepart(classe));
+              // Migrer les talents de base pour ajouter le gras
+              const talentsMigres = migrerTalentsDeBase(data.talents || creerTalentDepart(classe));
+              setTalents(talentsMigres);
               setTalentsActifs(data.talentsActifs || {});
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               // Ne pas écraser nomPersonnage et niveau en mode partagé (ils sont communs à toutes les classes)
@@ -1028,6 +1101,12 @@
                 console.log('✅ Snapshot chargé:', snapshot);
                 setSnapshotData(snapshot);
 
+                // Charger la page Informations si présente
+                if (snapshot.pageInfo) {
+                  setPageInfoContenu(snapshot.pageInfo);
+                  console.log('📄 Page Informations chargée depuis snapshot');
+                }
+
                 // Vérifier la version
                 if (snapshot.version === '5.0') {
                   // Version 5.0 : Multi-classes
@@ -1062,7 +1141,9 @@
                       };
                     });
 
-                    setTalents(talentsNormalises);
+                    // Migrer les talents de base
+                    const talentsMigres = migrerTalentsDeBase(talentsNormalises);
+                    setTalents(talentsMigres);
                     setArbreActuel(classeToLoad);
 
                     // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
@@ -1179,6 +1260,18 @@
               console.log('💾 Nom et niveau sauvegardés:', nomPersonnage, niveau);
             }
           }, [nomPersonnage, niveau, modePlayer, snapshotId, arbreActuel]);
+
+          // Sauvegarder la page Informations dans localStorage (mode GM uniquement)
+          useEffect(() => {
+            if (isInitialMount.current) {
+              return;
+            }
+
+            if (!modePlayer && !modeLectureSeule) {
+              localStorage.setItem('pageInfo', pageInfoContenu);
+              console.log('💾 Page Informations sauvegardée');
+            }
+          }, [pageInfoContenu, modePlayer, modeLectureSeule]);
 
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
@@ -1783,12 +1876,16 @@
                 }
               });
 
+              // Récupérer la page Informations si elle existe
+              const pageInfo = localStorage.getItem('pageInfo') || '';
+
               // Créer le snapshot avec TOUTES les classes
               const snapshot = {
                 version: '5.0', // Version 5.0 : multi-classes
                 date: Date.now(),
                 classes: classes,
-                classeActive: arbreActuel // La classe actuellement affichée par le GM
+                classeActive: arbreActuel, // La classe actuellement affichée par le GM
+                pageInfo: pageInfo // Page d'informations/consignes pour les joueurs
               };
 
               console.log('📦 Création du snapshot multi-classes...', {
@@ -1868,6 +1965,7 @@
                         onChange={(e) => chargerClasseDepuisSnapshot(e.target.value)}
                         className={`px-3 py-1.5 ${COULEURS_CLASSES[arbreActuel]?.bg || 'bg-slate-600'} text-white rounded border ${COULEURS_CLASSES[arbreActuel]?.border || 'border-slate-500'} font-bold`}
                       >
+                        {snapshotData.pageInfo && <option value="Informations">- Informations -</option>}
                         {Object.keys(snapshotData.classes || {}).map(classe => (
                           <option key={classe} value={classe}>{classe}</option>
                         ))}
@@ -1882,6 +1980,7 @@
                         onChange={(e) => chargerArbre(e.target.value)}
                         className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
                       >
+                        <option value="Informations">- Informations -</option>
                         {CLASSES.map(classe => (
                           <option key={classe} value={classe}>{classe}</option>
                         ))}
@@ -2098,11 +2197,40 @@
                   </div>
                 </div>
 
-                {/* Vue Arbre */}
-                {vueActive === 'arbre' && (
+                {/* Page Informations (9e page éditable) */}
+                {arbreActuel === 'Informations' ? (
+                  <div className="bg-slate-800 border-x-2 border-amber-500 p-8">
+                    <h2 className="text-2xl font-bold text-amber-400 mb-4">Page Informations</h2>
+                    {modeEdition ? (
+                      <div>
+                        <p className="text-white mb-3">Édite les consignes pour les joueurs (supporte le Markdown) :</p>
+                        <textarea
+                          value={pageInfoContenu}
+                          onChange={(e) => setPageInfoContenu(e.target.value)}
+                          placeholder="Ajoute ici des consignes, un index, des règles spécifiques..."
+                          className="w-full h-96 p-4 bg-slate-700 text-white rounded border border-slate-600 font-mono text-sm"
+                          style={{ resize: 'vertical' }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="prose prose-invert max-w-none">
+                        {pageInfoContenu ? (
+                          <div className="bg-slate-700 p-6 rounded text-white whitespace-pre-wrap">
+                            {pageInfoContenu}
+                          </div>
+                        ) : (
+                          <p className="text-slate-400 italic">Aucune information disponible.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <>
-                    {/* Compteurs de points */}
-                    <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print`}>
+                    {/* Vue Arbre */}
+                    {vueActive === 'arbre' && (
+                      <>
+                        {/* Compteurs de points */}
+                        <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print`}>
                       <div className="flex items-center gap-4">
                         <span className="text-amber-400 font-bold text-lg">
                           {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
@@ -2768,9 +2896,11 @@
                   </div>
                   </>
                 )}
+                  </>
+                )}
 
                 {/* Vue Feuille de personnage */}
-                {vueActive === 'feuille' && (
+                {vueActive === 'feuille' && arbreActuel !== 'Informations' && (
                   <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black print-feuille">
                     <h2 className="text-2xl font-bold mb-3 text-center border-b-2 border-amber-500 pb-2">
                       Feuille de Personnage
@@ -3009,6 +3139,19 @@
                                 </div>
                               );
                             })}
+                        </div>
+                      </div>
+
+                      {/* Index des mots-clés */}
+                      <div className="mt-6 pt-4 border-t-2 border-amber-500">
+                        <h3 className="text-lg font-bold mb-3 text-amber-700">Index</h3>
+                        <div className="space-y-2">
+                          {Object.entries(MOTS_CLES_INDEX).map(([cle, info]) => (
+                            <div key={cle} className="text-sm">
+                              <span className="font-bold">{info.titre} :</span>
+                              <span className="ml-2 text-slate-700">{info.definition}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                   </div>
