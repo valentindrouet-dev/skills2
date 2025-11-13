@@ -279,6 +279,14 @@
             return saved ? JSON.parse(saved) : {};
           });
 
+          // État pour les marqueurs dynamiques personnalisés (comme {ORBES})
+          const [editeurMarqueurs, setEditeurMarqueurs] = useState(false);
+          const [marqueurEnEdition, setMarqueurEnEdition] = useState(null);
+          const [marqueursCustom, setMarqueursCustom] = useState(() => {
+            const saved = localStorage.getItem(`marqueurs_${arbreActuel}`);
+            return saved ? JSON.parse(saved) : {};
+          });
+
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
           const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
 
@@ -501,6 +509,35 @@
             return couleurs[classe] || '#d97706';
           };
 
+          // Calculer la valeur d'un marqueur personnalisé
+          const getMarqueurValue = (nom) => {
+            const marqueur = marqueursCustom[nom];
+            if (!marqueur) return 0;
+
+            let total = marqueur.valeurBase || 0;
+
+            // Ajouter les bonus des talents actifs
+            Object.keys(talentsActifs).forEach(id => {
+              const talent = talents[id];
+              if (talent?.effetSpecial?.type === 'bonus_marqueur' && talent.effetSpecial.marqueur === nom) {
+                const source = talent.effetSpecial.source;
+                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+
+                if (source === 'fixe') {
+                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
+                } else if (source === 'niveau') {
+                  total += Math.floor(niveau * multiplicateur);
+                } else if (source === 'endu') {
+                  total += Math.floor(getTotalEndu() * multiplicateur);
+                } else if (source === 'vie') {
+                  total += Math.floor(getTotalVie() * multiplicateur);
+                }
+              }
+            });
+
+            return total;
+          };
+
           // Remplacer les marqueurs dynamiques dans les descriptions
           const replaceMarkers = (description) => {
             if (!description) return description;
@@ -517,6 +554,12 @@
                   .replace(/DEGATS/g, getTotalDegats())
                   .replace(/NIVEAU/g, niveau)
                   .replace(/PV/g, getPointsDeVie());
+
+                // Remplacer les marqueurs personnalisés
+                Object.keys(marqueursCustom).forEach(nomMarqueur => {
+                  const regex = new RegExp(nomMarqueur, 'g');
+                  expr = expr.replace(regex, getMarqueurValue(nomMarqueur));
+                });
 
                 // Évaluer la formule de manière sûre (seulement +, -, *, /)
                 if (/^[\d\s+\-*/.()]+$/.test(expr)) {
@@ -2228,6 +2271,197 @@
                 </div>
               )}
 
+              {/* Éditeur de marqueurs */}
+              {editeurMarqueurs && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-white">Gérer les Marqueurs Dynamiques</h2>
+                        <button
+                          onClick={() => {
+                            setEditeurMarqueurs(false);
+                            setMarqueurEnEdition(null);
+                          }}
+                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
+                        <p className="mb-1">💡 Les marqueurs sont des variables personnalisées utilisables dans les descriptions de talents.</p>
+                        <p>Exemple : créez un marqueur "ORBES", puis utilisez {'{ORBES}'} dans vos talents.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Liste des marqueurs existants */}
+                        {Object.keys(marqueursCustom).length > 0 && (
+                          <div>
+                            <h3 className="text-white font-semibold mb-2">Marqueurs existants :</h3>
+                            <div className="space-y-2">
+                              {Object.entries(marqueursCustom).map(([nom, marqueur]) => (
+                                <div key={nom} className="bg-slate-700 p-3 rounded">
+                                  {marqueurEnEdition === nom ? (
+                                    // Mode édition
+                                    <div className="space-y-2">
+                                      <input
+                                        type="text"
+                                        defaultValue={nom}
+                                        className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
+                                        id={`edit-marqueur-nom-${nom}`}
+                                        disabled
+                                      />
+                                      <input
+                                        type="number"
+                                        defaultValue={marqueur.valeurBase || 0}
+                                        className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
+                                        id={`edit-marqueur-valeur-${nom}`}
+                                        placeholder="Valeur de base (défaut: 0)"
+                                      />
+                                      <input
+                                        type="color"
+                                        defaultValue={marqueur.couleur || '#10b981'}
+                                        className="w-full p-1 bg-slate-600 text-white rounded border border-slate-500"
+                                        id={`edit-marqueur-couleur-${nom}`}
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const valeurBase = parseInt(document.getElementById(`edit-marqueur-valeur-${nom}`).value) || 0;
+                                            const couleur = document.getElementById(`edit-marqueur-couleur-${nom}`).value;
+
+                                            const nouveau = { ...marqueursCustom };
+                                            nouveau[nom] = { valeurBase, couleur };
+                                            setMarqueursCustom(nouveau);
+                                            localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
+                                            setMarqueurEnEdition(null);
+                                            showNotification(`✅ Marqueur "${nom}" modifié !`);
+                                          }}
+                                          className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+                                        >
+                                          💾 Enregistrer
+                                        </button>
+                                        <button
+                                          onClick={() => setMarqueurEnEdition(null)}
+                                          className="flex-1 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
+                                        >
+                                          ❌ Annuler
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    // Mode affichage
+                                    <div className="flex justify-between items-center">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded" style={{ backgroundColor: marqueur.couleur || '#10b981' }}></div>
+                                        <div>
+                                          <div className="text-white font-semibold">{'{' + nom + '}'}</div>
+                                          <div className="text-slate-300 text-sm">Base: {marqueur.valeurBase || 0} | Actuel: {getMarqueurValue(nom)}</div>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        <button
+                                          onClick={() => setMarqueurEnEdition(nom)}
+                                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
+                                        >
+                                          ✏️
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            if (!confirm(`Supprimer le marqueur "${nom}" ?\n\nAttention : il sera retiré de tous les talents qui l'utilisent.`)) return;
+                                            const nouveau = { ...marqueursCustom };
+                                            delete nouveau[nom];
+                                            setMarqueursCustom(nouveau);
+                                            localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
+                                            showNotification(`✅ Marqueur "${nom}" supprimé !`);
+                                          }}
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                        >
+                                          🗑️
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Formulaire d'ajout */}
+                        <div className="border-t border-slate-600 pt-4">
+                          <h3 className="text-white font-semibold mb-2">Ajouter un nouveau marqueur :</h3>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Nom du marqueur (ex: ORBES, CHARGES, etc.)"
+                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600 uppercase"
+                              id="nouveau-marqueur-nom"
+                            />
+                            <input
+                              type="number"
+                              placeholder="Valeur de base (défaut: 0)"
+                              defaultValue={0}
+                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
+                              id="nouveau-marqueur-valeur"
+                            />
+                            <div className="flex items-center gap-2">
+                              <label className="text-white text-sm">Couleur:</label>
+                              <input
+                                type="color"
+                                defaultValue="#10b981"
+                                className="p-1 bg-slate-700 rounded border border-slate-600"
+                                id="nouveau-marqueur-couleur"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const nom = document.getElementById('nouveau-marqueur-nom').value.trim().toUpperCase();
+                                const valeurBase = parseInt(document.getElementById('nouveau-marqueur-valeur').value) || 0;
+                                const couleur = document.getElementById('nouveau-marqueur-couleur').value;
+
+                                if (!nom) {
+                                  alert('⚠️ Veuillez entrer un nom de marqueur');
+                                  return;
+                                }
+
+                                if (!/^[A-Z_]+$/.test(nom)) {
+                                  alert('⚠️ Le nom doit contenir uniquement des lettres majuscules et underscores');
+                                  return;
+                                }
+
+                                if (marqueursCustom[nom]) {
+                                  alert('⚠️ Ce marqueur existe déjà');
+                                  return;
+                                }
+
+                                const nouveau = {
+                                  ...marqueursCustom,
+                                  [nom]: { valeurBase, couleur }
+                                };
+
+                                setMarqueursCustom(nouveau);
+                                localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
+
+                                document.getElementById('nouveau-marqueur-nom').value = '';
+                                document.getElementById('nouveau-marqueur-valeur').value = '0';
+                                document.getElementById('nouveau-marqueur-couleur').value = '#10b981';
+
+                                showNotification(`✅ Marqueur "{${nom}}" ajouté !`);
+                              }}
+                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                            >
+                              ➕ Ajouter
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {arbreActuel === null ? (
                   // Chargement en cours
@@ -2313,7 +2547,7 @@
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
                     <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS</span>
-                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[100px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[70px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                       +{getTotalDegats()}
                     </span>
                   </div>
@@ -2326,7 +2560,7 @@
                     {/* PV */}
                     <div className="flex items-center gap-2">
                       <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV</span>
-                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[100px] text-center">
+                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[70px] text-center">
                         {getPointsDeVie()}
                       </span>
                     </div>
@@ -2371,6 +2605,21 @@
                           <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp}</span>
                           <span className="px-3 py-1.5 bg-orange-600 text-white rounded font-bold min-w-[50px] text-center">
                             +{getTotalCompetence(comp)}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Marqueurs personnalisés - visible seulement en mode GM */}
+                  {!modeLectureSeule && !modePlayer && Object.keys(marqueursCustom).length > 0 && (
+                    <>
+                      <div className="w-full"></div>
+                      {Object.entries(marqueursCustom).map(([nom, marqueur]) => (
+                        <div key={nom} className="flex items-center gap-2">
+                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{nom}</span>
+                          <span className="px-3 py-1.5 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: marqueur.couleur || '#10b981' }}>
+                            {getMarqueurValue(nom)}
                           </span>
                         </div>
                       ))}
@@ -2492,6 +2741,13 @@
                               title="Éditer les mots-clés de l'index"
                             >
                               📚 Mots-clés
+                            </button>
+                            <button
+                              onClick={() => setEditeurMarqueurs(true)}
+                              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-semibold transition-colors"
+                              title="Gérer les marqueurs dynamiques personnalisés"
+                            >
+                              🏷️ Marqueurs
                             </button>
                           </>
                         )}
@@ -2815,12 +3071,14 @@
                                         const effetType = document.getElementById(`effet-type-${talent.id}`).value;
                                         const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                         const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
+                                        const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
 
                                         const effetSpecial = effetType !== 'aucun' ? {
                                           type: effetType,
                                           source: effetSource,
                                           multiplicateur: effetMult,
-                                          valeur: effetSource === 'fixe' ? effetMult : undefined
+                                          valeur: effetSource === 'fixe' ? effetMult : undefined,
+                                          marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
                                         } : undefined;
 
                                         // Récupérer la compétence
@@ -2931,7 +3189,23 @@
                                           <option value="bonus_endu">Bonus ENDU</option>
                                           <option value="bonus_degats">Bonus DÉGÂTS</option>
                                           <option value="bonus_pv">Bonus PV</option>
+                                          <option value="bonus_marqueur">Bonus MARQUEUR</option>
                                         </select>
+                                        {talent.effetSpecial?.type === 'bonus_marqueur' && (
+                                          <select
+                                            defaultValue={talent.effetSpecial?.marqueur || Object.keys(marqueursCustom)[0]}
+                                            className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
+                                            id={`effet-marqueur-${talent.id}`}
+                                          >
+                                            {Object.keys(marqueursCustom).length > 0 ? (
+                                              Object.keys(marqueursCustom).map(nom => (
+                                                <option key={nom} value={nom}>{nom}</option>
+                                              ))
+                                            ) : (
+                                              <option value="">Aucun marqueur (créez-en un d'abord)</option>
+                                            )}
+                                          </select>
+                                        )}
                                         <select
                                           defaultValue={talent.effetSpecial?.source || 'fixe'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
@@ -3065,12 +3339,14 @@
                                           const effetType = document.getElementById(`effet-type-${talent.id}`).value;
                                           const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                           const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
+                                          const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
 
                                           const effetSpecial = effetType !== 'aucun' ? {
                                             type: effetType,
                                             source: effetSource,
                                             multiplicateur: effetMult,
-                                            valeur: effetSource === 'fixe' ? effetMult : undefined
+                                            valeur: effetSource === 'fixe' ? effetMult : undefined,
+                                            marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
                                           } : undefined;
 
                                           // Récupérer la compétence
@@ -3289,14 +3565,14 @@
                       <div className="flex flex-wrap items-center gap-3 text-sm mb-3 pb-3 border-b border-slate-300">
                         <div className="flex items-center gap-2">
                           <span className="font-bold">DÉGÂTS</span>
-                          <span className="px-2 py-1 rounded font-bold text-white min-w-[100px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                          <span className="px-2 py-1 rounded font-bold text-white min-w-[70px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                             +{getTotalDegats()}
                           </span>
                         </div>
                         <div className="h-6 border-l-2 border-slate-400"></div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold">PV</span>
-                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold min-w-[100px] text-center">
+                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold min-w-[70px] text-center">
                             {getPointsDeVie()}
                           </span>
                           <span className="font-bold">=</span>
