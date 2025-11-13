@@ -773,12 +773,17 @@
           useEffect(() => {
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('data');
+            const hash = window.location.hash;
+            const hasSnapshot = hash.includes('snapshot=');
 
-            if (!dataParam) {
+            // Ne charger que si on n'est PAS en mode snapshot ou data partagé
+            if (!dataParam && !hasSnapshot) {
               // Page GM - Charger la dernière classe utilisée
               const derniereClasse = localStorage.getItem('derniereClasseActive') || 'Gardien';
               console.log('🔄 Chargement de la dernière classe active:', derniereClasse);
               chargerArbre(derniereClasse);
+            } else {
+              console.log('⏳ Mode partagé détecté - Attente du chargement...');
             }
           }, []); // Uniquement au démarrage
 
