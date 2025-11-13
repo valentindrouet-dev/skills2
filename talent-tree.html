@@ -876,6 +876,7 @@
                 setPageInfoContenu(snapshotData.pageInfo);
               }
               setArbreActuel('Informations');
+              setMarqueursCustom({});
               // Sauvegarder la classe visitée
               if (snapshotId) {
                 localStorage.setItem(`snapshot_${snapshotId}_lastVisitedClass`, 'Informations');
@@ -942,6 +943,14 @@
               setNiveau(parseInt(savedNiveau));
             } else if (dataClasse.niveau) {
               setNiveau(dataClasse.niveau);
+            }
+
+            // Charger les marqueurs depuis le snapshot
+            if (dataClasse.marqueurs) {
+              setMarqueursCustom(dataClasse.marqueurs);
+              console.log('🏷️ Marqueurs chargés depuis snapshot:', Object.keys(dataClasse.marqueurs));
+            } else {
+              setMarqueursCustom({});
             }
 
             // Sauvegarder la classe visitée pour la restaurer au prochain refresh
@@ -1205,6 +1214,7 @@
                     setTalents({});
                     setArbreActuel('Informations');
                     setTalentsActifs({});
+                    setMarqueursCustom({});
                     if (snapshot.pageInfo) {
                       setPageInfoContenu(snapshot.pageInfo);
                       console.log('📄 Page Informations chargée depuis snapshot');
@@ -1261,6 +1271,14 @@
                       setNiveau(parseInt(savedNiveau));
                     } else if (dataClasse.niveau) {
                       setNiveau(dataClasse.niveau);
+                    }
+
+                    // Charger les marqueurs depuis le snapshot
+                    if (dataClasse.marqueurs) {
+                      setMarqueursCustom(dataClasse.marqueurs);
+                      console.log('🏷️ Marqueurs chargés depuis snapshot:', Object.keys(dataClasse.marqueurs));
+                    } else {
+                      setMarqueursCustom({});
                     }
 
                     setModeLectureSeule(true);
@@ -2040,10 +2058,15 @@
                     }
                   });
 
+                  // Récupérer les marqueurs pour cette classe
+                  const savedMarqueurs = localStorage.getItem(`marqueurs_${classe}`);
+                  const marqueurs = savedMarqueurs ? JSON.parse(savedMarqueurs) : {};
+
                   classes[classe] = {
                     talents: talentsVisibles,
                     nomPersonnage: data.nomPersonnage || '',
-                    niveau: data.niveau || 1
+                    niveau: data.niveau || 1,
+                    marqueurs: marqueurs
                   };
 
                   totalTalents += Object.keys(talentsVisibles).length;
@@ -3183,6 +3206,13 @@
                                           defaultValue={talent.effetSpecial?.type || 'aucun'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-type-${talent.id}`}
+                                          onChange={(e) => {
+                                            // Forcer le re-render pour afficher/masquer le dropdown de marqueur
+                                            const marqueurSelect = document.getElementById(`effet-marqueur-container-${talent.id}`);
+                                            if (marqueurSelect) {
+                                              marqueurSelect.style.display = e.target.value === 'bonus_marqueur' ? 'block' : 'none';
+                                            }
+                                          }}
                                         >
                                           <option value="aucun">Aucun effet</option>
                                           <option value="bonus_vie">Bonus VIE</option>
@@ -3191,7 +3221,10 @@
                                           <option value="bonus_pv">Bonus PV</option>
                                           <option value="bonus_marqueur">Bonus MARQUEUR</option>
                                         </select>
-                                        {talent.effetSpecial?.type === 'bonus_marqueur' && (
+                                        <div
+                                          id={`effet-marqueur-container-${talent.id}`}
+                                          style={{ display: talent.effetSpecial?.type === 'bonus_marqueur' ? 'block' : 'none' }}
+                                        >
                                           <select
                                             defaultValue={talent.effetSpecial?.marqueur || Object.keys(marqueursCustom)[0]}
                                             className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
@@ -3205,7 +3238,7 @@
                                               <option value="">Aucun marqueur (créez-en un d'abord)</option>
                                             )}
                                           </select>
-                                        )}
+                                        </div>
                                         <select
                                           defaultValue={talent.effetSpecial?.source || 'fixe'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
