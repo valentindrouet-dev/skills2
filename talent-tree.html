@@ -21,7 +21,7 @@
     <!-- Firebase SDK -->
     <script type="module">
       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
-      import { getStorage, ref, uploadBytes, getDownloadURL, getBytes } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js';
+      import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js';
 
       const firebaseConfig = {
         apiKey: "AIzaSyBEAGwmfbbrfEbtpQRPmXGE6HqL9OrD2H4",
@@ -33,14 +33,13 @@
       };
 
       const app = initializeApp(firebaseConfig);
-      const storage = getStorage(app);
+      const db = getFirestore(app);
 
       // Exposer pour utilisation dans le code React
-      window.firebaseStorage = storage;
-      window.firebaseStorageRef = ref;
-      window.firebaseUploadBytes = uploadBytes;
-      window.firebaseGetDownloadURL = getDownloadURL;
-      window.firebaseGetBytes = getBytes;
+      window.firebaseDB = db;
+      window.firebaseDoc = doc;
+      window.firebaseSetDoc = setDoc;
+      window.firebaseGetDoc = getDoc;
     </script>
 
     <style>
@@ -901,9 +900,9 @@
             }
           }, []);
 
-          // Charger depuis Firebase Storage (snapshots partagés via #snapshot=ID)
+          // Charger depuis Firestore (snapshots partagés via #snapshot=ID)
           useEffect(() => {
-            const loadSnapshotFromFirebase = async () => {
+            const loadSnapshotFromFirestore = async () => {
               try {
                 // Vérifier si on a un ID de snapshot dans l'URL (#snapshot=...)
                 const hash = window.location.hash;
@@ -916,32 +915,30 @@
                 }
 
                 const snapshotId = snapshotMatch[1];
-                console.log('📦 Chargement du snapshot depuis Firebase:', snapshotId);
+                console.log('📦 Chargement du snapshot depuis Firestore:', snapshotId);
 
                 // Vérifier que Firebase est disponible
-                if (!window.firebaseStorage) {
-                  console.error('❌ Firebase Storage non initialisé');
-                  alert('⚠️ Erreur : Firebase Storage n\'est pas disponible. Veuillez recharger la page.');
+                if (!window.firebaseDB) {
+                  console.error('❌ Firestore non initialisé');
+                  alert('⚠️ Erreur : Firestore n\'est pas disponible. Veuillez recharger la page.');
                   return;
                 }
 
-                // Construire la référence au fichier
-                const fileRef = window.firebaseStorageRef(window.firebaseStorage, `snapshots/${snapshotId}.json`);
+                // Récupérer le document depuis Firestore
+                console.log('☁️ Téléchargement depuis Firestore...');
+                const docRef = window.firebaseDoc(window.firebaseDB, 'snapshots', snapshotId);
+                const docSnap = await window.firebaseGetDoc(docRef);
 
-                // Télécharger le snapshot directement via Firebase (getBytes est plus fiable sur mobile)
-                console.log('☁️ Téléchargement depuis Firebase Storage...');
-                const bytes = await window.firebaseGetBytes(fileRef);
+                if (!docSnap.exists()) {
+                  throw new Error('Snapshot introuvable. Le lien est peut-être invalide ou expiré.');
+                }
 
-                // Convertir les bytes en texte puis parser le JSON
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(bytes.data);
-                const snapshot = JSON.parse(text);
+                const snapshot = docSnap.data();
                 console.log('✅ Snapshot chargé:', snapshot);
 
-                // Vérifier la version
-                if (snapshot.version === '3.0') {
-                  // Format v3.0 (Firebase Storage)
-                  console.log('Format v3.0 (Firebase) détecté');
+                // Vérifier la version (v4.0 pour Firestore, v3.0 pour compatibilité)
+                if (snapshot.version === '4.0' || snapshot.version === '3.0') {
+                  console.log('Format Firestore détecté (v' + snapshot.version + ')');
 
                   // Normaliser les talents avec des valeurs par défaut
                   const talentsNormalises = {};
@@ -983,7 +980,7 @@
               }
             };
 
-            loadSnapshotFromFirebase();
+            loadSnapshotFromFirestore();
           }, []);
 
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
@@ -1557,8 +1554,8 @@
           const genererLienPartage = async () => {
             try {
               // Vérifier que Firebase est disponible
-              if (!window.firebaseStorage) {
-                alert('⚠️ Firebase Storage n\'est pas initialisé. Veuillez recharger la page.');
+              if (!window.firebaseDB) {
+                alert('⚠️ Firebase n\'est pas initialisé. Veuillez recharger la page.');
                 return;
               }
 
@@ -1574,7 +1571,7 @@
 
               // Créer le snapshot
               const snapshot = {
-                version: '3.0', // Nouvelle version pour Firebase Storage
+                version: '4.0', // Version 4.0 pour Firestore
                 date: Date.now(),
                 classe: arbreActuel,
                 talents: talentsVisibles,
@@ -1588,26 +1585,21 @@
                 talentsActifs: Object.keys(talentsActifs).length
               });
 
-              // Créer un blob JSON
-              const jsonString = JSON.stringify(snapshot);
-              const blob = new Blob([jsonString], { type: 'application/json' });
-              console.log('Taille du snapshot:', jsonString.length, 'caractères');
-
               // Générer un ID unique
               const id = crypto.randomUUID();
-              const fileRef = window.firebaseStorageRef(window.firebaseStorage, `snapshots/${id}.json`);
 
-              // Upload vers Firebase Storage
-              console.log('☁️ Upload vers Firebase Storage...');
-              await window.firebaseUploadBytes(fileRef, blob);
-              console.log('✅ Upload réussi !');
+              // Sauvegarder dans Firestore
+              console.log('☁️ Sauvegarde vers Firestore...');
+              const docRef = window.firebaseDoc(window.firebaseDB, 'snapshots', id);
+              await window.firebaseSetDoc(docRef, snapshot);
+              console.log('✅ Sauvegarde réussie !');
 
               // Construire l'URL avec l'ID
               const baseUrl = window.location.origin + window.location.pathname;
               const url = `${baseUrl}#snapshot=${id}`;
 
               console.log('🔗 URL générée:', url);
-              console.log('Taille URL:', url.length, 'caractères (beaucoup plus court !)');
+              console.log('Taille URL:', url.length, 'caractères');
 
               // Copier dans le presse-papier
               await navigator.clipboard.writeText(url);
