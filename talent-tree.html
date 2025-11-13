@@ -21,7 +21,7 @@
     <!-- Firebase SDK -->
     <script type="module">
       import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
-      import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js';
+      import { getStorage, ref, uploadBytes, getDownloadURL, getBlob } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js';
 
       const firebaseConfig = {
         apiKey: "AIzaSyBEAGwmfbbrfEbtpQRPmXGE6HqL9OrD2H4",
@@ -40,6 +40,7 @@
       window.firebaseStorageRef = ref;
       window.firebaseUploadBytes = uploadBytes;
       window.firebaseGetDownloadURL = getDownloadURL;
+      window.firebaseGetBlob = getBlob;
     </script>
 
     <style>
@@ -917,17 +918,13 @@
                 // Construire la référence au fichier
                 const fileRef = window.firebaseStorageRef(window.firebaseStorage, `snapshots/${snapshotId}.json`);
 
-                // Récupérer l'URL de téléchargement
+                // Télécharger le snapshot directement via Firebase (gère CORS automatiquement)
                 console.log('☁️ Téléchargement depuis Firebase Storage...');
-                const downloadURL = await window.firebaseGetDownloadURL(fileRef);
+                const blob = await window.firebaseGetBlob(fileRef);
 
-                // Télécharger le snapshot
-                const response = await fetch(downloadURL);
-                if (!response.ok) {
-                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const snapshot = await response.json();
+                // Convertir le blob en texte puis parser le JSON
+                const text = await blob.text();
+                const snapshot = JSON.parse(text);
                 console.log('✅ Snapshot chargé:', snapshot);
 
                 // Vérifier la version
