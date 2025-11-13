@@ -2312,8 +2312,8 @@
 
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
-                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS :</span>
-                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS</span>
+                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[100px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                       +{getTotalDegats()}
                     </span>
                   </div>
@@ -2325,8 +2325,8 @@
                   <div className="flex items-center gap-2">
                     {/* PV */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV :</span>
-                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV</span>
+                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[100px] text-center">
                         {getPointsDeVie()}
                       </span>
                     </div>
@@ -2335,7 +2335,7 @@
 
                     {/* VIE */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>VIE :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>VIE</span>
                       <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
                         {getTotalVie()}
                       </span>
@@ -2345,7 +2345,7 @@
 
                     {/* ENDU */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>ENDU :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>ENDU</span>
                       <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
                         {getTotalEndu()}
                       </span>
@@ -2355,7 +2355,7 @@
 
                     {/* Bonus (calculé selon la classe) */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus :</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus</span>
                       <span className="px-3 py-1.5 text-white rounded text-center font-bold min-w-[50px]" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                         {getBonusPV()}
                       </span>
@@ -2368,7 +2368,7 @@
                       <div className="w-full"></div>
                       {getCompetencesActives().map(comp => (
                         <div key={comp} className="flex items-center gap-2">
-                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp} :</span>
+                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp}</span>
                           <span className="px-3 py-1.5 bg-orange-600 text-white rounded font-bold min-w-[50px] text-center">
                             +{getTotalCompetence(comp)}
                           </span>
@@ -3161,6 +3161,45 @@
                                       {talent.cout}
                                     </div>
 
+                                    {/* Badge de points requis au centre supérieur */}
+                                    {talent.pointsRequis && talent.pointsRequis > 0 && (
+                                      (() => {
+                                        const pointsEnAmont = getPointsEnAmont(talent.id);
+                                        const pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
+                                        const isUnlocked = isActive || pointsRestants === 0;
+                                        const progress = pointsEnAmont / talent.pointsRequis;
+
+                                        let badgeColor = '';
+                                        let lockIcon = '';
+
+                                        if (isUnlocked) {
+                                          badgeColor = 'bg-green-600 border-green-400';
+                                          lockIcon = '🔓';
+                                        } else if (progress >= 0.5) {
+                                          badgeColor = 'bg-yellow-600 border-yellow-400';
+                                          lockIcon = '🔒';
+                                        } else {
+                                          badgeColor = 'bg-orange-600 border-orange-400';
+                                          lockIcon = '🔒';
+                                        }
+
+                                        return (
+                                          <div
+                                            className={`
+                                              absolute -top-3 left-1/2 transform -translate-x-1/2
+                                              px-2 py-0.5 rounded font-bold text-xs
+                                              text-white border-2 ${badgeColor}
+                                              flex items-center gap-0.5
+                                            `}
+                                            title={`Points requis en amont: ${pointsEnAmont}/${talent.pointsRequis}`}
+                                          >
+                                            <span style={{ fontSize: '0.7rem' }}>{lockIcon}</span>
+                                            <span>{pointsRestants}</span>
+                                          </div>
+                                        );
+                                      })()
+                                    )}
+
                                     {/* Bonus Compétence */}
                                     {talent.competence && (
                                       <div className={`
@@ -3288,29 +3327,29 @@
                       {/* Stats : DÉGÂTS, PV, formule */}
                       <div className="flex flex-wrap items-center gap-3 text-sm mb-3 pb-3 border-b border-slate-300">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">DÉGÂTS :</span>
-                          <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.degats.code }}>
+                          <span className="font-bold">DÉGÂTS</span>
+                          <span className="px-2 py-1 rounded font-bold text-white min-w-[100px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                             +{getTotalDegats()}
                           </span>
                         </div>
                         <div className="h-6 border-l-2 border-slate-400"></div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">PV :</span>
-                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold">
+                          <span className="font-bold">PV</span>
+                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold min-w-[100px] text-center">
                             {getPointsDeVie()}
                           </span>
                           <span className="font-bold">=</span>
-                          <span className="font-bold">VIE :</span>
+                          <span className="font-bold">VIE</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.vie.code }}>
                             {getTotalVie()}
                           </span>
                           <span className="font-bold">×</span>
-                          <span className="font-bold">ENDU :</span>
+                          <span className="font-bold">ENDU</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.endu.code }}>
                             {getTotalEndu()}
                           </span>
                           <span className="font-bold">+</span>
-                          <span className="font-bold">BONUS :</span>
+                          <span className="font-bold">BONUS</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                             {getBonusPV()}
                           </span>
@@ -3322,7 +3361,7 @@
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           {getCompetencesActives().map(comp => (
                             <div key={comp} className="flex items-center gap-2">
-                              <span className="font-bold">{comp} :</span>
+                              <span className="font-bold">{comp}</span>
                               <span className="px-2 py-1 bg-orange-600 text-white rounded font-bold">
                                 +{getTotalCompetence(comp)}
                               </span>
