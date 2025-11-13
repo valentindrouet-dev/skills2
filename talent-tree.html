@@ -738,7 +738,56 @@
             localStorage.setItem('zoomLevel', zoom.toString());
           }, [zoom]);
 
-          // Charger une classe
+          // Charger une classe depuis le snapshot (mode player)
+          const chargerClasseDepuisSnapshot = (classe) => {
+            if (!snapshotData || !snapshotData.classes) {
+              console.error('❌ Pas de snapshot disponible');
+              return;
+            }
+
+            const dataClasse = snapshotData.classes[classe];
+            if (!dataClasse) {
+              console.error('❌ Classe non trouvée dans le snapshot:', classe);
+              return;
+            }
+
+            // Normaliser les talents
+            const talentsNormalises = {};
+            Object.keys(dataClasse.talents || {}).forEach(id => {
+              const talent = dataClasse.talents[id];
+              talentsNormalises[id] = {
+                id: id,
+                nom: 'Talent',
+                description: '',
+                cout: 1,
+                prerequis: [],
+                exclusif: [],
+                visible: true,
+                couleurTalent: 'action',
+                typeTalent: 'grand_carre',
+                position: { x: 0, y: 0 },
+                ...talent
+              };
+            });
+
+            setTalents(talentsNormalises);
+            setArbreActuel(classe);
+            if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
+            if (dataClasse.niveau) setNiveau(dataClasse.niveau);
+
+            // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
+            const savedActifs = localStorage.getItem(`snapshot_${snapshotId}_${classe}_talentsActifs`);
+            if (savedActifs) {
+              setTalentsActifs(JSON.parse(savedActifs));
+              console.log('💾 Talents activés restaurés pour', classe);
+            } else {
+              setTalentsActifs({});
+            }
+
+            console.log('📂 Classe chargée depuis snapshot:', classe);
+          };
+
+          // Charger une classe (mode GM)
           const chargerArbre = (classe) => {
             // En mode lecture seule, chercher d'abord dans classe_shared_
             const keyToCheck = modeLectureSeule ? `classe_shared_${classe}` : `classe_${classe}`;
@@ -900,6 +949,10 @@
             }
           }, []);
 
+          // State pour stocker le snapshot ID et les données complètes
+          const [snapshotId, setSnapshotId] = useState(null);
+          const [snapshotData, setSnapshotData] = useState(null);
+
           // Charger depuis Firestore (snapshots partagés via #snapshot=ID)
           useEffect(() => {
             const loadSnapshotFromFirestore = async () => {
@@ -914,8 +967,9 @@
                   return;
                 }
 
-                const snapshotId = snapshotMatch[1];
-                console.log('📦 Chargement du snapshot depuis Firestore:', snapshotId);
+                const id = snapshotMatch[1];
+                setSnapshotId(id);
+                console.log('📦 Chargement du snapshot depuis Firestore:', id);
 
                 // Vérifier que Firebase est disponible
                 if (!window.firebaseDB) {
@@ -926,7 +980,7 @@
 
                 // Récupérer le document depuis Firestore
                 console.log('☁️ Téléchargement depuis Firestore...');
-                const docRef = window.firebaseDoc(window.firebaseDB, 'snapshots', snapshotId);
+                const docRef = window.firebaseDoc(window.firebaseDB, 'snapshots', id);
                 const docSnap = await window.firebaseGetDoc(docRef);
 
                 if (!docSnap.exists()) {
@@ -935,12 +989,60 @@
 
                 const snapshot = docSnap.data();
                 console.log('✅ Snapshot chargé:', snapshot);
+                setSnapshotData(snapshot);
 
-                // Vérifier la version (v4.0 pour Firestore, v3.0 pour compatibilité)
-                if (snapshot.version === '4.0' || snapshot.version === '3.0') {
-                  console.log('Format Firestore détecté (v' + snapshot.version + ')');
+                // Vérifier la version
+                if (snapshot.version === '5.0') {
+                  // Version 5.0 : Multi-classes
+                  console.log('Format v5.0 multi-classes détecté');
 
-                  // Normaliser les talents avec des valeurs par défaut
+                  // Charger la classe active (ou la première disponible)
+                  const classeToLoad = snapshot.classeActive || Object.keys(snapshot.classes)[0];
+                  const dataClasse = snapshot.classes[classeToLoad];
+
+                  if (dataClasse) {
+                    // Normaliser les talents
+                    const talentsNormalises = {};
+                    Object.keys(dataClasse.talents || {}).forEach(id => {
+                      const talent = dataClasse.talents[id];
+                      talentsNormalises[id] = {
+                        id: id,
+                        nom: 'Talent',
+                        description: '',
+                        cout: 1,
+                        prerequis: [],
+                        exclusif: [],
+                        visible: true,
+                        couleurTalent: 'action',
+                        typeTalent: 'grand_carre',
+                        position: { x: 0, y: 0 },
+                        ...talent
+                      };
+                    });
+
+                    setTalents(talentsNormalises);
+                    setArbreActuel(classeToLoad);
+                    if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
+                    if (dataClasse.niveau) setNiveau(dataClasse.niveau);
+
+                    // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
+                    const savedActifs = localStorage.getItem(`snapshot_${id}_${classeToLoad}_talentsActifs`);
+                    if (savedActifs) {
+                      setTalentsActifs(JSON.parse(savedActifs));
+                      console.log('💾 Talents activés restaurés depuis localStorage');
+                    } else {
+                      setTalentsActifs({});
+                    }
+
+                    setModeLectureSeule(true);
+                    setModePlayer(true);
+
+                    console.log('✅ Snapshot v5.0 chargé - Talents:', Object.keys(talentsNormalises).length);
+                  }
+                } else if (snapshot.version === '4.0' || snapshot.version === '3.0') {
+                  // Anciens formats (compatibilité)
+                  console.log('Format ancien détecté (v' + snapshot.version + ')');
+
                   const talentsNormalises = {};
                   Object.keys(snapshot.talents || {}).forEach(id => {
                     const talent = snapshot.talents[id];
@@ -960,15 +1062,22 @@
                   });
 
                   setTalents(talentsNormalises);
-                  setTalentsActifs(snapshot.talentsActifs || {});
                   setArbreActuel(snapshot.classe);
                   if (snapshot.nomPersonnage) setNomPersonnage(snapshot.nomPersonnage);
                   if (snapshot.niveau) setNiveau(snapshot.niveau);
 
-                  setModeLectureSeule(true);
-                  setModePlayer(true); // Activer le mode joueur
+                  // Charger talents activés depuis localStorage
+                  const savedActifs = localStorage.getItem(`snapshot_${id}_${snapshot.classe}_talentsActifs`);
+                  if (savedActifs) {
+                    setTalentsActifs(JSON.parse(savedActifs));
+                  } else {
+                    setTalentsActifs(snapshot.talentsActifs || {});
+                  }
 
-                  console.log('✅ Snapshot chargé en mode joueur - Talents:', Object.keys(talentsNormalises).length);
+                  setModeLectureSeule(true);
+                  setModePlayer(true);
+
+                  console.log('✅ Snapshot chargé - Talents:', Object.keys(talentsNormalises).length);
                 } else {
                   console.error('❌ Version de snapshot non supportée:', snapshot.version);
                   alert('⚠️ Ce lien utilise un format non supporté. Veuillez demander un nouveau lien.');
@@ -982,6 +1091,15 @@
 
             loadSnapshotFromFirestore();
           }, []);
+
+          // Sauvegarder les talents activés dans localStorage (mode player uniquement)
+          useEffect(() => {
+            if (modePlayer && snapshotId && arbreActuel) {
+              const key = `snapshot_${snapshotId}_${arbreActuel}_talentsActifs`;
+              localStorage.setItem(key, JSON.stringify(talentsActifs));
+              console.log('💾 Talents activés sauvegardés:', key);
+            }
+          }, [talentsActifs, modePlayer, snapshotId, arbreActuel]);
 
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
@@ -1559,30 +1677,46 @@
                 return;
               }
 
-              // Filtrer les talents pour le partage (exclure les cachés uniquement)
-              const talentsVisibles = {};
-              Object.keys(talents).forEach(id => {
-                const talent = talents[id];
-                // Ignorer les talents cachés
-                if (talent.visible === false) return;
+              // Récupérer TOUTES les classes depuis localStorage
+              const classes = {};
+              let totalTalents = 0;
 
-                talentsVisibles[id] = talent;
+              CLASSES.forEach(classe => {
+                const savedData = localStorage.getItem(`classe_${classe}`);
+                if (savedData) {
+                  const data = JSON.parse(savedData);
+
+                  // Filtrer les talents cachés
+                  const talentsVisibles = {};
+                  Object.keys(data.talents || {}).forEach(id => {
+                    const talent = data.talents[id];
+                    if (talent.visible !== false) {
+                      talentsVisibles[id] = talent;
+                    }
+                  });
+
+                  classes[classe] = {
+                    talents: talentsVisibles,
+                    nomPersonnage: data.nomPersonnage || '',
+                    niveau: data.niveau || 1
+                  };
+
+                  totalTalents += Object.keys(talentsVisibles).length;
+                }
               });
 
-              // Créer le snapshot
+              // Créer le snapshot avec TOUTES les classes
               const snapshot = {
-                version: '4.0', // Version 4.0 pour Firestore
+                version: '5.0', // Version 5.0 : multi-classes
                 date: Date.now(),
-                classe: arbreActuel,
-                talents: talentsVisibles,
-                talentsActifs,
-                nomPersonnage,
-                niveau
+                classes: classes,
+                classeActive: arbreActuel // La classe actuellement affichée par le GM
               };
 
-              console.log('📦 Création du snapshot...', {
-                talentsVisibles: Object.keys(talentsVisibles).length,
-                talentsActifs: Object.keys(talentsActifs).length
+              console.log('📦 Création du snapshot multi-classes...', {
+                nombreClasses: Object.keys(classes).length,
+                totalTalents: totalTalents,
+                classeActive: arbreActuel
               });
 
               // Générer un ID unique
@@ -1599,13 +1733,12 @@
               const url = `${baseUrl}#snapshot=${id}`;
 
               console.log('🔗 URL générée:', url);
-              console.log('Taille URL:', url.length, 'caractères');
 
               // Copier dans le presse-papier
               await navigator.clipboard.writeText(url);
 
               // Afficher le succès
-              alert(`✅ Lien copié dans le presse-papier !\n\n🔗 ${url}\n\nTaille : ${url.length} caractères\nTalents visibles : ${Object.keys(talentsVisibles).length}\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.`);
+              alert(`✅ Lien copié dans le presse-papier !\n\n🔗 ${url}\n\nClasses partagées : ${Object.keys(classes).length}\nTotal talents : ${totalTalents}\n\nLes joueurs pourront choisir leur classe et activer les talents.`);
 
               // Ouvrir dans un nouvel onglet
               window.open(url, '_blank');
@@ -1663,9 +1796,22 @@
                   {/* Classe */}
                   <div className="flex items-center gap-2">
                     <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Classe :</label>
-                    {modeLectureSeule ? (
+                    {modePlayer && snapshotData && snapshotData.version === '5.0' ? (
+                      // Mode player v5.0 : dropdown actif pour choisir la classe
+                      <select
+                        value={arbreActuel}
+                        onChange={(e) => chargerClasseDepuisSnapshot(e.target.value)}
+                        className="px-3 py-1.5 bg-purple-600 text-white rounded border border-purple-500 font-bold"
+                      >
+                        {Object.keys(snapshotData.classes || {}).map(classe => (
+                          <option key={classe} value={classe}>{classe}</option>
+                        ))}
+                      </select>
+                    ) : modeLectureSeule ? (
+                      // Ancien mode lecture seule : classe fixe
                       <span className="px-3 py-1.5 bg-slate-700 text-amber-400 rounded border border-amber-500 font-bold">{arbreActuel}</span>
                     ) : (
+                      // Mode GM : dropdown pour changer de classe
                       <select
                         value={arbreActuel}
                         onChange={(e) => chargerArbre(e.target.value)}
