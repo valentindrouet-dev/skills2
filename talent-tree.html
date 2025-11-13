@@ -239,7 +239,14 @@
           };
 
           // États pour la gestion des arbres GM
-          const [arbreActuel, setArbreActuel] = useState('Gardien');
+          const [arbreActuel, setArbreActuel] = useState(() => {
+            // Si un snapshot est détecté dans l'URL, démarrer sur null pour éviter le flash du Gardien
+            const hash = window.location.hash;
+            if (hash.includes('snapshot=')) {
+              return null; // Sera défini lors du chargement du snapshot
+            }
+            return 'Gardien'; // Mode GM par défaut
+          });
           const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(5);
@@ -2141,12 +2148,22 @@
               )}
 
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
-                {/* Header */}
-                <div className={`${modePrint ? 'bg-white' : `bg-gradient-to-r ${getCouleurClasse(arbreActuel)}`} rounded-t-lg p-6 shadow-lg no-print`}>
-                  <h1 className={`text-4xl font-bold text-center tracking-wide ${modePrint ? 'text-black' : 'text-white'}`}>
-                    {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
-                  </h1>
-                </div>
+                {arbreActuel === null ? (
+                  // Chargement en cours
+                  <div className="bg-slate-800 rounded-lg p-8 flex items-center justify-center min-h-[400px]">
+                    <div className="text-center">
+                      <div className="text-4xl mb-4">⏳</div>
+                      <p className="text-white text-xl">Chargement...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Header */}
+                    <div className={`${modePrint ? 'bg-white' : `bg-gradient-to-r ${getCouleurClasse(arbreActuel)}`} rounded-t-lg p-6 shadow-lg no-print`}>
+                      <h1 className={`text-4xl font-bold text-center tracking-wide ${modePrint ? 'text-black' : 'text-white'}`}>
+                        {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
+                      </h1>
+                    </div>
 
                 {/* Caractéristiques du personnage */}
                 <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
@@ -3419,6 +3436,8 @@
                         );
                       })()}
                   </div>
+                )}
+                  </>
                 )}
               </div>
             </div>
