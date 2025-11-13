@@ -431,9 +431,20 @@
             }
           };
 
-          // Fonction pour obtenir tous les mots-clés (défaut + custom)
+          // Fonction pour obtenir tous les mots-clés (défaut + custom, en excluant les supprimés)
           const getTousMotsCles = () => {
-            return { ...MOTS_CLES_INDEX_DEFAUT, ...motsClesCustom };
+            const tous = { ...MOTS_CLES_INDEX_DEFAUT };
+            // Appliquer les mots-clés custom (ajouts et suppressions)
+            Object.keys(motsClesCustom).forEach(cle => {
+              if (motsClesCustom[cle] === null) {
+                // null = supprimé, donc on le retire
+                delete tous[cle];
+              } else {
+                // Ajout ou remplacement
+                tous[cle] = motsClesCustom[cle];
+              }
+            });
+            return tous;
           };
 
           // Helper pour obtenir les dimensions d'un talent
@@ -1116,6 +1127,12 @@
                 if (snapshot.pageInfo) {
                   setPageInfoContenu(snapshot.pageInfo);
                   console.log('📄 Page Informations chargée depuis snapshot');
+                }
+
+                // Charger les mots-clés custom si présents
+                if (snapshot.motsClesCustom) {
+                  setMotsClesCustom(snapshot.motsClesCustom);
+                  console.log('📚 Mots-clés custom chargés depuis snapshot:', snapshot.motsClesCustom);
                 }
 
                 // Vérifier la version
@@ -1897,7 +1914,8 @@
                 date: Date.now(),
                 classes: classes,
                 classeActive: arbreActuel, // La classe actuellement affichée par le GM
-                pageInfo: pageInfo // Page d'informations/consignes pour les joueurs
+                pageInfo: pageInfo, // Page d'informations/consignes pour les joueurs
+                motsClesCustom: motsClesCustom // Mots-clés custom pour l'index
               };
 
               console.log('📦 Création du snapshot multi-classes...', {
@@ -1969,21 +1987,27 @@
                               <div key={cle} className="bg-slate-700 p-3 rounded flex justify-between items-start">
                                 <div className="flex-1">
                                   <div className="text-white font-semibold">{info.titre}</div>
-                                  <div className="text-slate-300 text-sm">{info.definition}</div>
+                                  <div className="text-slate-300 text-sm" dangerouslySetInnerHTML={{ __html: info.definition }} />
                                 </div>
-                                {!MOTS_CLES_INDEX_DEFAUT[cle] && (
-                                  <button
-                                    onClick={() => {
-                                      const nouveau = { ...motsClesCustom };
+                                <button
+                                  onClick={() => {
+                                    if (!confirm(`Supprimer le mot-clé "${info.titre}" ?`)) return;
+
+                                    // Si c'est un mot-clé par défaut, le déplacer dans custom pour le marquer comme supprimé
+                                    const nouveau = { ...motsClesCustom };
+                                    if (MOTS_CLES_INDEX_DEFAUT[cle]) {
+                                      // Marquer comme supprimé en le stockant avec une propriété spéciale
+                                      nouveau[cle] = null;
+                                    } else {
                                       delete nouveau[cle];
-                                      setMotsClesCustom(nouveau);
-                                      localStorage.setItem('motsClesCustom', JSON.stringify(nouveau));
-                                    }}
-                                    className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                  >
-                                    Supprimer
-                                  </button>
-                                )}
+                                    }
+                                    setMotsClesCustom(nouveau);
+                                    localStorage.setItem('motsClesCustom', JSON.stringify(nouveau));
+                                  }}
+                                  className="ml-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                >
+                                  Supprimer
+                                </button>
                               </div>
                             ))}
                           </div>
@@ -3315,7 +3339,7 @@
                               {indexFiltre.map(([cle, info]) => (
                                 <div key={cle} className="text-xs">
                                   <span className="font-bold">{info.titre} :</span>
-                                  <span className="ml-2 text-slate-700">{info.definition}</span>
+                                  <span className="ml-2 text-slate-700" dangerouslySetInnerHTML={{ __html: info.definition }} />
                                 </div>
                               ))}
                             </div>
