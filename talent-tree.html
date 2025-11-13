@@ -350,13 +350,17 @@
           // Détecter le mode lecture seule dès l'initialisation
           const [modeLectureSeule, setModeLectureSeule] = useState(() => {
             const params = new URLSearchParams(window.location.search);
-            return params.has('data'); // Mode lecture seule si paramètre 'data' présent
+            const hash = window.location.hash;
+            // Mode lecture seule si ?data= OU #snapshot= présent
+            return params.has('data') || hash.includes('snapshot=');
           });
 
           // Détecter le mode player (partage pour les joueurs)
           const [modePlayer, setModePlayer] = useState(() => {
             const params = new URLSearchParams(window.location.search);
-            return params.get('player') === 'true';
+            const hash = window.location.hash;
+            // Mode player si ?player=true OU #snapshot= présent
+            return params.get('player') === 'true' || hash.includes('snapshot=');
           });
 
           // Détecter le mode print (impression avec fond blanc)
