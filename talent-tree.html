@@ -18,6 +18,30 @@
     <!-- LZString for URL compression -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js';
+      import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.14.0/firebase-storage.js';
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyBEAGwmfbbrfEbtpQRPmXGE6HqL9OrD2H4",
+        authDomain: "skills2-bbg.firebaseapp.com",
+        projectId: "skills2-bbg",
+        storageBucket: "skills2-bbg.firebasestorage.app",
+        messagingSenderId: "571913486023",
+        appId: "1:571913486023:web:f754f3b420e87cac82c8e2"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const storage = getStorage(app);
+
+      // Exposer pour utilisation dans le code React
+      window.firebaseStorage = storage;
+      window.firebaseStorageRef = ref;
+      window.firebaseUploadBytes = uploadBytes;
+      window.firebaseGetDownloadURL = getDownloadURL;
+    </script>
+
     <style>
         body {
             margin: 0;
@@ -867,6 +891,93 @@
             }
           }, []);
 
+          // Charger depuis Firebase Storage (snapshots partagés via #snapshot=ID)
+          useEffect(() => {
+            const loadSnapshotFromFirebase = async () => {
+              try {
+                // Vérifier si on a un ID de snapshot dans l'URL (#snapshot=...)
+                const hash = window.location.hash;
+                const snapshotMatch = hash.match(/#snapshot=([^&]+)/);
+
+                if (!snapshotMatch) {
+                  console.log('📝 Pas de snapshot dans l\'URL');
+                  return;
+                }
+
+                const snapshotId = snapshotMatch[1];
+                console.log('📦 Chargement du snapshot depuis Firebase:', snapshotId);
+
+                // Vérifier que Firebase est disponible
+                if (!window.firebaseStorage) {
+                  console.error('❌ Firebase Storage non initialisé');
+                  alert('⚠️ Erreur : Firebase Storage n\'est pas disponible. Veuillez recharger la page.');
+                  return;
+                }
+
+                // Construire la référence au fichier
+                const fileRef = window.firebaseStorageRef(window.firebaseStorage, `snapshots/${snapshotId}.json`);
+
+                // Récupérer l'URL de téléchargement
+                console.log('☁️ Téléchargement depuis Firebase Storage...');
+                const downloadURL = await window.firebaseGetDownloadURL(fileRef);
+
+                // Télécharger le snapshot
+                const response = await fetch(downloadURL);
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const snapshot = await response.json();
+                console.log('✅ Snapshot chargé:', snapshot);
+
+                // Vérifier la version
+                if (snapshot.version === '3.0') {
+                  // Format v3.0 (Firebase Storage)
+                  console.log('Format v3.0 (Firebase) détecté');
+
+                  // Normaliser les talents avec des valeurs par défaut
+                  const talentsNormalises = {};
+                  Object.keys(snapshot.talents || {}).forEach(id => {
+                    const talent = snapshot.talents[id];
+                    talentsNormalises[id] = {
+                      id: id,
+                      nom: 'Talent',
+                      description: '',
+                      cout: 1,
+                      prerequis: [],
+                      exclusif: [],
+                      visible: true,
+                      couleurTalent: 'action',
+                      typeTalent: 'grand_carre',
+                      position: { x: 0, y: 0 },
+                      ...talent
+                    };
+                  });
+
+                  setTalents(talentsNormalises);
+                  setTalentsActifs(snapshot.talentsActifs || {});
+                  setArbreActuel(snapshot.classe);
+                  if (snapshot.nomPersonnage) setNomPersonnage(snapshot.nomPersonnage);
+                  if (snapshot.niveau) setNiveau(snapshot.niveau);
+
+                  setModeLectureSeule(true);
+                  setModePlayer(true); // Activer le mode joueur
+
+                  console.log('✅ Snapshot chargé en mode joueur - Talents:', Object.keys(talentsNormalises).length);
+                } else {
+                  console.error('❌ Version de snapshot non supportée:', snapshot.version);
+                  alert('⚠️ Ce lien utilise un format non supporté. Veuillez demander un nouveau lien.');
+                }
+
+              } catch (error) {
+                console.error('❌ Erreur lors du chargement du snapshot:', error);
+                alert(`⚠️ Erreur lors du chargement du snapshot :\n\n${error.message}\n\nLe lien est peut-être invalide ou expiré.`);
+              }
+            };
+
+            loadSnapshotFromFirebase();
+          }, []);
+
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
             const dependents = [];
@@ -1434,54 +1545,75 @@
             setTargetGridPoint(null);
           };
 
-          // Générer lien de partage pour les joueurs
-          const genererLienPartage = () => {
-            // Filtrer les talents pour le partage (exclure les cachés uniquement)
-            const talentsVisibles = {};
-            Object.keys(talents).forEach(id => {
-              const talent = talents[id];
-              // Ignorer les talents cachés
-              if (talent.visible === false) return;
+          // Générer lien de partage pour les joueurs (Firebase Storage)
+          const genererLienPartage = async () => {
+            try {
+              // Vérifier que Firebase est disponible
+              if (!window.firebaseStorage) {
+                alert('⚠️ Firebase Storage n\'est pas initialisé. Veuillez recharger la page.');
+                return;
+              }
 
-              talentsVisibles[id] = talent;
-            });
+              // Filtrer les talents pour le partage (exclure les cachés uniquement)
+              const talentsVisibles = {};
+              Object.keys(talents).forEach(id => {
+                const talent = talents[id];
+                // Ignorer les talents cachés
+                if (talent.visible === false) return;
 
-            // Créer l'objet avec les données
-            const dataToShare = {
-              version: '2.0',
-              classe: arbreActuel,
-              talents: talentsVisibles, // Tous les talents visibles avec positions
-              talentsActifs,
-              nomPersonnage,
-              niveau
-            };
+                talentsVisibles[id] = talent;
+              });
 
-            // Encoder avec LZString pour compression (réduit la taille de 50-70%)
-            const jsonString = JSON.stringify(dataToShare);
-            console.log('Taille JSON non compressé:', jsonString.length, 'caractères');
-            const encoded = LZString.compressToEncodedURIComponent(jsonString);
-            console.log('Taille après compression:', encoded.length, 'caractères');
+              // Créer le snapshot
+              const snapshot = {
+                version: '3.0', // Nouvelle version pour Firebase Storage
+                date: Date.now(),
+                classe: arbreActuel,
+                talents: talentsVisibles,
+                talentsActifs,
+                nomPersonnage,
+                niveau
+              };
 
-            // Construire l'URL complète avec les données compressées
-            const baseUrl = window.location.origin + window.location.pathname;
-            const url = `${baseUrl}?player=true&data=${encoded}`;
-            console.log('Taille URL finale:', url.length, 'caractères');
+              console.log('📦 Création du snapshot...', {
+                talentsVisibles: Object.keys(talentsVisibles).length,
+                talentsActifs: Object.keys(talentsActifs).length
+              });
 
-            // Vérifier si l'URL est trop longue (limite ~8000 pour la plupart des navigateurs)
-            if (url.length > 8000) {
-              alert(`⚠️ ERREUR : Arbre de talents trop grand pour être partagé par URL\n\nTaille actuelle : ${url.length} caractères\nLimite maximale : 8000 caractères\n\nOptimisations déjà appliquées :\n✓ Talents cachés exclus\n✓ Compression LZString activée\n\nSolutions :\n1. Cachez plus de talents (bouton 👁️ en mode édition)\n2. Utilisez l'export JSON à la place (bouton "Exporter JSON")\n3. Réduisez les descriptions de talents`);
-              return;
+              // Créer un blob JSON
+              const jsonString = JSON.stringify(snapshot);
+              const blob = new Blob([jsonString], { type: 'application/json' });
+              console.log('Taille du snapshot:', jsonString.length, 'caractères');
+
+              // Générer un ID unique
+              const id = crypto.randomUUID();
+              const fileRef = window.firebaseStorageRef(window.firebaseStorage, `snapshots/${id}.json`);
+
+              // Upload vers Firebase Storage
+              console.log('☁️ Upload vers Firebase Storage...');
+              await window.firebaseUploadBytes(fileRef, blob);
+              console.log('✅ Upload réussi !');
+
+              // Construire l'URL avec l'ID
+              const baseUrl = window.location.origin + window.location.pathname;
+              const url = `${baseUrl}#snapshot=${id}`;
+
+              console.log('🔗 URL générée:', url);
+              console.log('Taille URL:', url.length, 'caractères (beaucoup plus court !)');
+
+              // Copier dans le presse-papier
+              await navigator.clipboard.writeText(url);
+
+              // Afficher le succès
+              alert(`✅ Lien copié dans le presse-papier !\n\n🔗 ${url}\n\nTaille : ${url.length} caractères\nTalents visibles : ${Object.keys(talentsVisibles).length}\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.`);
+
+              // Ouvrir dans un nouvel onglet
+              window.open(url, '_blank');
+
+            } catch (error) {
+              console.error('❌ Erreur lors de la publication:', error);
+              alert(`⚠️ Erreur lors de la publication du snapshot :\n\n${error.message}\n\nVérifiez la console pour plus de détails.`);
             }
-
-            // Copier dans le presse-papier
-            navigator.clipboard.writeText(url).then(() => {
-              alert(`✅ Lien copié dans le presse-papier !\n\nTaille : ${url.length} caractères\nTalents visibles : ${Object.keys(talentsVisibles).length}\n\nLes joueurs pourront voir et activer les talents, mais pas modifier l\'arbre.`);
-            }).catch(err => {
-              console.error('Erreur lors de la copie:', err);
-            });
-
-            // Ouvrir dans un nouvel onglet
-            window.open(url, '_blank');
           };
 
           // Imprimer
