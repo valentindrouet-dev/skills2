@@ -785,8 +785,6 @@
 
             setTalents(talentsNormalises);
             setArbreActuel(classe);
-            if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
-            if (dataClasse.niveau) setNiveau(dataClasse.niveau);
 
             // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
             const savedActifs = localStorage.getItem(`snapshot_${snapshotId}_${classe}_talentsActifs`);
@@ -795,6 +793,22 @@
               console.log('💾 Talents activés restaurés pour', classe);
             } else {
               setTalentsActifs({});
+            }
+
+            // Charger nomPersonnage et niveau depuis localStorage ou snapshot
+            const savedNom = localStorage.getItem(`snapshot_${snapshotId}_${classe}_nomPersonnage`);
+            const savedNiveau = localStorage.getItem(`snapshot_${snapshotId}_${classe}_niveau`);
+
+            if (savedNom !== null) {
+              setNomPersonnage(savedNom);
+            } else if (dataClasse.nomPersonnage) {
+              setNomPersonnage(dataClasse.nomPersonnage);
+            }
+
+            if (savedNiveau !== null) {
+              setNiveau(parseInt(savedNiveau));
+            } else if (dataClasse.niveau) {
+              setNiveau(dataClasse.niveau);
             }
 
             console.log('📂 Classe chargée depuis snapshot:', classe);
@@ -856,6 +870,13 @@
 
           // Charger depuis l'URL au démarrage (Pages PJ)
           useEffect(() => {
+            // Si on a un snapshot Firestore (#snapshot=...), ne pas charger l'ancien système
+            const hash = window.location.hash;
+            if (hash.match(/#snapshot=/)) {
+              console.log('🔥 Snapshot Firestore détecté - ancien système ignoré');
+              return;
+            }
+
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('data');
             console.log('Paramètre data dans URL:', dataParam ? 'Présent' : 'Absent');
@@ -1035,8 +1056,6 @@
 
                     setTalents(talentsNormalises);
                     setArbreActuel(classeToLoad);
-                    if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
-                    if (dataClasse.niveau) setNiveau(dataClasse.niveau);
 
                     // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
                     const savedActifs = localStorage.getItem(`snapshot_${id}_${classeToLoad}_talentsActifs`);
@@ -1045,6 +1064,22 @@
                       console.log('💾 Talents activés restaurés depuis localStorage');
                     } else {
                       setTalentsActifs({});
+                    }
+
+                    // Charger nomPersonnage et niveau depuis localStorage ou snapshot
+                    const savedNom = localStorage.getItem(`snapshot_${id}_${classeToLoad}_nomPersonnage`);
+                    const savedNiveau = localStorage.getItem(`snapshot_${id}_${classeToLoad}_niveau`);
+
+                    if (savedNom !== null) {
+                      setNomPersonnage(savedNom);
+                    } else if (dataClasse.nomPersonnage) {
+                      setNomPersonnage(dataClasse.nomPersonnage);
+                    }
+
+                    if (savedNiveau !== null) {
+                      setNiveau(parseInt(savedNiveau));
+                    } else if (dataClasse.niveau) {
+                      setNiveau(dataClasse.niveau);
                     }
 
                     setModeLectureSeule(true);
@@ -1118,6 +1153,21 @@
               console.log('💾 Talents activés sauvegardés:', key);
             }
           }, [talentsActifs, modePlayer, snapshotId, arbreActuel]);
+
+          // Sauvegarder nomPersonnage et niveau dans localStorage (mode player uniquement)
+          useEffect(() => {
+            if (isInitialMount.current) {
+              return;
+            }
+
+            if (modePlayer && snapshotId && arbreActuel) {
+              const keyNom = `snapshot_${snapshotId}_${arbreActuel}_nomPersonnage`;
+              const keyNiveau = `snapshot_${snapshotId}_${arbreActuel}_niveau`;
+              localStorage.setItem(keyNom, nomPersonnage);
+              localStorage.setItem(keyNiveau, niveau.toString());
+              console.log('💾 Nom et niveau sauvegardés:', nomPersonnage, niveau);
+            }
+          }, [nomPersonnage, niveau, modePlayer, snapshotId, arbreActuel]);
 
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
