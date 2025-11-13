@@ -811,6 +811,9 @@
               setNiveau(dataClasse.niveau);
             }
 
+            // Sauvegarder la classe visitée pour la restaurer au prochain refresh
+            localStorage.setItem(`snapshot_${snapshotId}_lastVisitedClass`, classe);
+
             console.log('📂 Classe chargée depuis snapshot:', classe);
           };
 
@@ -1030,8 +1033,13 @@
                   // Version 5.0 : Multi-classes
                   console.log('Format v5.0 multi-classes détecté');
 
-                  // Charger la classe active (ou la première disponible)
-                  const classeToLoad = snapshot.classeActive || Object.keys(snapshot.classes)[0];
+                  // Charger la dernière classe visitée par ce joueur, sinon la classe active du snapshot
+                  const lastVisited = localStorage.getItem(`snapshot_${id}_lastVisitedClass`);
+                  const classeToLoad = (lastVisited && snapshot.classes[lastVisited])
+                    ? lastVisited
+                    : (snapshot.classeActive || Object.keys(snapshot.classes)[0]);
+                  console.log('🎯 Classe à charger:', classeToLoad, '(dernière visite:', lastVisited, ')');
+
                   const dataClasse = snapshot.classes[classeToLoad];
 
                   if (dataClasse) {
@@ -1084,6 +1092,9 @@
 
                     setModeLectureSeule(true);
                     setModePlayer(true);
+
+                    // Sauvegarder la classe visitée pour la restaurer au prochain refresh
+                    localStorage.setItem(`snapshot_${id}_lastVisitedClass`, classeToLoad);
 
                     console.log('✅ Snapshot v5.0 chargé - Talents:', Object.keys(talentsNormalises).length);
                   }
