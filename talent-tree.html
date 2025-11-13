@@ -3161,45 +3161,6 @@
                                       {talent.cout}
                                     </div>
 
-                                    {/* Badge de points requis au centre supérieur */}
-                                    {talent.pointsRequis && talent.pointsRequis > 0 && (
-                                      (() => {
-                                        const pointsEnAmont = getPointsEnAmont(talent.id);
-                                        const pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
-                                        const isUnlocked = isActive || pointsRestants === 0;
-                                        const progress = pointsEnAmont / talent.pointsRequis;
-
-                                        let badgeColor = '';
-                                        let lockIcon = '';
-
-                                        if (isUnlocked) {
-                                          badgeColor = 'bg-green-600 border-green-400';
-                                          lockIcon = '🔓';
-                                        } else if (progress >= 0.5) {
-                                          badgeColor = 'bg-yellow-600 border-yellow-400';
-                                          lockIcon = '🔒';
-                                        } else {
-                                          badgeColor = 'bg-orange-600 border-orange-400';
-                                          lockIcon = '🔒';
-                                        }
-
-                                        return (
-                                          <div
-                                            className={`
-                                              absolute -top-3 left-1/2 transform -translate-x-1/2
-                                              px-2 py-0.5 rounded font-bold text-xs
-                                              text-white border-2 ${badgeColor}
-                                              flex items-center gap-0.5
-                                            `}
-                                            title={`Points requis en amont: ${pointsEnAmont}/${talent.pointsRequis}`}
-                                          >
-                                            <span style={{ fontSize: '0.7rem' }}>{lockIcon}</span>
-                                            <span>{pointsRestants}</span>
-                                          </div>
-                                        );
-                                      })()
-                                    )}
-
                                     {/* Bonus Compétence */}
                                     {talent.competence && (
                                       <div className={`
