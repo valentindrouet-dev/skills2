@@ -1889,6 +1889,87 @@
             setTargetGridPoint(null);
           };
 
+          // Exporter l'arbre actuel en JSON
+          const exporterArbreActuel = () => {
+            if (arbreActuel === 'Informations') {
+              alert('⚠️ Impossible d\'exporter la page Accueil. Sélectionnez une classe.');
+              return;
+            }
+
+            const dataToExport = {
+              classe: arbreActuel,
+              talents: talents,
+              version: '5.0',
+              exportDate: new Date().toISOString()
+            };
+
+            const jsonString = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `arbre_${arbreActuel}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showNotification(`✅ Arbre "${arbreActuel}" exporté !`);
+          };
+
+          // Importer un arbre depuis JSON
+          const importerArbre = () => {
+            if (arbreActuel === 'Informations') {
+              alert('⚠️ Impossible d\'importer sur la page Accueil. Sélectionnez une classe.');
+              return;
+            }
+
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const importedData = JSON.parse(event.target.result);
+
+                  // Vérifier que c'est un format valide
+                  if (!importedData.talents || !importedData.classe) {
+                    alert('⚠️ Format de fichier invalide. Assurez-vous d\'importer un fichier exporté depuis cette application.');
+                    return;
+                  }
+
+                  // Confirmer avant d'écraser
+                  if (!confirm(`⚠️ Cela va écraser l'arbre actuel "${arbreActuel}" avec les données de "${importedData.classe}".\n\nVoulez-vous continuer ?`)) {
+                    return;
+                  }
+
+                  // Importer les talents
+                  setTalents(importedData.talents);
+
+                  // Sauvegarder dans localStorage
+                  localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify({
+                    talents: importedData.talents
+                  }));
+
+                  showNotification(`✅ Arbre importé avec succès ! ${Object.keys(importedData.talents).length} talents chargés.`);
+                } catch (error) {
+                  console.error('Erreur lors de l\'import:', error);
+                  alert('❌ Erreur lors de la lecture du fichier. Vérifiez que c\'est un fichier JSON valide.');
+                }
+              };
+
+              reader.readAsText(file);
+            };
+
+            input.click();
+          };
+
           // Générer lien de partage pour les joueurs (Firebase Storage)
           const genererLienPartage = async () => {
             try {
@@ -2418,12 +2499,28 @@
                     )}
 
                     {!modeLectureSeule && !modePlayer && (
-                      <button
-                        onClick={genererLienPartage}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                      >
-                        <Share /> Partager
-                      </button>
+                      <>
+                        <button
+                          onClick={exporterArbreActuel}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors"
+                          title="Exporter l'arbre actuel en JSON"
+                        >
+                          📥 Export
+                        </button>
+                        <button
+                          onClick={importerArbre}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                          title="Importer un arbre depuis JSON"
+                        >
+                          📤 Import
+                        </button>
+                        <button
+                          onClick={genererLienPartage}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                        >
+                          <Share /> Partager
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
