@@ -2241,7 +2241,7 @@
                                   <div className="flex justify-between items-start">
                                     <div className="flex-1">
                                       <div className="text-white font-semibold">{info.titre}</div>
-                                      <div className="text-slate-300 text-sm" dangerouslySetInnerHTML={{ __html: info.definition }} />
+                                      <div className="text-slate-300 text-sm" dangerouslySetInnerHTML={{ __html: replaceMarkers(info.definition) }} />
                                     </div>
                                     <div className="flex gap-1 ml-2">
                                       <button
@@ -4005,7 +4005,7 @@
                               {indexFiltre.map(([cle, info]) => (
                                 <div key={cle} className="text-xs">
                                   <span className="font-bold">{info.titre} :</span>
-                                  <span className="ml-2 text-slate-700" dangerouslySetInnerHTML={{ __html: info.definition }} />
+                                  <span className="ml-2 text-slate-700" dangerouslySetInnerHTML={{ __html: replaceMarkers(info.definition) }} />
                                 </div>
                               ))}
                             </div>
