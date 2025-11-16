@@ -292,7 +292,7 @@
           const [editeurMarqueurs, setEditeurMarqueurs] = useState(false);
           const [marqueurEnEdition, setMarqueurEnEdition] = useState(null);
           const [marqueursCustom, setMarqueursCustom] = useState(() => {
-            const saved = localStorage.getItem(`marqueurs_${arbreActuel}`);
+            const saved = localStorage.getItem('marqueursCustom');
             return saved ? JSON.parse(saved) : {};
           });
 
@@ -900,6 +900,11 @@
           useEffect(() => {
             localStorage.setItem('iconesDisponibles', JSON.stringify(iconesDisponibles));
           }, [iconesDisponibles]);
+
+          // Sauvegarder les marqueurs quand ils changent
+          useEffect(() => {
+            localStorage.setItem('marqueursCustom', JSON.stringify(marqueursCustom));
+          }, [marqueursCustom]);
 
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
@@ -2390,7 +2395,6 @@
                                             const nouveau = { ...marqueursCustom };
                                             nouveau[nom] = { valeurBase, couleur };
                                             setMarqueursCustom(nouveau);
-                                            localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
                                             setMarqueurEnEdition(null);
                                             showNotification(`✅ Marqueur "${nom}" modifié !`);
                                           }}
@@ -2429,7 +2433,6 @@
                                             const nouveau = { ...marqueursCustom };
                                             delete nouveau[nom];
                                             setMarqueursCustom(nouveau);
-                                            localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
                                             showNotification(`✅ Marqueur "${nom}" supprimé !`);
                                           }}
                                           className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
@@ -2498,7 +2501,6 @@
                                 };
 
                                 setMarqueursCustom(nouveau);
-                                localStorage.setItem(`marqueurs_${arbreActuel}`, JSON.stringify(nouveau));
 
                                 document.getElementById('nouveau-marqueur-nom').value = '';
                                 document.getElementById('nouveau-marqueur-valeur').value = '0';
