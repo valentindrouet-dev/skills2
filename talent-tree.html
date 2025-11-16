@@ -144,6 +144,15 @@
             opacity: 0.5;
             cursor: move;
         }
+
+        /* Styles pour les icônes inline (emoji-like) */
+        .emoji-like {
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.1em;
+            display: inline-block;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
@@ -285,6 +294,13 @@
           const [marqueursCustom, setMarqueursCustom] = useState(() => {
             const saved = localStorage.getItem(`marqueurs_${arbreActuel}`);
             return saved ? JSON.parse(saved) : {};
+          });
+
+          // État pour le gestionnaire d'icônes
+          const [gestionnaireIcones, setGestionnaireIcones] = useState(false);
+          const [iconesDisponibles, setIconesDisponibles] = useState(() => {
+            const saved = localStorage.getItem('iconesDisponibles');
+            return saved ? JSON.parse(saved) : [];
           });
 
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
@@ -547,6 +563,18 @@
             // Remplacer les marqueurs simples et avec formules
             result = result.replace(/\{([^}]+)\}/g, (match, formula) => {
               try {
+                // Vérifier si c'est une icône {IMG:filename}
+                if (formula.startsWith('IMG:')) {
+                  const iconName = formula.substring(4).trim(); // Retirer "IMG:"
+                  // Trouver l'icône dans la liste
+                  const icone = iconesDisponibles.find(icon => icon.name === iconName);
+                  if (icone) {
+                    return `<img src="${icone.data}" alt="${iconName}" class="emoji-like" />`;
+                  } else {
+                    return match; // Si l'icône n'existe pas, laisser tel quel
+                  }
+                }
+
                 // Remplacer les variables par leurs valeurs
                 let expr = formula
                   .replace(/ENDU/g, getTotalEndu())
@@ -867,6 +895,11 @@
           useEffect(() => {
             localStorage.setItem('zoomLevel', zoom.toString());
           }, [zoom]);
+
+          // Sauvegarder les icônes disponibles quand elles changent
+          useEffect(() => {
+            localStorage.setItem('iconesDisponibles', JSON.stringify(iconesDisponibles));
+          }, [iconesDisponibles]);
 
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
@@ -2485,6 +2518,135 @@
                 </div>
               )}
 
+              {/* Gestionnaire d'Icônes */}
+              {gestionnaireIcones && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-white">Gestionnaire d'Icônes</h2>
+                        <button
+                          onClick={() => setGestionnaireIcones(false)}
+                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
+                        <p className="mb-1">🖼️ Ajoutez des icônes PNG pour les utiliser dans vos descriptions de talents.</p>
+                        <p>Exemple : ajoutez une icône "fire", puis utilisez {'{IMG:fire}'} dans vos descriptions.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Liste des icônes existantes */}
+                        {iconesDisponibles.length > 0 && (
+                          <div>
+                            <h3 className="text-white font-semibold mb-2">Icônes disponibles :</h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                              {iconesDisponibles.map((icone) => (
+                                <div key={icone.name} className="bg-slate-700 p-3 rounded text-center">
+                                  <div className="bg-white rounded p-2 mb-2 flex items-center justify-center" style={{ minHeight: '60px' }}>
+                                    <img
+                                      src={icone.data}
+                                      alt={icone.name}
+                                      className="emoji-like"
+                                      style={{ width: '2em', height: '2em' }}
+                                    />
+                                  </div>
+                                  <div className="text-white text-xs font-mono mb-2 break-all">{'{IMG:' + icone.name + '}'}</div>
+                                  <button
+                                    onClick={() => {
+                                      if (!confirm(`Supprimer l'icône "${icone.name}" ?`)) return;
+                                      const nouvelles = iconesDisponibles.filter(i => i.name !== icone.name);
+                                      setIconesDisponibles(nouvelles);
+                                      showNotification(`✅ Icône "${icone.name}" supprimée !`);
+                                    }}
+                                    className="w-full px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                  >
+                                    🗑️ Supprimer
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Formulaire d'ajout */}
+                        <div className="border-t border-slate-600 pt-4">
+                          <h3 className="text-white font-semibold mb-2">Ajouter une nouvelle icône :</h3>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Nom de l'icône (ex: fire, sword, shield)"
+                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600 lowercase"
+                              id="nouvelle-icone-nom"
+                            />
+                            <input
+                              type="file"
+                              accept="image/png"
+                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
+                              id="nouvelle-icone-fichier"
+                            />
+                            <button
+                              onClick={() => {
+                                const nom = document.getElementById('nouvelle-icone-nom').value.trim().toLowerCase();
+                                const fichier = document.getElementById('nouvelle-icone-fichier').files[0];
+
+                                if (!nom) {
+                                  alert('⚠️ Veuillez entrer un nom d\'icône');
+                                  return;
+                                }
+
+                                if (!/^[a-z0-9_-]+$/.test(nom)) {
+                                  alert('⚠️ Le nom doit contenir uniquement des lettres minuscules, chiffres, tirets et underscores');
+                                  return;
+                                }
+
+                                if (iconesDisponibles.some(i => i.name === nom)) {
+                                  alert('⚠️ Cette icône existe déjà');
+                                  return;
+                                }
+
+                                if (!fichier) {
+                                  alert('⚠️ Veuillez sélectionner un fichier PNG');
+                                  return;
+                                }
+
+                                if (!fichier.type.includes('png')) {
+                                  alert('⚠️ Seuls les fichiers PNG sont acceptés');
+                                  return;
+                                }
+
+                                // Lire le fichier et le convertir en base64
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                  const nouvelles = [
+                                    ...iconesDisponibles,
+                                    { name: nom, data: e.target.result }
+                                  ];
+
+                                  setIconesDisponibles(nouvelles);
+
+                                  document.getElementById('nouvelle-icone-nom').value = '';
+                                  document.getElementById('nouvelle-icone-fichier').value = '';
+
+                                  showNotification(`✅ Icône "{IMG:${nom}}" ajoutée !`);
+                                };
+                                reader.readAsDataURL(fichier);
+                              }}
+                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                            >
+                              ➕ Ajouter
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
                 {arbreActuel === null ? (
                   // Chargement en cours
@@ -2771,6 +2933,13 @@
                               title="Gérer les marqueurs dynamiques personnalisés"
                             >
                               🏷️ Marqueurs
+                            </button>
+                            <button
+                              onClick={() => setGestionnaireIcones(true)}
+                              className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded font-semibold transition-colors"
+                              title="Gérer les icônes PNG inline"
+                            >
+                              🖼️ Icônes
                             </button>
                           </>
                         )}
