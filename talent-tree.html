@@ -3040,6 +3040,32 @@
                       </div>
                     </div>
 
+                    {/* Statistiques par catégorie - visible en mode édition */}
+                    {modeEdition && (() => {
+                      // Calculer le nombre de talents actifs par catégorie
+                      const statsParCategorie = {};
+                      Object.values(talents).forEach(talent => {
+                        if (talentsActifs[talent.id]) {
+                          const cat = talent.categorie || 'autre';
+                          statsParCategorie[cat] = (statsParCategorie[cat] || 0) + 1;
+                        }
+                      });
+
+                      const categories = Object.keys(statsParCategorie).sort();
+
+                      return categories.length > 0 ? (
+                        <div className="bg-slate-700 border-x-2 border-amber-500 px-4 py-2 no-print">
+                          <span className="text-white text-xs font-semibold">📊 Talents par catégorie : </span>
+                          {categories.map((cat, index) => (
+                            <span key={cat} className="text-slate-300 text-xs ml-2">
+                              {cat}: <span className="text-amber-400 font-semibold">{statsParCategorie[cat]}</span>
+                              {index < categories.length - 1 && <span className="text-slate-500 mx-1">•</span>}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+
                     {/* Lexique des marqueurs - visible en mode édition */}
                     {modeEdition && (
                       <div className="bg-amber-50 border-x-2 border-amber-500 p-3 no-print">
