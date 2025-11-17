@@ -1612,8 +1612,25 @@
                 return;
               }
 
-              setTalentsActifs(prev => ({ ...prev, [talentId]: true }));
-              setPointsDisponibles(prev => prev - talent.cout);
+              // Si ce talent remplace un autre, décocher l'ancien et restituer ses points
+              let pointsARestituer = 0;
+              if (talent.remplace) {
+                const talentRemplace = talents[talent.remplace];
+                if (talentRemplace && talentsActifs[talent.remplace]) {
+                  pointsARestituer = talentRemplace.cout;
+                  console.log(`🔄 "${talent.nom}" remplace "${talentRemplace.nom}" - Restitution de ${pointsARestituer} points`);
+                }
+              }
+
+              setTalentsActifs(prev => {
+                const newState = { ...prev, [talentId]: true };
+                // Décocher le talent remplacé s'il existe
+                if (talent.remplace && prev[talent.remplace]) {
+                  delete newState[talent.remplace];
+                }
+                return newState;
+              });
+              setPointsDisponibles(prev => prev - talent.cout + pointsARestituer);
             }
           };
 
