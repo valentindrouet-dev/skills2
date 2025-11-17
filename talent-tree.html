@@ -289,12 +289,10 @@
           });
 
           // État pour les marqueurs dynamiques personnalisés (comme {ORBES})
+          // Les marqueurs sont maintenant sauvegardés PAR CLASSE, pas globalement
           const [editeurMarqueurs, setEditeurMarqueurs] = useState(false);
           const [marqueurEnEdition, setMarqueurEnEdition] = useState(null);
-          const [marqueursCustom, setMarqueursCustom] = useState(() => {
-            const saved = localStorage.getItem('marqueursCustom');
-            return saved ? JSON.parse(saved) : {};
-          });
+          const [marqueursCustom, setMarqueursCustom] = useState({});
 
           // État pour le gestionnaire d'icônes
           const [gestionnaireIcones, setGestionnaireIcones] = useState(false);
@@ -857,7 +855,8 @@
                 talents: creerTalentDepart(classe),
                 talentsActifs: {},
                 nomPersonnage: '',
-                niveau: 1
+                niveau: 1,
+                marqueurs: {} // Marqueurs vides par défaut
                 // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(key, JSON.stringify(defaultData));
@@ -879,7 +878,8 @@
                 talentsActifs,
                 // pointsDisponibles et pointsMax seront recalculés à partir du niveau
                 nomPersonnage,
-                niveau
+                niveau,
+                marqueurs: marqueursCustom // Sauvegarder les marqueurs avec la classe
                 // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
@@ -887,7 +887,7 @@
               localStorage.setItem('derniereClasseActive', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule]);
+          }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule, marqueursCustom]);
 
           // Initialiser toutes les classes au démarrage
           useEffect(() => {
@@ -907,10 +907,8 @@
             localStorage.setItem('iconesDisponibles', JSON.stringify(iconesDisponibles));
           }, [iconesDisponibles]);
 
-          // Sauvegarder les marqueurs quand ils changent
-          useEffect(() => {
-            localStorage.setItem('marqueursCustom', JSON.stringify(marqueursCustom));
-          }, [marqueursCustom]);
+          // Note: Les marqueurs sont maintenant sauvegardés PAR CLASSE dans le useEffect principal
+          // (ligne ~891) pour éviter qu'ils disparaissent lors du changement de classe
 
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
@@ -1012,6 +1010,7 @@
                 setPageInfoContenu(savedInfo);
               }
               setArbreActuel('Informations');
+              setMarqueursCustom({}); // Pas de marqueurs sur la page Informations
               console.log('📄 Page Informations chargée');
               return;
             }
@@ -1026,6 +1025,13 @@
               const talentsMigres = migrerTalentsDeBase(data.talents || creerTalentDepart(classe));
               setTalents(talentsMigres);
               setTalentsActifs(data.talentsActifs || {});
+              // Charger les marqueurs si présents
+              if (data.marqueurs) {
+                setMarqueursCustom(data.marqueurs);
+                console.log('🏷️ Marqueurs chargés:', Object.keys(data.marqueurs));
+              } else {
+                setMarqueursCustom({});
+              }
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               // Ne pas écraser nomPersonnage et niveau en mode partagé (ils sont communs à toutes les classes)
               // Le bonus PV est calculé automatiquement selon la classe
@@ -1044,6 +1050,7 @@
                 // En mode lecture seule, créer un arbre vide si pas de données
                 setTalents(creerTalentDepart(classe));
                 setTalentsActifs({});
+                setMarqueursCustom({});
                 setArbreActuel(classe);
                 console.log('📂 Classe vide créée en mode lecture seule:', classe);
               }
@@ -1726,7 +1733,8 @@
               talents,
               talentsActifs: {}, // Vierge pour la classe cible
               nomPersonnage: '', // Vierge aussi
-              niveau: 1 // Reset au niveau 1
+              niveau: 1, // Reset au niveau 1
+              marqueurs: marqueursCustom // Copier les marqueurs custom
             };
 
             localStorage.setItem(`classe_${classeCible}`, JSON.stringify(arbreData));
