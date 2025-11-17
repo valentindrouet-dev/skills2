@@ -583,6 +583,12 @@
                   .replace(/NIVEAU/g, niveau)
                   .replace(/PV/g, getPointsDeVie());
 
+                // Remplacer les 8 compétences
+                COMPETENCES.forEach(comp => {
+                  const regex = new RegExp(comp, 'g');
+                  expr = expr.replace(regex, getTotalCompetence(comp));
+                });
+
                 // Remplacer les marqueurs personnalisés
                 Object.keys(marqueursCustom).forEach(nomMarqueur => {
                   const regex = new RegExp(nomMarqueur, 'g');
@@ -1233,6 +1239,12 @@
                   console.log('📚 Mots-clés custom chargés depuis snapshot:', snapshot.motsClesCustom);
                 }
 
+                // Charger les icônes custom si présentes
+                if (snapshot.iconesDisponibles) {
+                  setIconesDisponibles(snapshot.iconesDisponibles);
+                  console.log('🖼️ Icônes custom chargées depuis snapshot:', snapshot.iconesDisponibles.length);
+                }
+
                 // Vérifier la version
                 if (snapshot.version === '5.0') {
                   // Version 5.0 : Multi-classes
@@ -1422,6 +1434,7 @@
           }, [pageInfoContenu, modePlayer, modeLectureSeule]);
 
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
+          // Retourne uniquement les talents qui n'auront PLUS AUCUN prérequis actif
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
             const dependents = [];
 
@@ -1429,14 +1442,26 @@
             if (visited.has(talentId)) return dependents;
             visited.add(talentId);
 
+            // Simuler l'état après suppression de talentId
+            const simulatedActifs = { ...currentActifs };
+            delete simulatedActifs[talentId];
+
             // Trouver les talents qui ont talentId comme prérequis et qui sont actifs
             Object.keys(currentActifs).forEach(id => {
               const talent = talents[id];
               if (talent && talent.prerequis && Array.isArray(talent.prerequis) && talent.prerequis.includes(talentId)) {
-                dependents.push(id);
-                // Récursion pour trouver les talents qui dépendent de celui-ci
-                const subDependents = findDependentTalents(id, currentActifs, visited);
-                dependents.push(...subDependents);
+                // Vérifier si ce talent a encore au moins un autre prérequis actif
+                const hasOtherActivePrereq = talent.prerequis.some(prereqId =>
+                  prereqId !== talentId && simulatedActifs[prereqId]
+                );
+
+                // Si le talent n'a plus aucun prérequis actif, il doit être désactivé
+                if (!hasOtherActivePrereq) {
+                  dependents.push(id);
+                  // Récursion pour trouver les talents qui dépendent de celui-ci
+                  const subDependents = findDependentTalents(id, simulatedActifs, visited);
+                  dependents.push(...subDependents);
+                }
               }
             });
 
@@ -2121,7 +2146,8 @@
                 classes: classes,
                 classeActive: arbreActuel, // La classe actuellement affichée par le GM
                 pageInfo: pageInfo, // Page d'informations/consignes pour les joueurs
-                motsClesCustom: motsClesCustom // Mots-clés custom pour l'index
+                motsClesCustom: motsClesCustom, // Mots-clés custom pour l'index
+                iconesDisponibles: iconesDisponibles // Icônes PNG custom
               };
 
               console.log('📦 Création du snapshot multi-classes...', {
@@ -2948,15 +2974,18 @@
                       </>
                     )}
 
+                    {/* Bouton Export - visible pour tous */}
+                    <button
+                      onClick={exporterArbreActuel}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors"
+                      title="Exporter l'arbre actuel en JSON"
+                    >
+                      📥 Export
+                    </button>
+
+                    {/* Boutons Import et Partager - visible uniquement en mode GM */}
                     {!modeLectureSeule && !modePlayer && (
                       <>
-                        <button
-                          onClick={exporterArbreActuel}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors"
-                          title="Exporter l'arbre actuel en JSON"
-                        >
-                          📥 Export
-                        </button>
                         <button
                           onClick={importerArbre}
                           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
@@ -3040,26 +3069,27 @@
                       </div>
                     </div>
 
-                    {/* Statistiques par catégorie - visible en mode édition */}
+                    {/* Statistiques par type - visible en mode édition */}
                     {modeEdition && (() => {
-                      // Calculer le nombre de talents actifs par catégorie
-                      const statsParCategorie = {};
+                      // Calculer le nombre de talents actifs par type (couleur)
+                      const statsParType = {};
                       Object.values(talents).forEach(talent => {
                         if (talentsActifs[talent.id]) {
-                          const cat = talent.categorie || 'autre';
-                          statsParCategorie[cat] = (statsParCategorie[cat] || 0) + 1;
+                          const type = talent.couleurTalent || 'action';
+                          const nomType = couleursTalent[type]?.nom || type;
+                          statsParType[nomType] = (statsParType[nomType] || 0) + 1;
                         }
                       });
 
-                      const categories = Object.keys(statsParCategorie).sort();
+                      const types = Object.keys(statsParType).sort();
 
-                      return categories.length > 0 ? (
+                      return types.length > 0 ? (
                         <div className="bg-slate-700 border-x-2 border-amber-500 px-4 py-2 no-print">
-                          <span className="text-white text-xs font-semibold">📊 Talents par catégorie : </span>
-                          {categories.map((cat, index) => (
-                            <span key={cat} className="text-slate-300 text-xs ml-2">
-                              {cat}: <span className="text-amber-400 font-semibold">{statsParCategorie[cat]}</span>
-                              {index < categories.length - 1 && <span className="text-slate-500 mx-1">•</span>}
+                          <span className="text-white text-xs font-semibold">📊 Talents par type : </span>
+                          {types.map((type, index) => (
+                            <span key={type} className="text-slate-300 text-xs ml-2">
+                              {type}: <span className="text-amber-400 font-semibold">{statsParType[type]}</span>
+                              {index < types.length - 1 && <span className="text-slate-500 mx-1">•</span>}
                             </span>
                           ))}
                         </div>
@@ -3069,20 +3099,35 @@
                     {/* Lexique des marqueurs - visible en mode édition */}
                     {modeEdition && (
                       <div className="bg-amber-50 border-x-2 border-amber-500 p-3 no-print">
-                        <div className="text-sm">
-                          <span className="font-bold text-amber-900">📝 Marqueurs dynamiques :</span>
-                          <span className="text-slate-700 ml-2">
-                            <code className="bg-white px-1 rounded">{'{ENDU}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{VIE}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{NIVEAU}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{PV}'}</code>
-                            <span className="mx-2">•</span>
-                            <span className="text-xs">Formules : </span>
-                            <code className="bg-white px-1 rounded">{'{ENDU*2}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{VIE+NIVEAU}'}</code>
-                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS/2}'}</code>
-                          </span>
+                        <div className="text-sm space-y-1">
+                          <div>
+                            <span className="font-bold text-amber-900">📝 Marqueurs dynamiques :</span>
+                            <span className="text-slate-700 ml-2">
+                              <code className="bg-white px-1 rounded">{'{ENDU}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{VIE}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{DEGATS}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{NIVEAU}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{PV}'}</code>
+                              <span className="mx-2">•</span>
+                              <span className="text-xs">Formules : </span>
+                              <code className="bg-white px-1 rounded">{'{ENDU*2}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{VIE+NIVEAU}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{DEGATS/2}'}</code>
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-amber-900">🎯 Compétences :</span>
+                            <span className="text-slate-700 ml-2">
+                              <code className="bg-white px-1 rounded">{'{AGILITE}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{FORCE}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{MYSTICISME}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{PERCEPTION}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{ROBUSTESSE}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{RUSE}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{SAVOIR}'}</code>
+                              <code className="bg-white px-1 rounded ml-2">{'{TECHNIQUE}'}</code>
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
