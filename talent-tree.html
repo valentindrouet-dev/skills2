@@ -1525,47 +1525,7 @@
                 delete simulatedActifs[depId];
               });
 
-              // Trouver les talents actifs qui n'auront plus assez de points requis EN AMONT
-              const talentsADecocher = [];
-              Object.keys(talentsActifs).forEach(id => {
-                // Ignorer le talent qu'on décoche et ses dépendants (déjà gérés)
-                if (id === talentId || dependents.includes(id)) return;
-
-                const t = talents[id];
-                if (t && t.pointsRequis && t.pointsRequis > 0) {
-                  // Calculer les points en amont dans le state simulé
-                  const pointsEnAmontSimules = getPointsEnAmont(id, simulatedActifs);
-                  if (pointsEnAmontSimules < t.pointsRequis) {
-                    talentsADecocher.push({ id, nom: t.nom, pointsRequis: t.pointsRequis });
-                  }
-                }
-              });
-
-              // Si des talents seraient affectés, demander confirmation
-              if (talentsADecocher.length > 0) {
-                const message = talentsADecocher.length === 1
-                  ? `⚠️ ATTENTION ⚠️\n\nEn décochant ce talent, vous n'aurez plus assez de points pour conserver le talent "${talentsADecocher[0].nom}" (${talentsADecocher[0].pointsRequis} points pré-requis).\n\nVoulez-vous continuer ?`
-                  : `⚠️ ATTENTION ⚠️\n\nEn décochant ce talent, vous n'aurez plus assez de points pour conserver les talents suivants :\n${talentsADecocher.map(t => `- ${t.nom} (${t.pointsRequis} points pré-requis)`).join('\n')}\n\nVoulez-vous continuer ?`;
-
-                const confirmation = window.confirm(message);
-                if (!confirmation) return; // Annuler l'opération
-              }
-
-              // Calculer tous les points à restituer (y compris les talents sans assez de points)
-              talentsADecocher.forEach(t => {
-                if (talents[t.id]) {
-                  pointsToRestore += talents[t.id].cout;
-                }
-                // Ajouter aussi les dépendants de ce talent
-                const depsTalent = findDependentTalents(t.id, talentsActifs);
-                depsTalent.forEach(depId => {
-                  if (talents[depId]) {
-                    pointsToRestore += talents[depId].cout;
-                  }
-                });
-              });
-
-              // Décocher le talent, ses dépendants et les talents sans assez de points
+              // Décocher le talent et ses dépendants
               setTalentsActifs(prev => {
                 const newState = { ...prev };
                 delete newState[talentId];
@@ -1573,15 +1533,6 @@
                 // Décocher les dépendants
                 dependents.forEach(depId => {
                   delete newState[depId];
-                });
-
-                // Décocher les talents qui n'ont plus assez de points requis (et leurs dépendants)
-                talentsADecocher.forEach(t => {
-                  const depsTalent = findDependentTalents(t.id, newState);
-                  delete newState[t.id];
-                  depsTalent.forEach(depId => {
-                    delete newState[depId];
-                  });
                 });
 
                 return newState;
@@ -1595,16 +1546,6 @@
               if (!prerequisRemplis) {
                 showNotification('Vous devez sélectionner les talents prérequis !');
                 return;
-              }
-
-              // Vérifier les points de talents requis (gate) - EN AMONT uniquement
-              if (talent.pointsRequis && talent.pointsRequis > 0) {
-                const pointsEnAmont = getPointsEnAmont(talentId);
-                if (pointsEnAmont < talent.pointsRequis) {
-                  const pointsRestants = talent.pointsRequis - pointsEnAmont;
-                  showNotification(`Vous devez encore dépenser ${pointsRestants} points de talents EN AMONT (prérequis) avant de débloquer celui-ci !`);
-                  return;
-                }
               }
 
               if (pointsDisponibles < talent.cout) {
@@ -1698,12 +1639,6 @@
 
             // Bloqué par exclusion mutuelle
             if (estBloqueParExclusion(talentId)) return false;
-
-            // Vérifier les points de talents requis (gate) - EN AMONT uniquement
-            if (talent.pointsRequis && talent.pointsRequis > 0) {
-              const pointsEnAmont = getPointsEnAmont(talentId);
-              if (pointsEnAmont < talent.pointsRequis) return false;
-            }
 
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
             const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
@@ -2922,6 +2857,9 @@
 
                     {!modeLectureSeule && !modePlayer && (
                       <>
+                        <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
+                          skills2_v12.8
+                        </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
                           className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
@@ -3227,30 +3165,6 @@
                             const strokeW = isActive ? 3 : isHighlighted ? 3 : 3;
                             const dashArray = isActive ? '0' : '0';
 
-                            // Calculer le centre de la ligne pour le badge de points requis
-                            const midX = (x1 + x2) / 2;
-                            const midY = (y1 + y2) / 2;
-
-                            // Vérifier si ce talent a des points requis
-                            const hasPointsRequis = talent.pointsRequis && talent.pointsRequis > 0;
-                            let pointsRestants = 0;
-                            let badgeColor = '';
-                            let lockIcon = '🔒';
-
-                            if (hasPointsRequis) {
-                              const pointsEnAmont = getPointsEnAmont(talent.id);
-                              pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
-
-                              if (talentsActifs[talent.id] || pointsRestants === 0) {
-                                badgeColor = '#16a34a'; // Green
-                                lockIcon = '🔓';
-                              } else if (pointsRestants <= talent.pointsRequis * 0.5) {
-                                badgeColor = '#eab308'; // Yellow
-                              } else {
-                                badgeColor = '#ea580c'; // Orange
-                              }
-                            }
-
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
                                 {/* Ligne droite entre les centres */}
@@ -3264,34 +3178,6 @@
                                   strokeDasharray={dashArray}
                                   className="transition-all duration-300"
                                 />
-
-                                {/* Badge de points requis au centre de la ligne (seulement sur la première ligne) */}
-                                {hasPointsRequis && prereqIndex === 0 && (
-                                  <g>
-                                    {/* Rectangle du badge */}
-                                    <rect
-                                      x={midX - 20}
-                                      y={midY - 12}
-                                      width="40"
-                                      height="24"
-                                      rx="4"
-                                      fill={badgeColor}
-                                      stroke={strokeColor}
-                                      strokeWidth="2"
-                                    />
-                                    {/* Texte du badge */}
-                                    <text
-                                      x={midX}
-                                      y={midY + 5}
-                                      textAnchor="middle"
-                                      fill="white"
-                                      fontSize="14"
-                                      fontWeight="bold"
-                                    >
-                                      {lockIcon}{pointsRestants}
-                                    </text>
-                                  </g>
-                                )}
                               </g>
                             );
                           })
@@ -3429,17 +3315,6 @@
                                         placeholder="Coût"
                                         className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                         id={`cout-${talent.id}`}
-                                      />
-                                      <div className="text-xs text-slate-400 mb-1">
-                                        Points dépensés nécessaires
-                                      </div>
-                                      <input
-                                        type="number"
-                                        defaultValue={talent.pointsRequis || 0}
-                                        placeholder="0 = aucun"
-                                        min="0"
-                                        className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
-                                        id={`points-requis-${talent.id}`}
                                       />
                                       <select
                                         defaultValue={talent.typeTalent || 'grand_carre'}
@@ -3652,14 +3527,10 @@
                                           // Récupérer la compétence
                                           const competence = document.getElementById(`competence-${talent.id}`).value || undefined;
 
-                                          // Récupérer les points requis
-                                          const pointsRequis = parseInt(document.getElementById(`points-requis-${talent.id}`).value) || 0;
-
                                           sauvegarderTalent(talent.id, {
                                             nom: document.getElementById(`nom-${talent.id}`).value,
                                             description: document.getElementById(`desc-${talent.id}`).value,
                                             cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
-                                            pointsRequis: pointsRequis > 0 ? pointsRequis : undefined,
                                             typeTalent: document.getElementById(`type-${talent.id}`).value,
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                             prerequis: prerequis,
