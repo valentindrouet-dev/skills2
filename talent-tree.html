@@ -532,6 +532,9 @@
 
             // Ajouter les bonus des talents actifs
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_marqueur' && talent.effetSpecial.marqueur === nom) {
                 const source = talent.effetSpecial.source;
@@ -660,12 +663,25 @@
             return baseSize;
           };
 
+          // Vérifier si un talent est remplacé par un autre talent actif
+          // (pour éviter que les bonus se cumulent)
+          const estRemplace = (talentId) => {
+            // Chercher si un talent actif remplace celui-ci
+            return Object.keys(talentsActifs).some(activeId => {
+              const talentActif = talents[activeId];
+              return talentActif && talentActif.remplace === talentId;
+            });
+          };
+
           // Calculer le total d'ENDU (via effets spéciaux uniquement)
           const getTotalEndu = () => {
             let total = 0;
 
             // Effets spéciaux: bonus d'ENDU depuis les talents
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_endu') {
                 const source = talent.effetSpecial.source;
@@ -688,6 +704,9 @@
 
             // Effets spéciaux: bonus de dégâts depuis les talents
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_degats') {
                 const source = talent.effetSpecial.source;
@@ -714,6 +733,9 @@
 
             // Effets spéciaux: bonus de VIE depuis les talents
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_vie') {
                 const source = talent.effetSpecial.source;
@@ -736,6 +758,9 @@
 
             // Effets spéciaux: bonus de PV depuis d'autres talents
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_pv') {
                 const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', etc.
@@ -764,6 +789,9 @@
           // Calculer le total d'une compétence spécifique
           const getTotalCompetence = (competence) => {
             return Object.keys(talentsActifs).filter(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return false;
+
               const talent = talents[id];
               return talent && talent.competence === competence;
             }).length;
@@ -778,6 +806,9 @@
           const getTalentsParType = () => {
             const compteurs = {};
             Object.keys(talentsActifs).forEach(id => {
+              // Ignorer si ce talent est remplacé par un autre
+              if (estRemplace(id)) return;
+
               const talent = talents[id];
               if (talent) {
                 const type = talent.couleurTalent || 'action';
@@ -1612,25 +1643,15 @@
                 return;
               }
 
-              // Si ce talent remplace un autre, décocher l'ancien et restituer ses points
-              let pointsARestituer = 0;
-              if (talent.remplace) {
+              // Note: Si ce talent remplace un autre, on garde les deux cochés
+              // Seuls les bonus ne doivent pas se cumuler (géré dans les calculs)
+              if (talent.remplace && talentsActifs[talent.remplace]) {
                 const talentRemplace = talents[talent.remplace];
-                if (talentRemplace && talentsActifs[talent.remplace]) {
-                  pointsARestituer = talentRemplace.cout;
-                  console.log(`🔄 "${talent.nom}" remplace "${talentRemplace.nom}" - Restitution de ${pointsARestituer} points`);
-                }
+                console.log(`🔄 "${talent.nom}" remplace "${talentRemplace.nom}" - Les deux restent actifs mais seuls les bonus de "${talent.nom}" comptent`);
               }
 
-              setTalentsActifs(prev => {
-                const newState = { ...prev, [talentId]: true };
-                // Décocher le talent remplacé s'il existe
-                if (talent.remplace && prev[talent.remplace]) {
-                  delete newState[talent.remplace];
-                }
-                return newState;
-              });
-              setPointsDisponibles(prev => prev - talent.cout + pointsARestituer);
+              setTalentsActifs(prev => ({ ...prev, [talentId]: true }));
+              setPointsDisponibles(prev => prev - talent.cout);
             }
           };
 
@@ -2917,7 +2938,7 @@
                     {!modeLectureSeule && !modePlayer && (
                       <>
                         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.11
+                          skills2_v12.12
                         </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
