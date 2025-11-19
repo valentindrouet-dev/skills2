@@ -559,13 +559,22 @@
             let result = description;
 
             // D'abord, traiter les infobulles inline [texte]((tooltip))
-            result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
-              // Appliquer les marqueurs au contenu du tooltip récursivement
-              const tooltipProcessed = replaceMarkers(tooltip);
-              // Générer un ID unique pour chaque tooltip
-              const tooltipId = 'tooltip_' + Math.random().toString(36).substr(2, 9);
-              return `<span class="inline-tooltip" data-tooltip-id="${tooltipId}" style="text-decoration: underline dotted; cursor: help; position: relative;">${texte}<span class="tooltip-content" id="${tooltipId}" style="display: none; position: absolute; left: 0; top: 100%; background: #1e293b; border: 2px solid #3b82f6; border-radius: 0.5rem; padding: 0.5rem; color: #e2e8f0; font-size: 0.75rem; white-space: normal; z-index: 1000; min-width: 150px; max-width: 250px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">${tooltipProcessed}</span></span>`;
-            });
+            // Ne pas afficher les tooltips dans la Feuille de Perso
+            if (vueActive === 'feuille') {
+              // Dans la feuille de perso, afficher juste le texte sans soulignement ni tooltip
+              result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
+                return texte; // Retourner uniquement le texte, sans le tooltip
+              });
+            } else {
+              // Afficher normalement avec tooltips
+              result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
+                // Appliquer les marqueurs au contenu du tooltip récursivement
+                const tooltipProcessed = replaceMarkers(tooltip);
+                // Générer un ID unique pour chaque tooltip
+                const tooltipId = 'tooltip_' + Math.random().toString(36).substr(2, 9);
+                return `<span class="inline-tooltip" data-tooltip-id="${tooltipId}" style="text-decoration: underline dotted; cursor: help; position: relative;">${texte}<span class="tooltip-content" id="${tooltipId}" style="display: none; position: fixed; background: #1e293b; border: 2px solid #3b82f6; border-radius: 0.5rem; padding: 0.5rem; color: #e2e8f0; font-size: 0.75rem; white-space: normal; z-index: 9999; min-width: 150px; max-width: 250px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">${tooltipProcessed}</span></span>`;
+              });
+            }
 
             // Remplacer les marqueurs simples et avec formules
             result = result.replace(/\{([^}]+)\}/g, (match, formula) => {
@@ -932,10 +941,9 @@
               // Afficher le tooltip
               tooltipContent.style.display = 'block';
 
-              // Positionner le tooltip près du curseur
-              const rect = tooltipElement.getBoundingClientRect();
-              tooltipContent.style.left = (e.clientX - rect.left + 10) + 'px';
-              tooltipContent.style.top = (e.clientY - rect.top + 10) + 'px';
+              // Positionner le tooltip près du curseur (position fixed, donc relatif au viewport)
+              tooltipContent.style.left = (e.clientX + 10) + 'px';
+              tooltipContent.style.top = (e.clientY + 10) + 'px';
             };
 
             const hideTooltip = (e) => {
@@ -2909,7 +2917,7 @@
                     {!modeLectureSeule && !modePlayer && (
                       <>
                         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.10
+                          skills2_v12.11
                         </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
@@ -3357,7 +3365,7 @@
                                         defaultValue={talent.description}
                                         placeholder="Description"
                                         className="w-full mb-2 p-1 text-xs bg-slate-700 text-white rounded"
-                                        rows="4"
+                                        rows="9"
                                         id={`desc-${talent.id}`}
                                       />
                                       <div className="mb-2 p-2 bg-blue-900/30 border border-blue-500/50 rounded text-xs text-blue-200">
