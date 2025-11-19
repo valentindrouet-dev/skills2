@@ -523,6 +523,16 @@
             return couleurs[classe] || '#d97706';
           };
 
+          // Vérifier si un talent est remplacé par un autre talent actif
+          // (pour éviter que les bonus se cumulent)
+          const estRemplace = (talentId) => {
+            // Chercher si un talent actif remplace celui-ci
+            return Object.keys(talentsActifs).some(activeId => {
+              const talentActif = talents[activeId];
+              return talentActif && talentActif.remplace === talentId;
+            });
+          };
+
           // Calculer la valeur d'un marqueur personnalisé
           const getMarqueurValue = (nom) => {
             const marqueur = marqueursCustom[nom];
@@ -661,16 +671,6 @@
             }
 
             return baseSize;
-          };
-
-          // Vérifier si un talent est remplacé par un autre talent actif
-          // (pour éviter que les bonus se cumulent)
-          const estRemplace = (talentId) => {
-            // Chercher si un talent actif remplace celui-ci
-            return Object.keys(talentsActifs).some(activeId => {
-              const talentActif = talents[activeId];
-              return talentActif && talentActif.remplace === talentId;
-            });
           };
 
           // Calculer le total d'ENDU (via effets spéciaux uniquement)
@@ -1673,15 +1673,6 @@
             });
 
             return bloqueParAutreTalent;
-          };
-
-          // Vérifier si un talent est remplacé par un autre talent actif
-          const estRemplace = (talentId) => {
-            // Chercher si un talent actif remplace celui-ci
-            return Object.keys(talentsActifs).some(activeId => {
-              const activeTalent = talents[activeId];
-              return activeTalent?.remplace === talentId;
-            });
           };
 
           // Vérifier si un talent automatique est remplacé
