@@ -262,7 +262,6 @@
           const [pointsMax, setPointsMax] = useState(5);
           const [talentsActifs, setTalentsActifs] = useState({});
           const [hoveredTalent, setHoveredTalent] = useState(null);
-          const [tooltipTalent, setTooltipTalent] = useState(null); // ID du talent dont on affiche le tooltip
           const [modeEdition, setModeEdition] = useState(false);
           const [vueActive, setVueActive] = useState(() => {
             const params = new URLSearchParams(window.location.search);
@@ -558,6 +557,15 @@
             if (!description) return description;
 
             let result = description;
+
+            // D'abord, traiter les infobulles inline [texte]((tooltip))
+            result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
+              // Appliquer les marqueurs au contenu du tooltip récursivement
+              const tooltipProcessed = replaceMarkers(tooltip);
+              // Générer un ID unique pour chaque tooltip
+              const tooltipId = 'tooltip_' + Math.random().toString(36).substr(2, 9);
+              return `<span class="inline-tooltip" data-tooltip-id="${tooltipId}" style="text-decoration: underline dotted; cursor: help; position: relative;">${texte}<span class="tooltip-content" id="${tooltipId}" style="display: none; position: absolute; left: 0; top: 100%; background: #1e293b; border: 2px solid #3b82f6; border-radius: 0.5rem; padding: 0.5rem; color: #e2e8f0; font-size: 0.75rem; white-space: normal; z-index: 1000; min-width: 150px; max-width: 250px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">${tooltipProcessed}</span></span>`;
+            });
 
             // Remplacer les marqueurs simples et avec formules
             result = result.replace(/\{([^}]+)\}/g, (match, formula) => {
@@ -910,6 +918,48 @@
 
           // Note: Les marqueurs sont maintenant sauvegardés PAR CLASSE dans le useEffect principal
           // (ligne ~891) pour éviter qu'ils disparaissent lors du changement de classe
+
+          // Gérer l'affichage des tooltips inline au survol/clic
+          useEffect(() => {
+            const handleTooltip = (e) => {
+              const tooltipElement = e.target.closest('.inline-tooltip');
+              if (!tooltipElement) return;
+
+              const tooltipId = tooltipElement.getAttribute('data-tooltip-id');
+              const tooltipContent = document.getElementById(tooltipId);
+              if (!tooltipContent) return;
+
+              // Afficher le tooltip
+              tooltipContent.style.display = 'block';
+
+              // Positionner le tooltip près du curseur
+              const rect = tooltipElement.getBoundingClientRect();
+              tooltipContent.style.left = (e.clientX - rect.left + 10) + 'px';
+              tooltipContent.style.top = (e.clientY - rect.top + 10) + 'px';
+            };
+
+            const hideTooltip = (e) => {
+              const tooltipElement = e.target.closest('.inline-tooltip');
+              if (!tooltipElement) return;
+
+              const tooltipId = tooltipElement.getAttribute('data-tooltip-id');
+              const tooltipContent = document.getElementById(tooltipId);
+              if (tooltipContent) {
+                tooltipContent.style.display = 'none';
+              }
+            };
+
+            // Ajouter les listeners sur tout le document
+            document.addEventListener('mouseover', handleTooltip);
+            document.addEventListener('mouseout', hideTooltip);
+            document.addEventListener('click', handleTooltip); // Pour mobile
+
+            return () => {
+              document.removeEventListener('mouseover', handleTooltip);
+              document.removeEventListener('mouseout', hideTooltip);
+              document.removeEventListener('click', handleTooltip);
+            };
+          }, []);
 
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
@@ -2859,7 +2909,7 @@
                     {!modeLectureSeule && !modePlayer && (
                       <>
                         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.9
+                          skills2_v12.10
                         </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
@@ -3269,7 +3319,6 @@
                                         sauvegarderTalent(talent.id, {
                                           nom: document.getElementById(`nom-${talent.id}`).value,
                                           description: document.getElementById(`desc-${talent.id}`).value,
-                                          notes: document.getElementById(`notes-${talent.id}`).value || undefined,
                                           cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
                                           typeTalent: document.getElementById(`type-${talent.id}`).value,
                                           couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
@@ -3311,13 +3360,9 @@
                                         rows="4"
                                         id={`desc-${talent.id}`}
                                       />
-                                      <textarea
-                                        defaultValue={talent.notes || ''}
-                                        placeholder="Notes / Détails (formules, calculs, synergies...)"
-                                        className="w-full mb-2 p-1 text-xs bg-slate-600 text-slate-300 rounded italic"
-                                        rows="2"
-                                        id={`notes-${talent.id}`}
-                                      />
+                                      <div className="mb-2 p-2 bg-blue-900/30 border border-blue-500/50 rounded text-xs text-blue-200">
+                                        <span className="font-bold">💡 Infobulles :</span> [texte souligné]((contenu tooltip))
+                                      </div>
                                       <input
                                         type="number"
                                         defaultValue={talent.cout}
@@ -3539,7 +3584,6 @@
                                           sauvegarderTalent(talent.id, {
                                             nom: document.getElementById(`nom-${talent.id}`).value,
                                             description: document.getElementById(`desc-${talent.id}`).value,
-                                            notes: document.getElementById(`notes-${talent.id}`).value || undefined,
                                             cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
                                             typeTalent: document.getElementById(`type-${talent.id}`).value,
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
@@ -3627,53 +3671,6 @@
                                       `}
                                       style={{ fontSize: '0.65rem' }}>
                                         +1 {talent.competence}
-                                      </div>
-                                    )}
-
-                                    {/* Icône Info si notes présentes */}
-                                    {talent.notes && (
-                                      <div
-                                        className={`
-                                          absolute ${talent.competence ? '-bottom-3' : '-top-3'} -left-3 w-5 h-5 rounded-full
-                                          flex items-center justify-center text-xs cursor-help
-                                          ${isActive ? 'bg-blue-500 text-white' : 'bg-slate-500 text-white'}
-                                          border-2 ${isActive ? 'border-blue-400' : 'border-slate-400'}
-                                          hover:bg-blue-600 transition-colors z-10
-                                        `}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setTooltipTalent(tooltipTalent === talent.id ? null : talent.id);
-                                        }}
-                                        onMouseEnter={(e) => {
-                                          e.stopPropagation();
-                                          setTooltipTalent(talent.id);
-                                        }}
-                                        onMouseLeave={(e) => {
-                                          e.stopPropagation();
-                                          setTooltipTalent(null);
-                                        }}
-                                        title="Voir les notes"
-                                      >
-                                        ℹ
-                                      </div>
-                                    )}
-
-                                    {/* Tooltip des notes */}
-                                    {tooltipTalent === talent.id && talent.notes && (
-                                      <div className="absolute -top-2 left-full ml-2 bg-slate-800 border-2 border-blue-400 rounded-lg p-3 shadow-xl z-50 max-w-xs"
-                                        onClick={(e) => e.stopPropagation()}
-                                        onMouseEnter={(e) => e.stopPropagation()}
-                                        onMouseLeave={(e) => {
-                                          e.stopPropagation();
-                                          setTooltipTalent(null);
-                                        }}
-                                      >
-                                        <div className="text-blue-300 font-bold text-xs mb-1">📝 Notes :</div>
-                                        <div
-                                          className="text-slate-200 text-xs leading-tight"
-                                          style={{ whiteSpace: 'pre-line' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(talent.notes) }}
-                                        />
                                       </div>
                                     )}
 
