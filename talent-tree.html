@@ -548,6 +548,9 @@
 
           // Récupérer la description d'un talent automatique (avec personnalisation par classe)
           const getDescriptionTalentAuto = (talentType, classe) => {
+            // Si pas de classe, retourner la description par défaut
+            if (!classe) return TALENTS_AUTO_DEFAUT[talentType] || '';
+
             // Vérifier si une description personnalisée existe pour cette classe
             if (talentsAutoCustom[classe] && talentsAutoCustom[classe][talentType]) {
               return talentsAutoCustom[classe][talentType];
