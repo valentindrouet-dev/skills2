@@ -144,15 +144,6 @@
             opacity: 0.5;
             cursor: move;
         }
-
-        /* Styles pour les icônes inline (emoji-like) */
-        .emoji-like {
-            width: 1em;
-            height: 1em;
-            vertical-align: -0.1em;
-            display: inline-block;
-            object-fit: contain;
-        }
     </style>
 </head>
 <body>
@@ -220,20 +211,8 @@
           // Ref pour éviter la sauvegarde automatique au premier rendu
           const isInitialMount = React.useRef(true);
 
-          // Les 8 classes fixes (ordre alphabétique)
+          // Les 8 classes fixes
           const CLASSES = ['Apothicaire', 'Artificier', 'Chasseur', 'Destructeur', 'Déviant', 'Gardien', 'Lamevent', 'Pyromane'];
-
-          // Couleurs par classe (correspond à getCouleurClasse)
-          const COULEURS_CLASSES = {
-            'Apothicaire': { bg: 'bg-green-600', border: 'border-green-500', hover: 'hover:bg-green-700' },
-            'Artificier': { bg: 'bg-cyan-600', border: 'border-cyan-500', hover: 'hover:bg-cyan-700' },
-            'Chasseur': { bg: 'bg-amber-700', border: 'border-amber-600', hover: 'hover:bg-amber-800' },
-            'Destructeur': { bg: 'bg-red-600', border: 'border-red-500', hover: 'hover:bg-red-700' },
-            'Déviant': { bg: 'bg-purple-600', border: 'border-purple-500', hover: 'hover:bg-purple-700' },
-            'Gardien': { bg: 'bg-blue-600', border: 'border-blue-500', hover: 'hover:bg-blue-700' },
-            'Lamevent': { bg: 'bg-slate-600', border: 'border-slate-500', hover: 'hover:bg-slate-700' },
-            'Pyromane': { bg: 'bg-orange-600', border: 'border-orange-500', hover: 'hover:bg-orange-700' }
-          };
 
           // Bonus de PV par classe (non-éditable)
           const BONUS_PV_PAR_CLASSE = {
@@ -247,27 +226,8 @@
             'Lamevent': 14
           };
 
-          // Descriptions par défaut des talents automatiques
-          const TALENTS_AUTO_DEFAUT = {
-            attaque: 'Vous effectuez <b>1 attaque</b>\n(<b>Arme</b> + <b>{DEGATS} dégâts</b>)',
-            degats_opportunite: '<i>Quand un adversaire quitte votre contact,</i>\n\nVous lui infligez <b>{DEGATS} dégâts</b>'
-          };
-
-          // États pour les descriptions personnalisées des talents automatiques par classe
-          const [talentsAutoCustom, setTalentsAutoCustom] = useState(() => {
-            const saved = localStorage.getItem('talentsAutoCustom');
-            return saved ? JSON.parse(saved) : {};
-          });
-
           // États pour la gestion des arbres GM
-          const [arbreActuel, setArbreActuel] = useState(() => {
-            // Si un snapshot est détecté dans l'URL, démarrer sur null pour éviter le flash du Gardien
-            const hash = window.location.hash;
-            if (hash.includes('snapshot=')) {
-              return null; // Sera défini lors du chargement du snapshot
-            }
-            return 'Gardien'; // Mode GM par défaut
-          });
+          const [arbreActuel, setArbreActuel] = useState('Gardien');
           const [nomArbrePartage, setNomArbrePartage] = useState(''); // Nom de l'arbre partagé (PJ)
 
           const [pointsDisponibles, setPointsDisponibles] = useState(5);
@@ -288,30 +248,6 @@
           // États pour les caractéristiques du personnage
           const [nomPersonnage, setNomPersonnage] = useState('');
           const [niveau, setNiveau] = useState(1);
-
-          // État pour la page Informations (9e "classe" pour consignes/index)
-          const [pageInfoContenu, setPageInfoContenu] = useState('');
-
-          // État pour l'éditeur de mots-clés
-          const [editeurMotsCles, setEditeurMotsCles] = useState(false);
-          const [motCleEnEdition, setMotCleEnEdition] = useState(null);
-          const [motsClesCustom, setMotsClesCustom] = useState(() => {
-            const saved = localStorage.getItem('motsClesCustom');
-            return saved ? JSON.parse(saved) : {};
-          });
-
-          // État pour les marqueurs dynamiques personnalisés (comme {ORBES})
-          // Les marqueurs sont maintenant sauvegardés PAR CLASSE, pas globalement
-          const [editeurMarqueurs, setEditeurMarqueurs] = useState(false);
-          const [marqueurEnEdition, setMarqueurEnEdition] = useState(null);
-          const [marqueursCustom, setMarqueursCustom] = useState({});
-
-          // État pour le gestionnaire d'icônes
-          const [gestionnaireIcones, setGestionnaireIcones] = useState(false);
-          const [iconesDisponibles, setIconesDisponibles] = useState(() => {
-            const saved = localStorage.getItem('iconesDisponibles');
-            return saved ? JSON.parse(saved) : [];
-          });
 
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
           const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
@@ -407,7 +343,6 @@
 
           const [talents, setTalents] = useState(talentsParDefaut);
           const [editingTalent, setEditingTalent] = useState(null);
-          const [editingTalentsAuto, setEditingTalentsAuto] = useState(false); // Modal pour éditer talents automatiques
           const [draggingTalent, setDraggingTalent] = useState(null);
           const [dragOffset, setDragOffset] = useState(null); // Offset entre la souris et le coin sup gauche du talent
           const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
@@ -466,30 +401,6 @@
             vie: { code: '#e281d1', nom: 'Vie' }                   // Rose
           };
 
-          // Dictionnaire des mots-clés disponibles pour l'index (par défaut)
-          const MOTS_CLES_INDEX_DEFAUT = {
-            'au_contact': {
-              titre: 'Au contact',
-              definition: 'Un combattant est au contact d\'un autre quand il se trouve dans un petit rayon autour de son socle.'
-            }
-          };
-
-          // Fonction pour obtenir tous les mots-clés (défaut + custom, en excluant les supprimés)
-          const getTousMotsCles = () => {
-            const tous = { ...MOTS_CLES_INDEX_DEFAUT };
-            // Appliquer les mots-clés custom (ajouts et suppressions)
-            Object.keys(motsClesCustom).forEach(cle => {
-              if (motsClesCustom[cle] === null) {
-                // null = supprimé, donc on le retire
-                delete tous[cle];
-              } else {
-                // Ajout ou remplacement
-                tous[cle] = motsClesCustom[cle];
-              }
-            });
-            return tous;
-          };
-
           // Helper pour obtenir les dimensions d'un talent
           const getDimensionsTalent = (talent) => {
             const type = talent?.typeTalent || 'grand_carre'; // Par défaut: Grand Carré
@@ -536,100 +447,15 @@
             return couleurs[classe] || '#d97706';
           };
 
-          // Vérifier si un talent est remplacé par un autre talent actif
-          // (pour éviter que les bonus se cumulent)
-          const estRemplace = (talentId) => {
-            // Chercher si un talent actif remplace celui-ci
-            return Object.keys(talentsActifs).some(activeId => {
-              const talentActif = talents[activeId];
-              return talentActif && talentActif.remplace === talentId;
-            });
-          };
-
-          // Récupérer la description d'un talent automatique (avec personnalisation par classe)
-          const getDescriptionTalentAuto = (talentType, classe) => {
-            // Si pas de classe, retourner la description par défaut
-            if (!classe) return TALENTS_AUTO_DEFAUT[talentType] || '';
-
-            // Vérifier si une description personnalisée existe pour cette classe
-            if (talentsAutoCustom[classe] && talentsAutoCustom[classe][talentType]) {
-              return talentsAutoCustom[classe][talentType];
-            }
-            // Sinon, utiliser la description par défaut
-            return TALENTS_AUTO_DEFAUT[talentType] || '';
-          };
-
-          // Calculer la valeur d'un marqueur personnalisé
-          const getMarqueurValue = (nom) => {
-            const marqueur = marqueursCustom[nom];
-            if (!marqueur) return 0;
-
-            let total = marqueur.valeurBase || 0;
-
-            // Ajouter les bonus des talents actifs
-            Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
-              const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_marqueur' && talent.effetSpecial.marqueur === nom) {
-                const source = talent.effetSpecial.source;
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
-
-                if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'endu') {
-                  total += Math.floor(getTotalEndu() * multiplicateur);
-                } else if (source === 'vie') {
-                  total += Math.floor(getTotalVie() * multiplicateur);
-                }
-              }
-            });
-
-            return total;
-          };
-
           // Remplacer les marqueurs dynamiques dans les descriptions
           const replaceMarkers = (description) => {
             if (!description) return description;
 
             let result = description;
 
-            // D'abord, traiter les infobulles inline [texte]((tooltip))
-            // Ne pas afficher les tooltips dans la Feuille de Perso
-            if (vueActive === 'feuille') {
-              // Dans la feuille de perso, afficher juste le texte sans soulignement ni tooltip
-              result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
-                return texte; // Retourner uniquement le texte, sans le tooltip
-              });
-            } else {
-              // Afficher normalement avec tooltips
-              result = result.replace(/\[([^\]]+)\]\(\((.+?)\)\)/g, (match, texte, tooltip) => {
-                // Appliquer les marqueurs au contenu du tooltip récursivement
-                const tooltipProcessed = replaceMarkers(tooltip);
-                // Générer un ID unique pour chaque tooltip
-                const tooltipId = 'tooltip_' + Math.random().toString(36).substr(2, 9);
-                return `<span class="inline-tooltip" data-tooltip-id="${tooltipId}" style="text-decoration: underline dotted; cursor: help; position: relative;">${texte}<span class="tooltip-content" id="${tooltipId}" style="display: none; position: fixed; background: #1e293b; border: 2px solid #3b82f6; border-radius: 0.5rem; padding: 0.5rem; color: #e2e8f0; font-size: 0.75rem; white-space: normal; z-index: 9999; min-width: 150px; max-width: 250px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">${tooltipProcessed}</span></span>`;
-              });
-            }
-
             // Remplacer les marqueurs simples et avec formules
             result = result.replace(/\{([^}]+)\}/g, (match, formula) => {
               try {
-                // Vérifier si c'est une icône {IMG:filename}
-                if (formula.startsWith('IMG:')) {
-                  const iconName = formula.substring(4).trim(); // Retirer "IMG:"
-                  // Trouver l'icône dans la liste
-                  const icone = iconesDisponibles.find(icon => icon.name === iconName);
-                  if (icone) {
-                    return `<img src="${icone.data}" alt="${iconName}" class="emoji-like" />`;
-                  } else {
-                    return match; // Si l'icône n'existe pas, laisser tel quel
-                  }
-                }
-
                 // Remplacer les variables par leurs valeurs
                 let expr = formula
                   .replace(/ENDU/g, getTotalEndu())
@@ -637,18 +463,6 @@
                   .replace(/DEGATS/g, getTotalDegats())
                   .replace(/NIVEAU/g, niveau)
                   .replace(/PV/g, getPointsDeVie());
-
-                // Remplacer les 8 compétences
-                COMPETENCES.forEach(comp => {
-                  const regex = new RegExp(comp, 'g');
-                  expr = expr.replace(regex, getTotalCompetence(comp));
-                });
-
-                // Remplacer les marqueurs personnalisés
-                Object.keys(marqueursCustom).forEach(nomMarqueur => {
-                  const regex = new RegExp(nomMarqueur, 'g');
-                  expr = expr.replace(regex, getMarqueurValue(nomMarqueur));
-                });
 
                 // Évaluer la formule de manière sûre (seulement +, -, *, /)
                 if (/^[\d\s+\-*/.()]+$/.test(expr)) {
@@ -669,7 +483,6 @@
           const getCoutColorClasses = (cout, isActive) => {
             if (!isActive) return 'bg-slate-500 border-slate-400';
 
-            if (cout === 0) return 'bg-cyan-500 border-cyan-300'; // Bleu clair pour 0 points
             if (cout === 1) return 'bg-green-500 border-green-300';
             if (cout === 2) return 'bg-amber-500 border-amber-300';
             if (cout >= 3) return 'bg-orange-500 border-orange-300';
@@ -705,9 +518,6 @@
 
             // Effets spéciaux: bonus d'ENDU depuis les talents
             Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_endu') {
                 const source = talent.effetSpecial.source;
@@ -730,9 +540,6 @@
 
             // Effets spéciaux: bonus de dégâts depuis les talents
             Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_degats') {
                 const source = talent.effetSpecial.source;
@@ -759,9 +566,6 @@
 
             // Effets spéciaux: bonus de VIE depuis les talents
             Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_vie') {
                 const source = talent.effetSpecial.source;
@@ -784,9 +588,6 @@
 
             // Effets spéciaux: bonus de PV depuis d'autres talents
             Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_pv') {
                 const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', etc.
@@ -815,9 +616,6 @@
           // Calculer le total d'une compétence spécifique
           const getTotalCompetence = (competence) => {
             return Object.keys(talentsActifs).filter(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return false;
-
               const talent = talents[id];
               return talent && talent.competence === competence;
             }).length;
@@ -832,9 +630,6 @@
           const getTalentsParType = () => {
             const compteurs = {};
             Object.keys(talentsActifs).forEach(id => {
-              // Ignorer si ce talent est remplacé par un autre
-              if (estRemplace(id)) return;
-
               const talent = talents[id];
               if (talent) {
                 const type = talent.couleurTalent || 'action';
@@ -890,38 +685,6 @@
             };
           };
 
-          // Migration automatique des talents de base pour ajouter le gras
-          const migrerTalentsDeBase = (talents) => {
-            const talentsMigres = { ...talents };
-            let modifie = false;
-
-            Object.keys(talentsMigres).forEach(id => {
-              const talent = talentsMigres[id];
-
-              // Migrer "Attaque"
-              if (talent.nom === 'Attaque' && !talent.description.includes('<b>')) {
-                talentsMigres[id] = {
-                  ...talent,
-                  description: 'Vous effectuez <b>1 attaque</b>\n(<b>Arme</b> + <b>0 dégâts</b>)'
-                };
-                modifie = true;
-                console.log('✨ Talent "Attaque" migré avec gras');
-              }
-
-              // Migrer "Dégâts d'Opportunité"
-              if (talent.nom === "Dégâts d'Opportunité" && !talent.description.includes('<b>')) {
-                talentsMigres[id] = {
-                  ...talent,
-                  description: 'Quand un adversaire quitte votre contact,\n\nVous lui infligez <b>0 dégâts</b>'
-                };
-                modifie = true;
-                console.log('✨ Talent "Dégâts d\'Opportunité" migré avec gras');
-              }
-            });
-
-            return modifie ? talentsMigres : talents;
-          };
-
           // Initialiser une classe si elle n'existe pas
           const initialiserClasse = (classe) => {
             const key = `classe_${classe}`;
@@ -930,8 +693,7 @@
                 talents: creerTalentDepart(classe),
                 talentsActifs: {},
                 nomPersonnage: '',
-                niveau: 1,
-                marqueurs: {} // Marqueurs vides par défaut
+                niveau: 1
                 // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(key, JSON.stringify(defaultData));
@@ -953,8 +715,7 @@
                 talentsActifs,
                 // pointsDisponibles et pointsMax seront recalculés à partir du niveau
                 nomPersonnage,
-                niveau,
-                marqueurs: marqueursCustom // Sauvegarder les marqueurs avec la classe
+                niveau
                 // bonus n'est plus stocké, il est calculé selon la classe
               };
               localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
@@ -962,7 +723,7 @@
               localStorage.setItem('derniereClasseActive', arbreActuel);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
-          }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule, marqueursCustom]);
+          }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule]);
 
           // Initialiser toutes les classes au démarrage
           useEffect(() => {
@@ -977,77 +738,8 @@
             localStorage.setItem('zoomLevel', zoom.toString());
           }, [zoom]);
 
-          // Sauvegarder les icônes disponibles quand elles changent
-          useEffect(() => {
-            localStorage.setItem('iconesDisponibles', JSON.stringify(iconesDisponibles));
-          }, [iconesDisponibles]);
-
-          // Sauvegarder les descriptions personnalisées des talents automatiques
-          useEffect(() => {
-            localStorage.setItem('talentsAutoCustom', JSON.stringify(talentsAutoCustom));
-          }, [talentsAutoCustom]);
-
-          // Note: Les marqueurs sont maintenant sauvegardés PAR CLASSE dans le useEffect principal
-          // (ligne ~891) pour éviter qu'ils disparaissent lors du changement de classe
-
-          // Gérer l'affichage des tooltips inline au survol/clic
-          useEffect(() => {
-            const handleTooltip = (e) => {
-              const tooltipElement = e.target.closest('.inline-tooltip');
-              if (!tooltipElement) return;
-
-              const tooltipId = tooltipElement.getAttribute('data-tooltip-id');
-              const tooltipContent = document.getElementById(tooltipId);
-              if (!tooltipContent) return;
-
-              // Afficher le tooltip
-              tooltipContent.style.display = 'block';
-
-              // Positionner le tooltip près du curseur (position fixed, donc relatif au viewport)
-              tooltipContent.style.left = (e.clientX + 10) + 'px';
-              tooltipContent.style.top = (e.clientY + 10) + 'px';
-            };
-
-            const hideTooltip = (e) => {
-              const tooltipElement = e.target.closest('.inline-tooltip');
-              if (!tooltipElement) return;
-
-              const tooltipId = tooltipElement.getAttribute('data-tooltip-id');
-              const tooltipContent = document.getElementById(tooltipId);
-              if (tooltipContent) {
-                tooltipContent.style.display = 'none';
-              }
-            };
-
-            // Ajouter les listeners sur tout le document
-            document.addEventListener('mouseover', handleTooltip);
-            document.addEventListener('mouseout', hideTooltip);
-            document.addEventListener('click', handleTooltip); // Pour mobile
-
-            return () => {
-              document.removeEventListener('mouseover', handleTooltip);
-              document.removeEventListener('mouseout', hideTooltip);
-              document.removeEventListener('click', handleTooltip);
-            };
-          }, []);
-
           // Charger une classe depuis le snapshot (mode player)
           const chargerClasseDepuisSnapshot = (classe) => {
-            // Cas spécial : Page Informations
-            if (classe === 'Informations') {
-              if (snapshotData && snapshotData.pageInfo) {
-                setPageInfoContenu(snapshotData.pageInfo);
-              }
-              setArbreActuel('Informations');
-              setMarqueursCustom({});
-              // Sauvegarder la classe visitée
-              if (snapshotId) {
-                localStorage.setItem(`snapshot_${snapshotId}_lastVisitedClass`, 'Informations');
-              }
-              console.log('📄 Page Informations chargée depuis snapshot');
-              return;
-            }
-
             if (!snapshotData || !snapshotData.classes) {
               console.error('❌ Pas de snapshot disponible');
               return;
@@ -1078,10 +770,10 @@
               };
             });
 
-            // Migrer les talents de base
-            const talentsMigres = migrerTalentsDeBase(talentsNormalises);
-            setTalents(talentsMigres);
+            setTalents(talentsNormalises);
             setArbreActuel(classe);
+            if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
+            if (dataClasse.niveau) setNiveau(dataClasse.niveau);
 
             // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
             const savedActifs = localStorage.getItem(`snapshot_${snapshotId}_${classe}_talentsActifs`);
@@ -1092,67 +784,19 @@
               setTalentsActifs({});
             }
 
-            // Charger nomPersonnage et niveau depuis localStorage ou snapshot
-            const savedNom = localStorage.getItem(`snapshot_${snapshotId}_${classe}_nomPersonnage`);
-            const savedNiveau = localStorage.getItem(`snapshot_${snapshotId}_${classe}_niveau`);
-
-            if (savedNom !== null) {
-              setNomPersonnage(savedNom);
-            } else if (dataClasse.nomPersonnage) {
-              setNomPersonnage(dataClasse.nomPersonnage);
-            }
-
-            if (savedNiveau !== null) {
-              setNiveau(parseInt(savedNiveau));
-            } else if (dataClasse.niveau) {
-              setNiveau(dataClasse.niveau);
-            }
-
-            // Charger les marqueurs depuis le snapshot
-            if (dataClasse.marqueurs) {
-              setMarqueursCustom(dataClasse.marqueurs);
-              console.log('🏷️ Marqueurs chargés depuis snapshot:', Object.keys(dataClasse.marqueurs));
-            } else {
-              setMarqueursCustom({});
-            }
-
-            // Sauvegarder la classe visitée pour la restaurer au prochain refresh
-            localStorage.setItem(`snapshot_${snapshotId}_lastVisitedClass`, classe);
-
             console.log('📂 Classe chargée depuis snapshot:', classe);
           };
 
           // Charger une classe (mode GM)
           const chargerArbre = (classe) => {
-            // Cas spécial : Page Informations
-            if (classe === 'Informations') {
-              const savedInfo = localStorage.getItem('pageInfo');
-              if (savedInfo) {
-                setPageInfoContenu(savedInfo);
-              }
-              setArbreActuel('Informations');
-              setMarqueursCustom({}); // Pas de marqueurs sur la page Informations
-              console.log('📄 Page Informations chargée');
-              return;
-            }
-
             // En mode lecture seule, chercher d'abord dans classe_shared_
             const keyToCheck = modeLectureSeule ? `classe_shared_${classe}` : `classe_${classe}`;
             const savedData = localStorage.getItem(keyToCheck);
 
             if (savedData) {
               const data = JSON.parse(savedData);
-              // Migrer les talents de base pour ajouter le gras
-              const talentsMigres = migrerTalentsDeBase(data.talents || creerTalentDepart(classe));
-              setTalents(talentsMigres);
+              setTalents(data.talents || creerTalentDepart(classe));
               setTalentsActifs(data.talentsActifs || {});
-              // Charger les marqueurs si présents
-              if (data.marqueurs) {
-                setMarqueursCustom(data.marqueurs);
-                console.log('🏷️ Marqueurs chargés:', Object.keys(data.marqueurs));
-              } else {
-                setMarqueursCustom({});
-              }
               // pointsDisponibles et pointsMax seront recalculés automatiquement par le useEffect basé sur niveau
               // Ne pas écraser nomPersonnage et niveau en mode partagé (ils sont communs à toutes les classes)
               // Le bonus PV est calculé automatiquement selon la classe
@@ -1171,7 +815,6 @@
                 // En mode lecture seule, créer un arbre vide si pas de données
                 setTalents(creerTalentDepart(classe));
                 setTalentsActifs({});
-                setMarqueursCustom({});
                 setArbreActuel(classe);
                 console.log('📂 Classe vide créée en mode lecture seule:', classe);
               }
@@ -1200,13 +843,6 @@
 
           // Charger depuis l'URL au démarrage (Pages PJ)
           useEffect(() => {
-            // Si on a un snapshot Firestore (#snapshot=...), ne pas charger l'ancien système
-            const hash = window.location.hash;
-            if (hash.match(/#snapshot=/)) {
-              console.log('🔥 Snapshot Firestore détecté - ancien système ignoré');
-              return;
-            }
-
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('data');
             console.log('Paramètre data dans URL:', dataParam ? 'Présent' : 'Absent');
@@ -1355,53 +991,16 @@
                 console.log('✅ Snapshot chargé:', snapshot);
                 setSnapshotData(snapshot);
 
-                // Charger la page Informations si présente
-                if (snapshot.pageInfo) {
-                  setPageInfoContenu(snapshot.pageInfo);
-                  console.log('📄 Page Informations chargée depuis snapshot');
-                }
-
-                // Charger les mots-clés custom si présents
-                if (snapshot.motsClesCustom) {
-                  setMotsClesCustom(snapshot.motsClesCustom);
-                  console.log('📚 Mots-clés custom chargés depuis snapshot:', snapshot.motsClesCustom);
-                }
-
-                // Charger les icônes custom si présentes
-                if (snapshot.iconesDisponibles) {
-                  setIconesDisponibles(snapshot.iconesDisponibles);
-                  console.log('🖼️ Icônes custom chargées depuis snapshot:', snapshot.iconesDisponibles.length);
-                }
-
                 // Vérifier la version
                 if (snapshot.version === '5.0') {
                   // Version 5.0 : Multi-classes
                   console.log('Format v5.0 multi-classes détecté');
 
-                  // Charger la dernière classe visitée par ce joueur, sinon la page Accueil si elle existe, sinon la classe active du snapshot
-                  const lastVisited = localStorage.getItem(`snapshot_${id}_lastVisitedClass`);
-                  const classeToLoad = (lastVisited && (snapshot.classes[lastVisited] || lastVisited === 'Informations'))
-                    ? lastVisited
-                    : (snapshot.pageInfo ? 'Informations' : (snapshot.classeActive || Object.keys(snapshot.classes)[0]));
-                  console.log('🎯 Classe à charger:', classeToLoad, '(dernière visite:', lastVisited, ')');
-
+                  // Charger la classe active (ou la première disponible)
+                  const classeToLoad = snapshot.classeActive || Object.keys(snapshot.classes)[0];
                   const dataClasse = snapshot.classes[classeToLoad];
 
-                  // Cas spécial : Page Informations
-                  if (classeToLoad === 'Informations') {
-                    setTalents({});
-                    setArbreActuel('Informations');
-                    setTalentsActifs({});
-                    setMarqueursCustom({});
-                    if (snapshot.pageInfo) {
-                      setPageInfoContenu(snapshot.pageInfo);
-                      console.log('📄 Page Informations chargée depuis snapshot');
-                    }
-                    setModeLectureSeule(true);
-                    setModePlayer(true);
-                    localStorage.setItem(`snapshot_${id}_lastVisitedClass`, 'Informations');
-                    console.log('✅ Snapshot v5.0 chargé - Page Accueil');
-                  } else if (dataClasse) {
+                  if (dataClasse) {
                     // Normaliser les talents
                     const talentsNormalises = {};
                     Object.keys(dataClasse.talents || {}).forEach(id => {
@@ -1421,10 +1020,10 @@
                       };
                     });
 
-                    // Migrer les talents de base
-                    const talentsMigres = migrerTalentsDeBase(talentsNormalises);
-                    setTalents(talentsMigres);
+                    setTalents(talentsNormalises);
                     setArbreActuel(classeToLoad);
+                    if (dataClasse.nomPersonnage) setNomPersonnage(dataClasse.nomPersonnage);
+                    if (dataClasse.niveau) setNiveau(dataClasse.niveau);
 
                     // Charger les talents activés depuis localStorage (spécifique au snapshot + classe)
                     const savedActifs = localStorage.getItem(`snapshot_${id}_${classeToLoad}_talentsActifs`);
@@ -1435,35 +1034,8 @@
                       setTalentsActifs({});
                     }
 
-                    // Charger nomPersonnage et niveau depuis localStorage ou snapshot
-                    const savedNom = localStorage.getItem(`snapshot_${id}_${classeToLoad}_nomPersonnage`);
-                    const savedNiveau = localStorage.getItem(`snapshot_${id}_${classeToLoad}_niveau`);
-
-                    if (savedNom !== null) {
-                      setNomPersonnage(savedNom);
-                    } else if (dataClasse.nomPersonnage) {
-                      setNomPersonnage(dataClasse.nomPersonnage);
-                    }
-
-                    if (savedNiveau !== null) {
-                      setNiveau(parseInt(savedNiveau));
-                    } else if (dataClasse.niveau) {
-                      setNiveau(dataClasse.niveau);
-                    }
-
-                    // Charger les marqueurs depuis le snapshot
-                    if (dataClasse.marqueurs) {
-                      setMarqueursCustom(dataClasse.marqueurs);
-                      console.log('🏷️ Marqueurs chargés depuis snapshot:', Object.keys(dataClasse.marqueurs));
-                    } else {
-                      setMarqueursCustom({});
-                    }
-
                     setModeLectureSeule(true);
                     setModePlayer(true);
-
-                    // Sauvegarder la classe visitée pour la restaurer au prochain refresh
-                    localStorage.setItem(`snapshot_${id}_lastVisitedClass`, classeToLoad);
 
                     console.log('✅ Snapshot v5.0 chargé - Talents:', Object.keys(talentsNormalises).length);
                   }
@@ -1522,11 +1094,6 @@
 
           // Sauvegarder les talents activés dans localStorage (mode player uniquement)
           useEffect(() => {
-            // Sauter la sauvegarde au premier rendu pour éviter d'écraser avec un état vide
-            if (isInitialMount.current) {
-              return;
-            }
-
             if (modePlayer && snapshotId && arbreActuel) {
               const key = `snapshot_${snapshotId}_${arbreActuel}_talentsActifs`;
               localStorage.setItem(key, JSON.stringify(talentsActifs));
@@ -1534,35 +1101,7 @@
             }
           }, [talentsActifs, modePlayer, snapshotId, arbreActuel]);
 
-          // Sauvegarder nomPersonnage et niveau dans localStorage (mode player uniquement)
-          useEffect(() => {
-            if (isInitialMount.current) {
-              return;
-            }
-
-            if (modePlayer && snapshotId && arbreActuel) {
-              const keyNom = `snapshot_${snapshotId}_${arbreActuel}_nomPersonnage`;
-              const keyNiveau = `snapshot_${snapshotId}_${arbreActuel}_niveau`;
-              localStorage.setItem(keyNom, nomPersonnage);
-              localStorage.setItem(keyNiveau, niveau.toString());
-              console.log('💾 Nom et niveau sauvegardés:', nomPersonnage, niveau);
-            }
-          }, [nomPersonnage, niveau, modePlayer, snapshotId, arbreActuel]);
-
-          // Sauvegarder la page Informations dans localStorage (mode GM uniquement)
-          useEffect(() => {
-            if (isInitialMount.current) {
-              return;
-            }
-
-            if (!modePlayer && !modeLectureSeule) {
-              localStorage.setItem('pageInfo', pageInfoContenu);
-              console.log('💾 Page Informations sauvegardée');
-            }
-          }, [pageInfoContenu, modePlayer, modeLectureSeule]);
-
           // Trouver tous les talents qui dépendent d'un talent donné (récursif)
-          // Retourne uniquement les talents qui n'auront PLUS AUCUN prérequis actif
           const findDependentTalents = (talentId, currentActifs, visited = new Set()) => {
             const dependents = [];
 
@@ -1570,26 +1109,14 @@
             if (visited.has(talentId)) return dependents;
             visited.add(talentId);
 
-            // Simuler l'état après suppression de talentId
-            const simulatedActifs = { ...currentActifs };
-            delete simulatedActifs[talentId];
-
             // Trouver les talents qui ont talentId comme prérequis et qui sont actifs
             Object.keys(currentActifs).forEach(id => {
               const talent = talents[id];
               if (talent && talent.prerequis && Array.isArray(talent.prerequis) && talent.prerequis.includes(talentId)) {
-                // Vérifier si ce talent a encore au moins un autre prérequis actif
-                const hasOtherActivePrereq = talent.prerequis.some(prereqId =>
-                  prereqId !== talentId && simulatedActifs[prereqId]
-                );
-
-                // Si le talent n'a plus aucun prérequis actif, il doit être désactivé
-                if (!hasOtherActivePrereq) {
-                  dependents.push(id);
-                  // Récursion pour trouver les talents qui dépendent de celui-ci
-                  const subDependents = findDependentTalents(id, simulatedActifs, visited);
-                  dependents.push(...subDependents);
-                }
+                dependents.push(id);
+                // Récursion pour trouver les talents qui dépendent de celui-ci
+                const subDependents = findDependentTalents(id, currentActifs, visited);
+                dependents.push(...subDependents);
               }
             });
 
@@ -1646,7 +1173,47 @@
                 delete simulatedActifs[depId];
               });
 
-              // Décocher le talent et ses dépendants
+              // Trouver les talents actifs qui n'auront plus assez de points requis EN AMONT
+              const talentsADecocher = [];
+              Object.keys(talentsActifs).forEach(id => {
+                // Ignorer le talent qu'on décoche et ses dépendants (déjà gérés)
+                if (id === talentId || dependents.includes(id)) return;
+
+                const t = talents[id];
+                if (t && t.pointsRequis && t.pointsRequis > 0) {
+                  // Calculer les points en amont dans le state simulé
+                  const pointsEnAmontSimules = getPointsEnAmont(id, simulatedActifs);
+                  if (pointsEnAmontSimules < t.pointsRequis) {
+                    talentsADecocher.push({ id, nom: t.nom, pointsRequis: t.pointsRequis });
+                  }
+                }
+              });
+
+              // Si des talents seraient affectés, demander confirmation
+              if (talentsADecocher.length > 0) {
+                const message = talentsADecocher.length === 1
+                  ? `⚠️ ATTENTION ⚠️\n\nEn décochant ce talent, vous n'aurez plus assez de points pour conserver le talent "${talentsADecocher[0].nom}" (${talentsADecocher[0].pointsRequis} points pré-requis).\n\nVoulez-vous continuer ?`
+                  : `⚠️ ATTENTION ⚠️\n\nEn décochant ce talent, vous n'aurez plus assez de points pour conserver les talents suivants :\n${talentsADecocher.map(t => `- ${t.nom} (${t.pointsRequis} points pré-requis)`).join('\n')}\n\nVoulez-vous continuer ?`;
+
+                const confirmation = window.confirm(message);
+                if (!confirmation) return; // Annuler l'opération
+              }
+
+              // Calculer tous les points à restituer (y compris les talents sans assez de points)
+              talentsADecocher.forEach(t => {
+                if (talents[t.id]) {
+                  pointsToRestore += talents[t.id].cout;
+                }
+                // Ajouter aussi les dépendants de ce talent
+                const depsTalent = findDependentTalents(t.id, talentsActifs);
+                depsTalent.forEach(depId => {
+                  if (talents[depId]) {
+                    pointsToRestore += talents[depId].cout;
+                  }
+                });
+              });
+
+              // Décocher le talent, ses dépendants et les talents sans assez de points
               setTalentsActifs(prev => {
                 const newState = { ...prev };
                 delete newState[talentId];
@@ -1654,6 +1221,15 @@
                 // Décocher les dépendants
                 dependents.forEach(depId => {
                   delete newState[depId];
+                });
+
+                // Décocher les talents qui n'ont plus assez de points requis (et leurs dépendants)
+                talentsADecocher.forEach(t => {
+                  const depsTalent = findDependentTalents(t.id, newState);
+                  delete newState[t.id];
+                  depsTalent.forEach(depId => {
+                    delete newState[depId];
+                  });
                 });
 
                 return newState;
@@ -1669,16 +1245,19 @@
                 return;
               }
 
+              // Vérifier les points de talents requis (gate) - EN AMONT uniquement
+              if (talent.pointsRequis && talent.pointsRequis > 0) {
+                const pointsEnAmont = getPointsEnAmont(talentId);
+                if (pointsEnAmont < talent.pointsRequis) {
+                  const pointsRestants = talent.pointsRequis - pointsEnAmont;
+                  showNotification(`Vous devez encore dépenser ${pointsRestants} points de talents EN AMONT (prérequis) avant de débloquer celui-ci !`);
+                  return;
+                }
+              }
+
               if (pointsDisponibles < talent.cout) {
                 showNotification('Vous n\'avez plus assez de point de talents !');
                 return;
-              }
-
-              // Note: Si ce talent remplace un autre, on garde les deux cochés
-              // Seuls les bonus ne doivent pas se cumuler (géré dans les calculs)
-              if (talent.remplace && talentsActifs[talent.remplace]) {
-                const talentRemplace = talents[talent.remplace];
-                console.log(`🔄 "${talent.nom}" remplace "${talentRemplace.nom}" - Les deux restent actifs mais seuls les bonus de "${talent.nom}" comptent`);
               }
 
               setTalentsActifs(prev => ({ ...prev, [talentId]: true }));
@@ -1704,6 +1283,15 @@
             });
 
             return bloqueParAutreTalent;
+          };
+
+          // Vérifier si un talent est remplacé par un autre talent actif
+          const estRemplace = (talentId) => {
+            // Chercher si un talent actif remplace celui-ci
+            return Object.keys(talentsActifs).some(activeId => {
+              const activeTalent = talents[activeId];
+              return activeTalent?.remplace === talentId;
+            });
           };
 
           // Vérifier si un talent automatique est remplacé
@@ -1741,6 +1329,12 @@
 
             // Bloqué par exclusion mutuelle
             if (estBloqueParExclusion(talentId)) return false;
+
+            // Vérifier les points de talents requis (gate) - EN AMONT uniquement
+            if (talent.pointsRequis && talent.pointsRequis > 0) {
+              const pointsEnAmont = getPointsEnAmont(talentId);
+              if (pointsEnAmont < talent.pointsRequis) return false;
+            }
 
             // Au moins un prérequis doit être rempli (OU logique), ou aucun prérequis
             const prerequisRemplis = talent.prerequis.length === 0 || talent.prerequis.some(prereq => talentsActifs[prereq]);
@@ -1782,13 +1376,13 @@
 
             if (!confirmation) return;
 
-            // Dupliquer les données (sans talentsActifs et bonus qui n'existe plus)
+            // Dupliquer les données
             const arbreData = {
               talents,
               talentsActifs: {}, // Vierge pour la classe cible
-              nomPersonnage: '', // Vierge aussi
-              niveau: 1, // Reset au niveau 1
-              marqueurs: marqueursCustom // Copier les marqueurs custom
+              nomPersonnage,
+              niveau,
+              bonus
             };
 
             localStorage.setItem(`classe_${classeCible}`, JSON.stringify(arbreData));
@@ -1988,7 +1582,6 @@
 
           // Sauvegarder les modifications d'un talent
           const sauvegarderTalent = (talentId, updates) => {
-            console.log('💾 Sauvegarde talent:', talentId, 'Updates:', updates);
             setTalents(prev => ({
               ...prev,
               [talentId]: {
@@ -2075,87 +1668,6 @@
             setTargetGridPoint(null);
           };
 
-          // Exporter l'arbre actuel en JSON
-          const exporterArbreActuel = () => {
-            if (arbreActuel === 'Informations') {
-              alert('⚠️ Impossible d\'exporter la page Accueil. Sélectionnez une classe.');
-              return;
-            }
-
-            const dataToExport = {
-              classe: arbreActuel,
-              talents: talents,
-              version: '5.0',
-              exportDate: new Date().toISOString()
-            };
-
-            const jsonString = JSON.stringify(dataToExport, null, 2);
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `arbre_${arbreActuel}_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showNotification(`✅ Arbre "${arbreActuel}" exporté !`);
-          };
-
-          // Importer un arbre depuis JSON
-          const importerArbre = () => {
-            if (arbreActuel === 'Informations') {
-              alert('⚠️ Impossible d\'importer sur la page Accueil. Sélectionnez une classe.');
-              return;
-            }
-
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-
-            input.onchange = (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
-
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                try {
-                  const importedData = JSON.parse(event.target.result);
-
-                  // Vérifier que c'est un format valide
-                  if (!importedData.talents || !importedData.classe) {
-                    alert('⚠️ Format de fichier invalide. Assurez-vous d\'importer un fichier exporté depuis cette application.');
-                    return;
-                  }
-
-                  // Confirmer avant d'écraser
-                  if (!confirm(`⚠️ Cela va écraser l'arbre actuel "${arbreActuel}" avec les données de "${importedData.classe}".\n\nVoulez-vous continuer ?`)) {
-                    return;
-                  }
-
-                  // Importer les talents
-                  setTalents(importedData.talents);
-
-                  // Sauvegarder dans localStorage
-                  localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify({
-                    talents: importedData.talents
-                  }));
-
-                  showNotification(`✅ Arbre importé avec succès ! ${Object.keys(importedData.talents).length} talents chargés.`);
-                } catch (error) {
-                  console.error('Erreur lors de l\'import:', error);
-                  alert('❌ Erreur lors de la lecture du fichier. Vérifiez que c\'est un fichier JSON valide.');
-                }
-              };
-
-              reader.readAsText(file);
-            };
-
-            input.click();
-          };
-
           // Générer lien de partage pour les joueurs (Firebase Storage)
           const genererLienPartage = async () => {
             try {
@@ -2183,33 +1695,22 @@
                     }
                   });
 
-                  // Récupérer les marqueurs pour cette classe
-                  const savedMarqueurs = localStorage.getItem(`marqueurs_${classe}`);
-                  const marqueurs = savedMarqueurs ? JSON.parse(savedMarqueurs) : {};
-
                   classes[classe] = {
                     talents: talentsVisibles,
                     nomPersonnage: data.nomPersonnage || '',
-                    niveau: data.niveau || 1,
-                    marqueurs: marqueurs
+                    niveau: data.niveau || 1
                   };
 
                   totalTalents += Object.keys(talentsVisibles).length;
                 }
               });
 
-              // Récupérer la page Informations si elle existe
-              const pageInfo = localStorage.getItem('pageInfo') || '';
-
               // Créer le snapshot avec TOUTES les classes
               const snapshot = {
                 version: '5.0', // Version 5.0 : multi-classes
                 date: Date.now(),
                 classes: classes,
-                classeActive: arbreActuel, // La classe actuellement affichée par le GM
-                pageInfo: pageInfo, // Page d'informations/consignes pour les joueurs
-                motsClesCustom: motsClesCustom, // Mots-clés custom pour l'index
-                iconesDisponibles: iconesDisponibles // Icônes PNG custom
+                classeActive: arbreActuel // La classe actuellement affichée par le GM
               };
 
               console.log('📦 Création du snapshot multi-classes...', {
@@ -2248,6 +1749,19 @@
             }
           };
 
+          // Imprimer
+          const imprimerArbre = () => {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const url = `${baseUrl}?print=true&view=arbre`;
+            window.open(url, '_blank');
+          };
+
+          const imprimerFeuille = () => {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const url = `${baseUrl}?print=true&view=feuille`;
+            window.open(url, '_blank');
+          };
+
           return (
             <div className={`min-h-screen p-8 ${modePrint ? 'bg-white' : 'bg-gradient-to-br from-slate-900 to-slate-800'}`}>
               {/* Notification temporaire */}
@@ -2257,503 +1771,13 @@
                 </div>
               )}
 
-              {/* Éditeur de mots-clés */}
-              {editeurMotsCles && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-white">Éditer les Mots-clés</h2>
-                        <button
-                          onClick={() => setEditeurMotsCles(false)}
-                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Liste des mots-clés existants */}
-                        <div>
-                          <h3 className="text-white font-semibold mb-2">Mots-clés existants :</h3>
-                          <div className="space-y-2">
-                            {Object.entries(getTousMotsCles()).map(([cle, info]) => (
-                              <div key={cle} className="bg-slate-700 p-3 rounded">
-                                {motCleEnEdition === cle ? (
-                                  // Mode édition
-                                  <div className="space-y-2">
-                                    <input
-                                      type="text"
-                                      defaultValue={info.titre}
-                                      className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
-                                      id={`edit-motcle-titre-${cle}`}
-                                    />
-                                    <textarea
-                                      defaultValue={info.definition}
-                                      className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
-                                      rows="3"
-                                      id={`edit-motcle-definition-${cle}`}
-                                    />
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => {
-                                          const titre = document.getElementById(`edit-motcle-titre-${cle}`).value.trim();
-                                          const definition = document.getElementById(`edit-motcle-definition-${cle}`).value.trim();
-
-                                          if (!titre || !definition) {
-                                            alert('⚠️ Veuillez remplir le nom et la définition');
-                                            return;
-                                          }
-
-                                          const nouveau = { ...motsClesCustom };
-                                          nouveau[cle] = { titre, definition };
-                                          setMotsClesCustom(nouveau);
-                                          localStorage.setItem('motsClesCustom', JSON.stringify(nouveau));
-                                          setMotCleEnEdition(null);
-                                          showNotification(`✅ Mot-clé "${titre}" modifié !`);
-                                        }}
-                                        className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
-                                      >
-                                        💾 Enregistrer
-                                      </button>
-                                      <button
-                                        onClick={() => setMotCleEnEdition(null)}
-                                        className="flex-1 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
-                                      >
-                                        ❌ Annuler
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  // Mode affichage
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      <div className="text-white font-semibold">{info.titre}</div>
-                                      <div className="text-slate-300 text-sm" dangerouslySetInnerHTML={{ __html: replaceMarkers(info.definition) }} />
-                                    </div>
-                                    <div className="flex gap-1 ml-2">
-                                      <button
-                                        onClick={() => setMotCleEnEdition(cle)}
-                                        className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
-                                      >
-                                        ✏️ Éditer
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          if (!confirm(`Supprimer le mot-clé "${info.titre}" ?`)) return;
-
-                                          // Si c'est un mot-clé par défaut, le déplacer dans custom pour le marquer comme supprimé
-                                          const nouveau = { ...motsClesCustom };
-                                          if (MOTS_CLES_INDEX_DEFAUT[cle]) {
-                                            // Marquer comme supprimé en le stockant avec une propriété spéciale
-                                            nouveau[cle] = null;
-                                          } else {
-                                            delete nouveau[cle];
-                                          }
-                                          setMotsClesCustom(nouveau);
-                                          localStorage.setItem('motsClesCustom', JSON.stringify(nouveau));
-                                        }}
-                                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                      >
-                                        🗑️ Supprimer
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Formulaire d'ajout */}
-                        <div className="border-t border-slate-600 pt-4">
-                          <h3 className="text-white font-semibold mb-2">Ajouter un nouveau mot-clé :</h3>
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Nom du mot-clé (ex: Portée)"
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
-                              id="nouveau-motcle-titre"
-                            />
-                            <textarea
-                              placeholder="Définition (ex: Distance maximale à laquelle...)"
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
-                              rows="3"
-                              id="nouveau-motcle-definition"
-                            />
-                            <button
-                              onClick={() => {
-                                const titre = document.getElementById('nouveau-motcle-titre').value.trim();
-                                const definition = document.getElementById('nouveau-motcle-definition').value.trim();
-
-                                if (!titre || !definition) {
-                                  alert('⚠️ Veuillez remplir le nom et la définition');
-                                  return;
-                                }
-
-                                // Créer une clé unique à partir du titre
-                                const cle = titre.toLowerCase().replace(/[^a-z0-9]/g, '_');
-
-                                const nouveau = {
-                                  ...motsClesCustom,
-                                  [cle]: { titre, definition }
-                                };
-
-                                setMotsClesCustom(nouveau);
-                                localStorage.setItem('motsClesCustom', JSON.stringify(nouveau));
-
-                                // Réinitialiser le formulaire
-                                document.getElementById('nouveau-motcle-titre').value = '';
-                                document.getElementById('nouveau-motcle-definition').value = '';
-
-                                showNotification(`✅ Mot-clé "${titre}" ajouté !`);
-                              }}
-                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                            >
-                              ➕ Ajouter
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Éditeur de marqueurs */}
-              {editeurMarqueurs && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-white">Gérer les Marqueurs Dynamiques</h2>
-                        <button
-                          onClick={() => {
-                            setEditeurMarqueurs(false);
-                            setMarqueurEnEdition(null);
-                          }}
-                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
-                        <p className="mb-1">💡 Les marqueurs sont des variables personnalisées utilisables dans les descriptions de talents.</p>
-                        <p>Exemple : créez un marqueur "ORBES", puis utilisez {'{ORBES}'} dans vos talents.</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Liste des marqueurs existants */}
-                        {Object.keys(marqueursCustom).length > 0 && (
-                          <div>
-                            <h3 className="text-white font-semibold mb-2">Marqueurs existants :</h3>
-                            <div className="space-y-2">
-                              {Object.entries(marqueursCustom).map(([nom, marqueur]) => (
-                                <div key={nom} className="bg-slate-700 p-3 rounded">
-                                  {marqueurEnEdition === nom ? (
-                                    // Mode édition
-                                    <div className="space-y-2">
-                                      <input
-                                        type="text"
-                                        defaultValue={nom}
-                                        className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
-                                        id={`edit-marqueur-nom-${nom}`}
-                                        disabled
-                                      />
-                                      <input
-                                        type="number"
-                                        defaultValue={marqueur.valeurBase || 0}
-                                        className="w-full p-2 bg-slate-600 text-white rounded border border-slate-500"
-                                        id={`edit-marqueur-valeur-${nom}`}
-                                        placeholder="Valeur de base (défaut: 0)"
-                                      />
-                                      <input
-                                        type="color"
-                                        defaultValue={marqueur.couleur || '#10b981'}
-                                        className="w-full p-1 bg-slate-600 text-white rounded border border-slate-500"
-                                        id={`edit-marqueur-couleur-${nom}`}
-                                      />
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => {
-                                            const valeurBase = parseInt(document.getElementById(`edit-marqueur-valeur-${nom}`).value) || 0;
-                                            const couleur = document.getElementById(`edit-marqueur-couleur-${nom}`).value;
-
-                                            const nouveau = { ...marqueursCustom };
-                                            nouveau[nom] = { valeurBase, couleur };
-                                            setMarqueursCustom(nouveau);
-                                            setMarqueurEnEdition(null);
-                                            showNotification(`✅ Marqueur "${nom}" modifié !`);
-                                          }}
-                                          className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
-                                        >
-                                          💾 Enregistrer
-                                        </button>
-                                        <button
-                                          onClick={() => setMarqueurEnEdition(null)}
-                                          className="flex-1 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
-                                        >
-                                          ❌ Annuler
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    // Mode affichage
-                                    <div className="flex justify-between items-center">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded" style={{ backgroundColor: marqueur.couleur || '#10b981' }}></div>
-                                        <div>
-                                          <div className="text-white font-semibold">{'{' + nom + '}'}</div>
-                                          <div className="text-slate-300 text-sm">Base: {marqueur.valeurBase || 0} | Actuel: {getMarqueurValue(nom)}</div>
-                                        </div>
-                                      </div>
-                                      <div className="flex gap-1">
-                                        <button
-                                          onClick={() => setMarqueurEnEdition(nom)}
-                                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs"
-                                        >
-                                          ✏️
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            if (!confirm(`Supprimer le marqueur "${nom}" ?\n\nAttention : il sera retiré de tous les talents qui l'utilisent.`)) return;
-                                            const nouveau = { ...marqueursCustom };
-                                            delete nouveau[nom];
-                                            setMarqueursCustom(nouveau);
-                                            showNotification(`✅ Marqueur "${nom}" supprimé !`);
-                                          }}
-                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                        >
-                                          🗑️
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Formulaire d'ajout */}
-                        <div className="border-t border-slate-600 pt-4">
-                          <h3 className="text-white font-semibold mb-2">Ajouter un nouveau marqueur :</h3>
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Nom du marqueur (ex: ORBES, CHARGES, etc.)"
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600 uppercase"
-                              id="nouveau-marqueur-nom"
-                            />
-                            <input
-                              type="number"
-                              placeholder="Valeur de base (défaut: 0)"
-                              defaultValue={0}
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
-                              id="nouveau-marqueur-valeur"
-                            />
-                            <div className="flex items-center gap-2">
-                              <label className="text-white text-sm">Couleur:</label>
-                              <input
-                                type="color"
-                                defaultValue="#10b981"
-                                className="p-1 bg-slate-700 rounded border border-slate-600"
-                                id="nouveau-marqueur-couleur"
-                              />
-                            </div>
-                            <button
-                              onClick={() => {
-                                const nom = document.getElementById('nouveau-marqueur-nom').value.trim().toUpperCase();
-                                const valeurBase = parseInt(document.getElementById('nouveau-marqueur-valeur').value) || 0;
-                                const couleur = document.getElementById('nouveau-marqueur-couleur').value;
-
-                                if (!nom) {
-                                  alert('⚠️ Veuillez entrer un nom de marqueur');
-                                  return;
-                                }
-
-                                if (!/^[A-Z_]+$/.test(nom)) {
-                                  alert('⚠️ Le nom doit contenir uniquement des lettres majuscules et underscores');
-                                  return;
-                                }
-
-                                if (marqueursCustom[nom]) {
-                                  alert('⚠️ Ce marqueur existe déjà');
-                                  return;
-                                }
-
-                                const nouveau = {
-                                  ...marqueursCustom,
-                                  [nom]: { valeurBase, couleur }
-                                };
-
-                                setMarqueursCustom(nouveau);
-
-                                document.getElementById('nouveau-marqueur-nom').value = '';
-                                document.getElementById('nouveau-marqueur-valeur').value = '0';
-                                document.getElementById('nouveau-marqueur-couleur').value = '#10b981';
-
-                                showNotification(`✅ Marqueur "{${nom}}" ajouté !`);
-                              }}
-                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                            >
-                              ➕ Ajouter
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Gestionnaire d'Icônes */}
-              {gestionnaireIcones && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-white">Gestionnaire d'Icônes</h2>
-                        <button
-                          onClick={() => setGestionnaireIcones(false)}
-                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
-                        <p className="mb-1">🖼️ Ajoutez des icônes PNG pour les utiliser dans vos descriptions de talents.</p>
-                        <p>Exemple : ajoutez une icône "fire", puis utilisez {'{IMG:fire}'} dans vos descriptions.</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Liste des icônes existantes */}
-                        {iconesDisponibles.length > 0 && (
-                          <div>
-                            <h3 className="text-white font-semibold mb-2">Icônes disponibles :</h3>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                              {iconesDisponibles.map((icone) => (
-                                <div key={icone.name} className="bg-slate-700 p-3 rounded text-center">
-                                  <div className="bg-white rounded p-2 mb-2 flex items-center justify-center" style={{ minHeight: '60px' }}>
-                                    <img
-                                      src={icone.data}
-                                      alt={icone.name}
-                                      className="emoji-like"
-                                      style={{ width: '2em', height: '2em' }}
-                                    />
-                                  </div>
-                                  <div className="text-white text-xs font-mono mb-2 break-all">{'{IMG:' + icone.name + '}'}</div>
-                                  <button
-                                    onClick={() => {
-                                      if (!confirm(`Supprimer l'icône "${icone.name}" ?`)) return;
-                                      const nouvelles = iconesDisponibles.filter(i => i.name !== icone.name);
-                                      setIconesDisponibles(nouvelles);
-                                      showNotification(`✅ Icône "${icone.name}" supprimée !`);
-                                    }}
-                                    className="w-full px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
-                                  >
-                                    🗑️ Supprimer
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Formulaire d'ajout */}
-                        <div className="border-t border-slate-600 pt-4">
-                          <h3 className="text-white font-semibold mb-2">Ajouter une nouvelle icône :</h3>
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              placeholder="Nom de l'icône (ex: fire, sword, shield)"
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600 lowercase"
-                              id="nouvelle-icone-nom"
-                            />
-                            <input
-                              type="file"
-                              accept="image/png"
-                              className="w-full p-2 bg-slate-700 text-white rounded border border-slate-600"
-                              id="nouvelle-icone-fichier"
-                            />
-                            <button
-                              onClick={() => {
-                                const nom = document.getElementById('nouvelle-icone-nom').value.trim().toLowerCase();
-                                const fichier = document.getElementById('nouvelle-icone-fichier').files[0];
-
-                                if (!nom) {
-                                  alert('⚠️ Veuillez entrer un nom d\'icône');
-                                  return;
-                                }
-
-                                if (!/^[a-z0-9_-]+$/.test(nom)) {
-                                  alert('⚠️ Le nom doit contenir uniquement des lettres minuscules, chiffres, tirets et underscores');
-                                  return;
-                                }
-
-                                if (iconesDisponibles.some(i => i.name === nom)) {
-                                  alert('⚠️ Cette icône existe déjà');
-                                  return;
-                                }
-
-                                if (!fichier) {
-                                  alert('⚠️ Veuillez sélectionner un fichier PNG');
-                                  return;
-                                }
-
-                                if (!fichier.type.includes('png')) {
-                                  alert('⚠️ Seuls les fichiers PNG sont acceptés');
-                                  return;
-                                }
-
-                                // Lire le fichier et le convertir en base64
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                  const nouvelles = [
-                                    ...iconesDisponibles,
-                                    { name: nom, data: e.target.result }
-                                  ];
-
-                                  setIconesDisponibles(nouvelles);
-
-                                  document.getElementById('nouvelle-icone-nom').value = '';
-                                  document.getElementById('nouvelle-icone-fichier').value = '';
-
-                                  showNotification(`✅ Icône "{IMG:${nom}}" ajoutée !`);
-                                };
-                                reader.readAsDataURL(fichier);
-                              }}
-                              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                            >
-                              ➕ Ajouter
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="mx-auto" style={{ maxWidth: `${getRequiredWidth() + 64}px` }}>
-                {arbreActuel === null ? (
-                  // Chargement en cours
-                  <div className="bg-slate-800 rounded-lg p-8 flex items-center justify-center min-h-[400px]">
-                    <div className="text-center">
-                      <div className="text-4xl mb-4">⏳</div>
-                      <p className="text-white text-xl">Chargement...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Header */}
-                    <div className={`${modePrint ? 'bg-white' : `bg-gradient-to-r ${getCouleurClasse(arbreActuel)}`} rounded-t-lg p-6 shadow-lg no-print`}>
-                      <h1 className={`text-4xl font-bold text-center tracking-wide ${modePrint ? 'text-black' : 'text-white'}`}>
-                        {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
-                      </h1>
-                    </div>
+                {/* Header */}
+                <div className={`${modePrint ? 'bg-white' : `bg-gradient-to-r ${getCouleurClasse(arbreActuel)}`} rounded-t-lg p-6 shadow-lg no-print`}>
+                  <h1 className={`text-4xl font-bold text-center tracking-wide ${modePrint ? 'text-black' : 'text-white'}`}>
+                    {arbreActuel} - Arbre de Talent {modeLectureSeule ? (nomArbrePartage ? `(${nomArbrePartage})` : '(PJ)') : `(GM)`}
+                  </h1>
+                </div>
 
                 {/* Caractéristiques du personnage */}
                 <div className={`${modePrint ? 'bg-white' : 'bg-slate-700'} ${modeLectureSeule ? 'border-x-2' : 'border-x-2'} border-amber-500 p-4 flex flex-wrap items-center gap-3 no-print`}>
@@ -2765,7 +1789,7 @@
                       value={nomPersonnage}
                       onChange={(e) => setNomPersonnage(e.target.value)}
                       placeholder="Nom du personnage"
-                      className={`px-3 py-1.5 ${modePlayer ? COULEURS_CLASSES[arbreActuel]?.bg || 'bg-slate-600' : 'bg-slate-600'} text-white rounded border ${modePlayer ? COULEURS_CLASSES[arbreActuel]?.border || 'border-slate-500' : 'border-slate-500'}`}
+                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500"
                     />
                   </div>
 
@@ -2773,13 +1797,12 @@
                   <div className="flex items-center gap-2">
                     <label className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Classe :</label>
                     {modePlayer && snapshotData && snapshotData.version === '5.0' ? (
-                      // Mode player v5.0 : dropdown actif pour choisir la classe (couleur de la classe)
+                      // Mode player v5.0 : dropdown actif pour choisir la classe
                       <select
                         value={arbreActuel}
                         onChange={(e) => chargerClasseDepuisSnapshot(e.target.value)}
-                        className={`px-3 py-1.5 ${COULEURS_CLASSES[arbreActuel]?.bg || 'bg-slate-600'} text-white rounded border ${COULEURS_CLASSES[arbreActuel]?.border || 'border-slate-500'} font-bold`}
+                        className="px-3 py-1.5 bg-purple-600 text-white rounded border border-purple-500 font-bold"
                       >
-                        {'pageInfo' in snapshotData && <option value="Informations">- Accueil -</option>}
                         {Object.keys(snapshotData.classes || {}).map(classe => (
                           <option key={classe} value={classe}>{classe}</option>
                         ))}
@@ -2794,7 +1817,6 @@
                         onChange={(e) => chargerArbre(e.target.value)}
                         className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
                       >
-                        <option value="Informations">- Accueil -</option>
                         {CLASSES.map(classe => (
                           <option key={classe} value={classe}>{classe}</option>
                         ))}
@@ -2808,7 +1830,7 @@
                     <select
                       value={niveau}
                       onChange={(e) => handleNiveauChange(parseInt(e.target.value))}
-                      className={`px-3 py-1.5 ${modePlayer ? COULEURS_CLASSES[arbreActuel]?.bg || 'bg-slate-600' : 'bg-slate-600'} text-white rounded border ${modePlayer ? COULEURS_CLASSES[arbreActuel]?.border || 'border-slate-500' : 'border-slate-500'} font-bold`}
+                      className="px-3 py-1.5 bg-slate-600 text-white rounded border border-slate-500 font-bold"
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                         <option key={n} value={n}>{n}</option>
@@ -2821,8 +1843,8 @@
 
                   {/* DEGATS */}
                   <div className="flex items-center gap-2">
-                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS</span>
-                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[70px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                    <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>DÉGÂTS :</span>
+                    <span className="px-3 py-1.5 bg-red-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
                       +{getTotalDegats()}
                     </span>
                   </div>
@@ -2834,8 +1856,8 @@
                   <div className="flex items-center gap-2">
                     {/* PV */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV</span>
-                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[70px] text-center">
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>PV :</span>
+                      <span className="px-3 py-1.5 bg-green-700 text-white rounded font-bold min-w-[50px] text-center">
                         {getPointsDeVie()}
                       </span>
                     </div>
@@ -2844,7 +1866,7 @@
 
                     {/* VIE */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>VIE</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>VIE :</span>
                       <span className="px-3 py-1.5 bg-pink-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.vie.code }}>
                         {getTotalVie()}
                       </span>
@@ -2854,7 +1876,7 @@
 
                     {/* ENDU */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>ENDU</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>ENDU :</span>
                       <span className="px-3 py-1.5 bg-cyan-600 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: couleursTalent.endu.code }}>
                         {getTotalEndu()}
                       </span>
@@ -2864,7 +1886,7 @@
 
                     {/* Bonus (calculé selon la classe) */}
                     <div className="flex items-center gap-2">
-                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus</span>
+                      <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>Bonus :</span>
                       <span className="px-3 py-1.5 text-white rounded text-center font-bold min-w-[50px]" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                         {getBonusPV()}
                       </span>
@@ -2877,24 +1899,9 @@
                       <div className="w-full"></div>
                       {getCompetencesActives().map(comp => (
                         <div key={comp} className="flex items-center gap-2">
-                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp}</span>
+                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{comp} :</span>
                           <span className="px-3 py-1.5 bg-orange-600 text-white rounded font-bold min-w-[50px] text-center">
                             +{getTotalCompetence(comp)}
-                          </span>
-                        </div>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Marqueurs personnalisés - visible seulement en mode GM */}
-                  {!modeLectureSeule && !modePlayer && Object.keys(marqueursCustom).length > 0 && (
-                    <>
-                      <div className="w-full"></div>
-                      {Object.entries(marqueursCustom).map(([nom, marqueur]) => (
-                        <div key={nom} className="flex items-center gap-2">
-                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{nom}</span>
-                          <span className="px-3 py-1.5 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: marqueur.couleur || '#10b981' }}>
-                            {getMarqueurValue(nom)}
                           </span>
                         </div>
                       ))}
@@ -2903,11 +1910,11 @@
                 </div>
 
                 {/* Barre d'outils */}
-                <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} ${modeLectureSeule ? 'border-2' : 'border-x-2'} border-amber-500 p-2 sm:p-4 flex justify-between items-center flex-wrap gap-2 no-print`}>
-                  <div className="flex gap-2 items-center">
+                <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} ${modeLectureSeule ? 'border-2' : 'border-x-2'} border-amber-500 p-4 flex justify-between items-center flex-wrap gap-4 no-print`}>
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setVueActive('arbre')}
-                      className={`px-3 py-1.5 text-sm sm:px-4 sm:py-2 rounded font-semibold transition-colors ${
+                      className={`px-4 py-2 rounded font-semibold transition-colors ${
                         vueActive === 'arbre' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
@@ -2915,53 +1922,50 @@
                     </button>
                     <button
                       onClick={() => setVueActive('feuille')}
-                      className={`px-3 py-1.5 text-sm sm:px-4 sm:py-2 rounded font-semibold transition-colors ${
+                      className={`px-4 py-2 rounded font-semibold transition-colors ${
                         vueActive === 'feuille' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                       }`}
                     >
                       Feuille de Perso
                     </button>
+                  </div>
 
+                  <div className="flex gap-2 flex-wrap">
                     {vueActive === 'arbre' && (
-                      <div className="flex items-center gap-1 sm:gap-2 border-l border-slate-600 pl-2 sm:pl-4">
-                        <span className="text-white text-xs sm:text-sm font-semibold">Zoom:</span>
+                      <div className="flex items-center gap-2 border-r border-slate-600 pr-4">
+                        <span className="text-white text-sm font-semibold">Zoom:</span>
                         <button
                           onClick={() => setZoom(Math.max(0.5, zoom - 0.05))}
-                          className="px-2 py-1 sm:px-3 sm:py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors text-sm"
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
                           title="Dézoomer"
                         >
                           −
                         </button>
-                        <span className="text-white text-xs sm:text-sm font-mono">{Math.round(zoom * 100)}%</span>
+                        <span className="text-white text-sm font-mono">{Math.round(zoom * 100)}%</span>
                         <button
                           onClick={() => setZoom(Math.min(1.5, zoom + 0.05))}
-                          className="px-2 py-1 sm:px-3 sm:py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors text-sm"
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors"
                           title="Zoomer"
                         >
                           +
                         </button>
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex gap-2 items-center">
                     {modeLectureSeule && (
-                      <div className="px-2 py-1 sm:px-4 sm:py-2 bg-slate-600 text-white rounded text-xs sm:text-sm font-semibold flex items-center gap-1">
-                        🔒 <span className="hidden sm:inline">Lecture Seule</span>
+                      <div className="px-4 py-2 bg-slate-600 text-white rounded font-semibold flex items-center gap-2">
+                        🔒 Mode Lecture Seule
                       </div>
                     )}
 
                     {modePlayer && (
-                      <div className="px-2 py-1 sm:px-4 sm:py-2 bg-purple-600 text-white rounded text-xs sm:text-sm font-semibold flex items-center gap-1">
-                        👥 <span className="hidden sm:inline">Mode Joueur</span>
+                      <div className="px-4 py-2 bg-purple-600 text-white rounded font-semibold flex items-center gap-2">
+                        👥 Mode Joueur
                       </div>
                     )}
 
                     {!modeLectureSeule && !modePlayer && (
                       <>
-                        <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.13
-                        </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
                           className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
@@ -2969,14 +1973,6 @@
                           } text-white`}
                         >
                           <Edit /> {modeEdition ? 'Quitter Édition' : 'Mode Édition'}
-                        </button>
-
-                        <button
-                          onClick={() => setEditingTalentsAuto(true)}
-                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                          title="Personnaliser Attaque et Dégâts d'Opportunité pour cette classe"
-                        >
-                          ⚔️ Talents de base
                         </button>
 
                         {modeEdition && (
@@ -3021,101 +2017,60 @@
                             >
                               📋 Dupliquer
                             </button>
-                            <button
-                              onClick={() => setEditeurMotsCles(true)}
-                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors"
-                              title="Éditer les mots-clés de l'index"
-                            >
-                              📚 Mots-clés
-                            </button>
-                            <button
-                              onClick={() => setEditeurMarqueurs(true)}
-                              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-semibold transition-colors"
-                              title="Gérer les marqueurs dynamiques personnalisés"
-                            >
-                              🏷️ Marqueurs
-                            </button>
-                            <button
-                              onClick={() => setGestionnaireIcones(true)}
-                              className="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded font-semibold transition-colors"
-                              title="Gérer les icônes PNG inline"
-                            >
-                              🖼️ Icônes
-                            </button>
                           </>
                         )}
                       </>
                     )}
 
-                    {/* Bouton Export - visible pour tous */}
-                    <button
-                      onClick={exporterArbreActuel}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition-colors"
-                      title="Exporter l'arbre actuel en JSON"
-                    >
-                      📥 Export
-                    </button>
-
-                    {/* Boutons Import et Partager - visible uniquement en mode GM */}
                     {!modeLectureSeule && !modePlayer && (
-                      <>
-                        <button
-                          onClick={importerArbre}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                          title="Importer un arbre depuis JSON"
-                        >
-                          📤 Import
-                        </button>
-                        <button
-                          onClick={genererLienPartage}
-                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
-                        >
-                          <Share /> Partager
-                        </button>
-                      </>
+                      <button
+                        onClick={genererLienPartage}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                      >
+                        <Share /> Partager
+                      </button>
                     )}
+
+                    <button
+                      onClick={vueActive === 'arbre' ? imprimerArbre : imprimerFeuille}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                    >
+                      <Printer /> Imprimer
+                    </button>
                   </div>
                 </div>
 
-                {/* Page Accueil (9e page éditable) */}
-                {arbreActuel === 'Informations' ? (
-                  <div className="bg-slate-800 border-x-2 border-amber-500 p-8">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-4">Page Accueil</h2>
-                    {modeEdition ? (
-                      <div>
-                        <p className="text-white mb-3">Édite les consignes pour les joueurs (supporte le Markdown) :</p>
-                        <textarea
-                          value={pageInfoContenu}
-                          onChange={(e) => setPageInfoContenu(e.target.value)}
-                          placeholder="Ajoute ici des consignes, un index, des règles spécifiques..."
-                          className="w-full h-96 p-4 bg-slate-700 text-white rounded border border-slate-600 font-mono text-sm"
-                          style={{ resize: 'vertical' }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="prose prose-invert max-w-none">
-                        {pageInfoContenu ? (
-                          <div className="bg-slate-700 p-6 rounded text-white whitespace-pre-wrap">
-                            {pageInfoContenu}
-                          </div>
-                        ) : (
-                          <p className="text-slate-400 italic">Aucune information disponible.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
+                {/* Vue Arbre */}
+                {vueActive === 'arbre' && (
                   <>
-                    {/* Vue Arbre */}
-                    {vueActive === 'arbre' && (
-                      <>
-                        {/* Compteurs de points */}
-                        <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print`}>
+                    {/* Compteurs de points */}
+                    <div className={`${modePrint ? 'bg-white' : 'bg-slate-800'} border-x-2 border-amber-500 p-4 flex justify-center gap-6 flex-wrap no-print`}>
                       <div className="flex items-center gap-4">
                         <span className="text-amber-400 font-bold text-lg">
                           {modeEdition ? `Points disponibles: ${pointsDisponibles}` : `Points: ${pointsMax - pointsDisponibles} / ${pointsMax}`}
                         </span>
 
+                        {/* Compteurs par type de talent */}
+                        {!modeEdition && Object.keys(talentsActifs).length > 0 && (
+                          <div className="flex items-center gap-2 ml-4">
+                            {Object.entries(getTalentsParType())
+                              .sort((a, b) => couleursTalent[a[0]]?.nom.localeCompare(couleursTalent[b[0]]?.nom))
+                              .map(([type, count]) => {
+                                // Raccourcir les noms pour les badges
+                                const nomCourt = type === 'amelioration' ? 'Amélio' :
+                                                type === 'reaction' ? 'Réac' :
+                                                couleursTalent[type]?.nom || type;
+                                return (
+                                  <div key={type} className="flex items-center gap-1">
+                                    <span className="px-2 py-1 rounded font-bold text-white text-sm" style={{ backgroundColor: couleursTalent[type]?.code || '#666' }}>
+                                      {nomCourt}: {count}
+                                    </span>
+                                  </div>
+                                );
+                              })
+                            }
+                          </div>
+                        )}
                         {modeEdition && (
                           <div className="flex items-center gap-2 no-print">
                             <label className="text-white text-sm font-semibold">Points max:</label>
@@ -3142,65 +2097,23 @@
                       </div>
                     </div>
 
-                    {/* Statistiques par type - visible en mode édition */}
-                    {modeEdition && (() => {
-                      // Calculer le nombre de talents actifs par type (couleur)
-                      const statsParType = {};
-                      Object.values(talents).forEach(talent => {
-                        if (talentsActifs[talent.id]) {
-                          const type = talent.couleurTalent || 'action';
-                          const nomType = couleursTalent[type]?.nom || type;
-                          statsParType[nomType] = (statsParType[nomType] || 0) + 1;
-                        }
-                      });
-
-                      const types = Object.keys(statsParType).sort();
-
-                      return types.length > 0 ? (
-                        <div className="bg-slate-700 border-x-2 border-amber-500 px-4 py-2 no-print">
-                          <span className="text-white text-xs font-semibold">📊 Talents par type : </span>
-                          {types.map((type, index) => (
-                            <span key={type} className="text-slate-300 text-xs ml-2">
-                              {type}: <span className="text-amber-400 font-semibold">{statsParType[type]}</span>
-                              {index < types.length - 1 && <span className="text-slate-500 mx-1">•</span>}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null;
-                    })()}
-
                     {/* Lexique des marqueurs - visible en mode édition */}
                     {modeEdition && (
                       <div className="bg-amber-50 border-x-2 border-amber-500 p-3 no-print">
-                        <div className="text-sm space-y-1">
-                          <div>
-                            <span className="font-bold text-amber-900">📝 Marqueurs dynamiques :</span>
-                            <span className="text-slate-700 ml-2">
-                              <code className="bg-white px-1 rounded">{'{ENDU}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{VIE}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{DEGATS}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{NIVEAU}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{PV}'}</code>
-                              <span className="mx-2">•</span>
-                              <span className="text-xs">Formules : </span>
-                              <code className="bg-white px-1 rounded">{'{ENDU*2}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{VIE+NIVEAU}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{DEGATS/2}'}</code>
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-bold text-amber-900">🎯 Compétences :</span>
-                            <span className="text-slate-700 ml-2">
-                              <code className="bg-white px-1 rounded">{'{AGILITE}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{FORCE}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{MYSTICISME}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{PERCEPTION}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{ROBUSTESSE}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{RUSE}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{SAVOIR}'}</code>
-                              <code className="bg-white px-1 rounded ml-2">{'{TECHNIQUE}'}</code>
-                            </span>
-                          </div>
+                        <div className="text-sm">
+                          <span className="font-bold text-amber-900">📝 Marqueurs dynamiques :</span>
+                          <span className="text-slate-700 ml-2">
+                            <code className="bg-white px-1 rounded">{'{ENDU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{VIE}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{NIVEAU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{PV}'}</code>
+                            <span className="mx-2">•</span>
+                            <span className="text-xs">Formules : </span>
+                            <code className="bg-white px-1 rounded">{'{ENDU*2}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{VIE+NIVEAU}'}</code>
+                            <code className="bg-white px-1 rounded ml-2">{'{DEGATS/2}'}</code>
+                          </span>
                         </div>
                       </div>
                     )}
@@ -3275,6 +2188,30 @@
                             const strokeW = isActive ? 3 : isHighlighted ? 3 : 3;
                             const dashArray = isActive ? '0' : '0';
 
+                            // Calculer le centre de la ligne pour le badge de points requis
+                            const midX = (x1 + x2) / 2;
+                            const midY = (y1 + y2) / 2;
+
+                            // Vérifier si ce talent a des points requis
+                            const hasPointsRequis = talent.pointsRequis && talent.pointsRequis > 0;
+                            let pointsRestants = 0;
+                            let badgeColor = '';
+                            let lockIcon = '🔒';
+
+                            if (hasPointsRequis) {
+                              const pointsEnAmont = getPointsEnAmont(talent.id);
+                              pointsRestants = Math.max(0, talent.pointsRequis - pointsEnAmont);
+
+                              if (talentsActifs[talent.id] || pointsRestants === 0) {
+                                badgeColor = '#16a34a'; // Green
+                                lockIcon = '🔓';
+                              } else if (pointsRestants <= talent.pointsRequis * 0.5) {
+                                badgeColor = '#eab308'; // Yellow
+                              } else {
+                                badgeColor = '#ea580c'; // Orange
+                              }
+                            }
+
                             return (
                               <g key={`${prereqId}-${talent.id}`}>
                                 {/* Ligne droite entre les centres */}
@@ -3288,6 +2225,34 @@
                                   strokeDasharray={dashArray}
                                   className="transition-all duration-300"
                                 />
+
+                                {/* Badge de points requis au centre de la ligne (seulement sur la première ligne) */}
+                                {hasPointsRequis && prereqIndex === 0 && (
+                                  <g>
+                                    {/* Rectangle du badge */}
+                                    <rect
+                                      x={midX - 20}
+                                      y={midY - 12}
+                                      width="40"
+                                      height="24"
+                                      rx="4"
+                                      fill={badgeColor}
+                                      stroke={strokeColor}
+                                      strokeWidth="2"
+                                    />
+                                    {/* Texte du badge */}
+                                    <text
+                                      x={midX}
+                                      y={midY + 5}
+                                      textAnchor="middle"
+                                      fill="white"
+                                      fontSize="14"
+                                      fontWeight="bold"
+                                    >
+                                      {lockIcon}{pointsRestants}
+                                    </text>
+                                  </g>
+                                )}
                               </g>
                             );
                           })
@@ -3357,23 +2322,16 @@
                                         const effetType = document.getElementById(`effet-type-${talent.id}`).value;
                                         const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                         const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
-                                        const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
 
                                         const effetSpecial = effetType !== 'aucun' ? {
                                           type: effetType,
                                           source: effetSource,
                                           multiplicateur: effetMult,
-                                          valeur: effetSource === 'fixe' ? effetMult : undefined,
-                                          marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
+                                          valeur: effetSource === 'fixe' ? effetMult : undefined
                                         } : undefined;
 
                                         // Récupérer la compétence
                                         const competence = document.getElementById(`competence-${talent.id}`).value || undefined;
-
-                                        // Récupérer les mots-clés cochés
-                                        const motsCles = Object.keys(getTousMotsCles()).filter(cle =>
-                                          document.getElementById(`motcle-${cle}-${talent.id}`)?.checked
-                                        );
 
                                         sauvegarderTalent(talent.id, {
                                           nom: document.getElementById(`nom-${talent.id}`).value,
@@ -3383,8 +2341,7 @@
                                           couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                           prerequis: prerequis,
                                           effetSpecial: effetSpecial,
-                                          competence: competence,
-                                          motsCles: motsCles.length > 0 ? motsCles : undefined
+                                          competence: competence
                                         });
                                       }}
                                       className="w-6 h-6 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center font-bold text-sm transition-colors"
@@ -3416,18 +2373,26 @@
                                         defaultValue={talent.description}
                                         placeholder="Description"
                                         className="w-full mb-2 p-1 text-xs bg-slate-700 text-white rounded"
-                                        rows="9"
+                                        rows="4"
                                         id={`desc-${talent.id}`}
                                       />
-                                      <div className="mb-2 p-2 bg-blue-900/30 border border-blue-500/50 rounded text-xs text-blue-200">
-                                        <span className="font-bold">💡 Infobulles :</span> [texte souligné]((contenu tooltip))
-                                      </div>
                                       <input
                                         type="number"
                                         defaultValue={talent.cout}
                                         placeholder="Coût"
                                         className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
                                         id={`cout-${talent.id}`}
+                                      />
+                                      <div className="text-xs text-slate-400 mb-1">
+                                        Points dépensés nécessaires
+                                      </div>
+                                      <input
+                                        type="number"
+                                        defaultValue={talent.pointsRequis || 0}
+                                        placeholder="0 = aucun"
+                                        min="0"
+                                        className="w-full mb-2 p-1 text-sm bg-slate-700 text-white rounded"
+                                        id={`points-requis-${talent.id}`}
                                       />
                                       <select
                                         defaultValue={talent.typeTalent || 'grand_carre'}
@@ -3461,39 +2426,13 @@
                                           defaultValue={talent.effetSpecial?.type || 'aucun'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-type-${talent.id}`}
-                                          onChange={(e) => {
-                                            // Forcer le re-render pour afficher/masquer le dropdown de marqueur
-                                            const marqueurSelect = document.getElementById(`effet-marqueur-container-${talent.id}`);
-                                            if (marqueurSelect) {
-                                              marqueurSelect.style.display = e.target.value === 'bonus_marqueur' ? 'block' : 'none';
-                                            }
-                                          }}
                                         >
                                           <option value="aucun">Aucun effet</option>
                                           <option value="bonus_vie">Bonus VIE</option>
                                           <option value="bonus_endu">Bonus ENDU</option>
                                           <option value="bonus_degats">Bonus DÉGÂTS</option>
                                           <option value="bonus_pv">Bonus PV</option>
-                                          <option value="bonus_marqueur">Bonus MARQUEUR</option>
                                         </select>
-                                        <div
-                                          id={`effet-marqueur-container-${talent.id}`}
-                                          style={{ display: talent.effetSpecial?.type === 'bonus_marqueur' ? 'block' : 'none' }}
-                                        >
-                                          <select
-                                            defaultValue={talent.effetSpecial?.marqueur || Object.keys(marqueursCustom)[0]}
-                                            className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
-                                            id={`effet-marqueur-${talent.id}`}
-                                          >
-                                            {Object.keys(marqueursCustom).length > 0 ? (
-                                              Object.keys(marqueursCustom).map(nom => (
-                                                <option key={nom} value={nom}>{nom}</option>
-                                              ))
-                                            ) : (
-                                              <option value="">Aucun marqueur (créez-en un d'abord)</option>
-                                            )}
-                                          </select>
-                                        </div>
                                         <select
                                           defaultValue={talent.effetSpecial?.source || 'fixe'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
@@ -3536,27 +2475,6 @@
                                     </select>
                                     <div className="text-xs text-slate-400 mt-1">
                                       Affiche un badge orange avec le nom de la compétence qui reçoit un bonus
-                                    </div>
-                                  </div>
-
-                                  {/* Mots-clés pour l'index */}
-                                  <div className="mb-2 p-2 bg-slate-700 rounded">
-                                    <div className="text-xs text-white mb-1 font-semibold">Mots-clés Index:</div>
-                                    <div className="space-y-1">
-                                      {Object.entries(getTousMotsCles()).map(([cle, info]) => (
-                                        <label key={cle} className="flex items-center gap-2 text-xs text-white cursor-pointer">
-                                          <input
-                                            type="checkbox"
-                                            defaultChecked={(talent.motsCles || []).includes(cle)}
-                                            className="w-4 h-4"
-                                            id={`motcle-${cle}-${talent.id}`}
-                                          />
-                                          <span>{info.titre}</span>
-                                        </label>
-                                      ))}
-                                    </div>
-                                    <div className="text-xs text-slate-400 mt-1">
-                                      Ces mots-clés apparaîtront dans l'index de la feuille de perso si le talent est actif
                                     </div>
                                   </div>
 
@@ -3627,23 +2545,25 @@
                                           const effetType = document.getElementById(`effet-type-${talent.id}`).value;
                                           const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                           const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
-                                          const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
 
                                           const effetSpecial = effetType !== 'aucun' ? {
                                             type: effetType,
                                             source: effetSource,
                                             multiplicateur: effetMult,
-                                            valeur: effetSource === 'fixe' ? effetMult : undefined,
-                                            marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
+                                            valeur: effetSource === 'fixe' ? effetMult : undefined
                                           } : undefined;
 
                                           // Récupérer la compétence
                                           const competence = document.getElementById(`competence-${talent.id}`).value || undefined;
 
+                                          // Récupérer les points requis
+                                          const pointsRequis = parseInt(document.getElementById(`points-requis-${talent.id}`).value) || 0;
+
                                           sauvegarderTalent(talent.id, {
                                             nom: document.getElementById(`nom-${talent.id}`).value,
                                             description: document.getElementById(`desc-${talent.id}`).value,
                                             cout: parseInt(document.getElementById(`cout-${talent.id}`).value),
+                                            pointsRequis: pointsRequis > 0 ? pointsRequis : undefined,
                                             typeTalent: document.getElementById(`type-${talent.id}`).value,
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                             prerequis: prerequis,
@@ -3811,11 +2731,9 @@
                   </div>
                   </>
                 )}
-                  </>
-                )}
 
                 {/* Vue Feuille de personnage */}
-                {vueActive === 'feuille' && arbreActuel !== 'Informations' && (
+                {vueActive === 'feuille' && (
                   <div className="bg-white rounded-b-lg p-4 shadow-2xl text-black print-feuille">
                     <h2 className="text-2xl font-bold mb-3 text-center border-b-2 border-amber-500 pb-2">
                       Feuille de Personnage
@@ -3848,29 +2766,29 @@
                       {/* Stats : DÉGÂTS, PV, formule */}
                       <div className="flex flex-wrap items-center gap-3 text-sm mb-3 pb-3 border-b border-slate-300">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">DÉGÂTS</span>
-                          <span className="px-2 py-1 rounded font-bold text-white min-w-[70px] text-center" style={{ backgroundColor: couleursTalent.degats.code }}>
+                          <span className="font-bold">DÉGÂTS :</span>
+                          <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.degats.code }}>
                             +{getTotalDegats()}
                           </span>
                         </div>
                         <div className="h-6 border-l-2 border-slate-400"></div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold">PV</span>
-                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold min-w-[70px] text-center">
+                          <span className="font-bold">PV :</span>
+                          <span className="px-2 py-1 bg-green-700 text-white rounded font-bold">
                             {getPointsDeVie()}
                           </span>
                           <span className="font-bold">=</span>
-                          <span className="font-bold">VIE</span>
+                          <span className="font-bold">VIE :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.vie.code }}>
                             {getTotalVie()}
                           </span>
                           <span className="font-bold">×</span>
-                          <span className="font-bold">ENDU</span>
+                          <span className="font-bold">ENDU :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: couleursTalent.endu.code }}>
                             {getTotalEndu()}
                           </span>
                           <span className="font-bold">+</span>
-                          <span className="font-bold">BONUS</span>
+                          <span className="font-bold">BONUS :</span>
                           <span className="px-2 py-1 rounded font-bold text-white" style={{ backgroundColor: getCouleurClasseHex(arbreActuel) }}>
                             {getBonusPV()}
                           </span>
@@ -3882,7 +2800,7 @@
                         <div className="flex flex-wrap items-center gap-3 text-sm">
                           {getCompetencesActives().map(comp => (
                             <div key={comp} className="flex items-center gap-2">
-                              <span className="font-bold">{comp}</span>
+                              <span className="font-bold">{comp} :</span>
                               <span className="px-2 py-1 bg-orange-600 text-white rounded font-bold">
                                 +{getTotalCompetence(comp)}
                               </span>
@@ -3944,8 +2862,9 @@
                                         <div
                                           className="text-slate-700 text-left leading-tight"
                                           style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(getDescriptionTalentAuto('attaque', arbreActuel)) }}
-                                        />
+                                        >
+                                          {`Vous effectuez 1 attaque\n(Arme + ${getTotalDegats()} dégâts)`}
+                                        </div>
                                       </div>
                                     )}
 
@@ -4021,7 +2940,7 @@
                                         <div
                                           className="text-slate-700 text-left leading-tight"
                                           style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(getDescriptionTalentAuto('degats_opportunite', arbreActuel)) }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers('<em>Quand un adversaire quitte votre contact,</em>\n\nVous lui infligez {DEGATS} dégâts') }}
                                         />
                                       </div>
                                     )}
@@ -4055,154 +2974,10 @@
                             })}
                         </div>
                       </div>
-
-                      {/* Index des mots-clés - afficher uniquement ceux des talents actifs */}
-                      {(() => {
-                        // Collecter tous les mots-clés des talents actifs
-                        const motsClesActifs = new Set();
-                        Object.keys(talentsActifs).forEach(id => {
-                          const talent = talents[id];
-                          console.log('🔍 Vérification talent actif:', id, 'motsCles:', talent?.motsCles);
-                          if (talent?.motsCles) {
-                            talent.motsCles.forEach(cle => motsClesActifs.add(cle));
-                          }
-                        });
-
-                        console.log('📋 Mots-clés actifs collectés:', Array.from(motsClesActifs));
-
-                        // Filtrer l'index pour n'afficher que les mots-clés présents
-                        const indexFiltre = Object.entries(getTousMotsCles()).filter(([cle]) => motsClesActifs.has(cle));
-
-                        console.log('📄 Index filtré:', indexFiltre);
-
-                        // N'afficher l'index que s'il y a au moins un mot-clé
-                        if (indexFiltre.length === 0) return null;
-
-                        return (
-                          <div className="mt-6 pt-4 border-t-2 border-amber-500">
-                            <h3 className="text-sm font-bold mb-2 text-amber-700">Index</h3>
-                            <div className="space-y-1">
-                              {indexFiltre.map(([cle, info]) => (
-                                <div key={cle} className="text-xs">
-                                  <span className="font-bold">{info.titre} :</span>
-                                  <span className="ml-2 text-slate-700" dangerouslySetInnerHTML={{ __html: replaceMarkers(info.definition) }} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
                   </div>
-                )}
-                  </>
                 )}
               </div>
             </div>
-
-            {/* Modal d'édition des talents automatiques */}
-            {editingTalentsAuto && !modeLectureSeule && arbreActuel !== 'Informations' && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                onClick={() => setEditingTalentsAuto(false)}
-              >
-                <div
-                  className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full m-4 shadow-2xl"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <h2 className="text-2xl font-bold text-white mb-4">
-                    ⚔️ Talents de base - {arbreActuel}
-                  </h2>
-                  <p className="text-slate-300 text-sm mb-6">
-                    Personnalisez les descriptions d'Attaque et Dégâts d'Opportunité pour cette classe.
-                    Ces talents apparaissent automatiquement dans la Feuille de Perso.
-                  </p>
-
-                  {/* Attaque */}
-                  <div className="mb-6">
-                    <label className="block text-white font-semibold mb-2">
-                      <span className="text-amber-400">Action :</span> Attaque
-                    </label>
-                    <textarea
-                      className="w-full p-3 bg-slate-700 text-white rounded border border-slate-600 focus:border-amber-500 focus:outline-none"
-                      rows="4"
-                      placeholder={TALENTS_AUTO_DEFAUT.attaque}
-                      defaultValue={talentsAutoCustom[arbreActuel]?.attaque || ''}
-                      id="talent-auto-attaque"
-                    />
-                    <div className="text-xs text-slate-400 mt-1">
-                      Laissez vide pour utiliser la description par défaut. Utilisez {'{DEGATS}'}, {'{ENDU}'}, etc.
-                    </div>
-                  </div>
-
-                  {/* Dégâts d'Opportunité */}
-                  <div className="mb-6">
-                    <label className="block text-white font-semibold mb-2">
-                      <span className="text-purple-400">Réaction :</span> Dégâts d'Opportunité
-                    </label>
-                    <textarea
-                      className="w-full p-3 bg-slate-700 text-white rounded border border-slate-600 focus:border-purple-500 focus:outline-none"
-                      rows="4"
-                      placeholder={TALENTS_AUTO_DEFAUT.degats_opportunite}
-                      defaultValue={talentsAutoCustom[arbreActuel]?.degats_opportunite || ''}
-                      id="talent-auto-degats-opp"
-                    />
-                    <div className="text-xs text-slate-400 mt-1">
-                      Laissez vide pour utiliser la description par défaut. Utilisez {'{DEGATS}'}, {'{ENDU}'}, etc.
-                    </div>
-                  </div>
-
-                  {/* Boutons */}
-                  <div className="flex gap-3 justify-end">
-                    <button
-                      onClick={() => {
-                        // Réinitialiser aux valeurs par défaut
-                        setTalentsAutoCustom(prev => {
-                          const newCustom = { ...prev };
-                          delete newCustom[arbreActuel];
-                          return newCustom;
-                        });
-                        document.getElementById('talent-auto-attaque').value = '';
-                        document.getElementById('talent-auto-degats-opp').value = '';
-                      }}
-                      className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded font-semibold transition-colors"
-                    >
-                      Réinitialiser
-                    </button>
-                    <button
-                      onClick={() => setEditingTalentsAuto(false)}
-                      className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded font-semibold transition-colors"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      onClick={() => {
-                        const attaque = document.getElementById('talent-auto-attaque').value.trim();
-                        const degatsOpp = document.getElementById('talent-auto-degats-opp').value.trim();
-
-                        setTalentsAutoCustom(prev => {
-                          const newCustom = { ...prev };
-                          if (attaque || degatsOpp) {
-                            newCustom[arbreActuel] = {
-                              attaque: attaque || undefined,
-                              degats_opportunite: degatsOpp || undefined
-                            };
-                          } else {
-                            delete newCustom[arbreActuel];
-                          }
-                          return newCustom;
-                        });
-
-                        setEditingTalentsAuto(false);
-                        showNotification(`✅ Talents de base mis à jour pour ${arbreActuel}`);
-                      }}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
-                    >
-                      Sauvegarder
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           );
         }
 
