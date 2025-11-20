@@ -247,6 +247,18 @@
             'Lamevent': 14
           };
 
+          // Descriptions par défaut des talents automatiques
+          const TALENTS_AUTO_DEFAUT = {
+            attaque: 'Vous effectuez <b>1 attaque</b>\n(<b>Arme</b> + <b>{DEGATS} dégâts</b>)',
+            degats_opportunite: '<i>Quand un adversaire quitte votre contact,</i>\n\nVous lui infligez <b>{DEGATS} dégâts</b>'
+          };
+
+          // États pour les descriptions personnalisées des talents automatiques par classe
+          const [talentsAutoCustom, setTalentsAutoCustom] = useState(() => {
+            const saved = localStorage.getItem('talentsAutoCustom');
+            return saved ? JSON.parse(saved) : {};
+          });
+
           // États pour la gestion des arbres GM
           const [arbreActuel, setArbreActuel] = useState(() => {
             // Si un snapshot est détecté dans l'URL, démarrer sur null pour éviter le flash du Gardien
@@ -395,6 +407,7 @@
 
           const [talents, setTalents] = useState(talentsParDefaut);
           const [editingTalent, setEditingTalent] = useState(null);
+          const [editingTalentsAuto, setEditingTalentsAuto] = useState(false); // Modal pour éditer talents automatiques
           const [draggingTalent, setDraggingTalent] = useState(null);
           const [dragOffset, setDragOffset] = useState(null); // Offset entre la souris et le coin sup gauche du talent
           const [targetGridPoint, setTargetGridPoint] = useState(null); // Point d'ancrage cible pendant le drag
@@ -531,6 +544,16 @@
               const talentActif = talents[activeId];
               return talentActif && talentActif.remplace === talentId;
             });
+          };
+
+          // Récupérer la description d'un talent automatique (avec personnalisation par classe)
+          const getDescriptionTalentAuto = (talentType, classe) => {
+            // Vérifier si une description personnalisée existe pour cette classe
+            if (talentsAutoCustom[classe] && talentsAutoCustom[classe][talentType]) {
+              return talentsAutoCustom[classe][talentType];
+            }
+            // Sinon, utiliser la description par défaut
+            return TALENTS_AUTO_DEFAUT[talentType] || '';
           };
 
           // Calculer la valeur d'un marqueur personnalisé
@@ -955,6 +978,11 @@
           useEffect(() => {
             localStorage.setItem('iconesDisponibles', JSON.stringify(iconesDisponibles));
           }, [iconesDisponibles]);
+
+          // Sauvegarder les descriptions personnalisées des talents automatiques
+          useEffect(() => {
+            localStorage.setItem('talentsAutoCustom', JSON.stringify(talentsAutoCustom));
+          }, [talentsAutoCustom]);
 
           // Note: Les marqueurs sont maintenant sauvegardés PAR CLASSE dans le useEffect principal
           // (ligne ~891) pour éviter qu'ils disparaissent lors du changement de classe
@@ -2929,7 +2957,7 @@
                     {!modeLectureSeule && !modePlayer && (
                       <>
                         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.12
+                          skills2_v12.13
                         </div>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
@@ -2938,6 +2966,14 @@
                           } text-white`}
                         >
                           <Edit /> {modeEdition ? 'Quitter Édition' : 'Mode Édition'}
+                        </button>
+
+                        <button
+                          onClick={() => setEditingTalentsAuto(true)}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
+                          title="Personnaliser Attaque et Dégâts d'Opportunité pour cette classe"
+                        >
+                          ⚔️ Talents de base
                         </button>
 
                         {modeEdition && (
@@ -3905,7 +3941,7 @@
                                         <div
                                           className="text-slate-700 text-left leading-tight"
                                           style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(`Vous effectuez <b>1 attaque</b>\n(<b>Arme</b> + <b>{DEGATS} dégâts</b>)`) }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(getDescriptionTalentAuto('attaque', arbreActuel)) }}
                                         />
                                       </div>
                                     )}
@@ -3982,7 +4018,7 @@
                                         <div
                                           className="text-slate-700 text-left leading-tight"
                                           style={{ whiteSpace: 'pre-line', fontSize: '0.8rem' }}
-                                          dangerouslySetInnerHTML={{ __html: replaceMarkers('<i>Quand un adversaire quitte votre contact,</i>\n\nVous lui infligez <b>{DEGATS} dégâts</b>') }}
+                                          dangerouslySetInnerHTML={{ __html: replaceMarkers(getDescriptionTalentAuto('degats_opportunite', arbreActuel)) }}
                                         />
                                       </div>
                                     )}
@@ -4059,6 +4095,111 @@
                 )}
               </div>
             </div>
+
+            {/* Modal d'édition des talents automatiques */}
+            {editingTalentsAuto && !modeLectureSeule && arbreActuel !== 'Informations' && (
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                onClick={() => setEditingTalentsAuto(false)}
+              >
+                <div
+                  className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full m-4 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2 className="text-2xl font-bold text-white mb-4">
+                    ⚔️ Talents de base - {arbreActuel}
+                  </h2>
+                  <p className="text-slate-300 text-sm mb-6">
+                    Personnalisez les descriptions d'Attaque et Dégâts d'Opportunité pour cette classe.
+                    Ces talents apparaissent automatiquement dans la Feuille de Perso.
+                  </p>
+
+                  {/* Attaque */}
+                  <div className="mb-6">
+                    <label className="block text-white font-semibold mb-2">
+                      <span className="text-amber-400">Action :</span> Attaque
+                    </label>
+                    <textarea
+                      className="w-full p-3 bg-slate-700 text-white rounded border border-slate-600 focus:border-amber-500 focus:outline-none"
+                      rows="4"
+                      placeholder={TALENTS_AUTO_DEFAUT.attaque}
+                      defaultValue={talentsAutoCustom[arbreActuel]?.attaque || ''}
+                      id="talent-auto-attaque"
+                    />
+                    <div className="text-xs text-slate-400 mt-1">
+                      Laissez vide pour utiliser la description par défaut. Utilisez {'{DEGATS}'}, {'{ENDU}'}, etc.
+                    </div>
+                  </div>
+
+                  {/* Dégâts d'Opportunité */}
+                  <div className="mb-6">
+                    <label className="block text-white font-semibold mb-2">
+                      <span className="text-purple-400">Réaction :</span> Dégâts d'Opportunité
+                    </label>
+                    <textarea
+                      className="w-full p-3 bg-slate-700 text-white rounded border border-slate-600 focus:border-purple-500 focus:outline-none"
+                      rows="4"
+                      placeholder={TALENTS_AUTO_DEFAUT.degats_opportunite}
+                      defaultValue={talentsAutoCustom[arbreActuel]?.degats_opportunite || ''}
+                      id="talent-auto-degats-opp"
+                    />
+                    <div className="text-xs text-slate-400 mt-1">
+                      Laissez vide pour utiliser la description par défaut. Utilisez {'{DEGATS}'}, {'{ENDU}'}, etc.
+                    </div>
+                  </div>
+
+                  {/* Boutons */}
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => {
+                        // Réinitialiser aux valeurs par défaut
+                        setTalentsAutoCustom(prev => {
+                          const newCustom = { ...prev };
+                          delete newCustom[arbreActuel];
+                          return newCustom;
+                        });
+                        document.getElementById('talent-auto-attaque').value = '';
+                        document.getElementById('talent-auto-degats-opp').value = '';
+                      }}
+                      className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded font-semibold transition-colors"
+                    >
+                      Réinitialiser
+                    </button>
+                    <button
+                      onClick={() => setEditingTalentsAuto(false)}
+                      className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded font-semibold transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={() => {
+                        const attaque = document.getElementById('talent-auto-attaque').value.trim();
+                        const degatsOpp = document.getElementById('talent-auto-degats-opp').value.trim();
+
+                        setTalentsAutoCustom(prev => {
+                          const newCustom = { ...prev };
+                          if (attaque || degatsOpp) {
+                            newCustom[arbreActuel] = {
+                              attaque: attaque || undefined,
+                              degats_opportunite: degatsOpp || undefined
+                            };
+                          } else {
+                            delete newCustom[arbreActuel];
+                          }
+                          return newCustom;
+                        });
+
+                        setEditingTalentsAuto(false);
+                        showNotification(`✅ Talents de base mis à jour pour ${arbreActuel}`);
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                    >
+                      Sauvegarder
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           );
         }
 
