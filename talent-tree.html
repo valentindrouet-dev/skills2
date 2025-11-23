@@ -3853,8 +3853,8 @@
                       )}
                     </div>
 
-                    {/* Récapitulatif compact */}
-                    <div className="mb-3 p-2 bg-amber-50 border border-amber-500 rounded flex justify-between text-sm">
+                    {/* Récapitulatif compact - masqué */}
+                    <div className="hidden mb-3 p-2 bg-amber-50 border border-amber-500 rounded flex justify-between text-sm">
                       <span><strong>Points:</strong> {pointsMax - pointsDisponibles}/{pointsMax}</span>
                       <span><strong>Talents:</strong> {Object.keys(talentsActifs).length}</span>
                       <span><strong>Bonus:</strong> {Object.entries(talentsActifs).filter(([id]) => talents[id]?.bonus).length}</span>
