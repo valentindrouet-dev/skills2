@@ -2174,9 +2174,8 @@
                     }
                   });
 
-                  // Récupérer les marqueurs pour cette classe
-                  const savedMarqueurs = localStorage.getItem(`marqueurs_${classe}`);
-                  const marqueurs = savedMarqueurs ? JSON.parse(savedMarqueurs) : {};
+                  // Récupérer les marqueurs depuis les données de la classe
+                  const marqueurs = data.marqueurs || {};
 
                   classes[classe] = {
                     talents: talentsVisibles,
