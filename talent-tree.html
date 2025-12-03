@@ -693,6 +693,11 @@
                   total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
                 } else if (source === 'niveau') {
                   total += Math.floor(niveau * multiplicateur);
+                } else if (source === 'marqueur') {
+                  const marqueurSource = talent.effetSpecial.marqueurSource;
+                  if (marqueurSource) {
+                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  }
                 }
               }
             });
@@ -722,6 +727,11 @@
                   total += Math.floor(niveau * multiplicateur);
                 } else if (source === 'fixe') {
                   total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
+                } else if (source === 'marqueur') {
+                  const marqueurSource = talent.effetSpecial.marqueurSource;
+                  if (marqueurSource) {
+                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  }
                 }
               }
             });
@@ -747,6 +757,11 @@
                   total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
                 } else if (source === 'niveau') {
                   total += Math.floor(niveau * multiplicateur);
+                } else if (source === 'marqueur') {
+                  const marqueurSource = talent.effetSpecial.marqueurSource;
+                  if (marqueurSource) {
+                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  }
                 }
               }
             });
@@ -765,7 +780,7 @@
 
               const talent = talents[id];
               if (talent?.effetSpecial?.type === 'bonus_pv') {
-                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', etc.
+                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', 'marqueur', etc.
                 const multiplicateur = talent.effetSpecial.multiplicateur || 1;
 
                 if (source === 'endu') {
@@ -778,6 +793,11 @@
                   total += Math.floor(niveau * multiplicateur);
                 } else if (source === 'fixe') {
                   total += Math.floor(talent.effetSpecial.valeur || 0);
+                } else if (source === 'marqueur') {
+                  const marqueurSource = talent.effetSpecial.marqueurSource;
+                  if (marqueurSource) {
+                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  }
                 }
               }
             });
@@ -3326,13 +3346,15 @@
                                         const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                         const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
                                         const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
+                                        const effetMarqueurSource = document.getElementById(`effet-marqueur-source-${talent.id}`)?.value;
 
                                         const effetSpecial = effetType !== 'aucun' ? {
                                           type: effetType,
                                           source: effetSource,
                                           multiplicateur: effetMult,
                                           valeur: effetSource === 'fixe' ? effetMult : undefined,
-                                          marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
+                                          marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined,
+                                          marqueurSource: effetSource === 'marqueur' ? effetMarqueurSource : undefined
                                         } : undefined;
 
                                         // Récupérer la compétence
@@ -3466,13 +3488,39 @@
                                           defaultValue={talent.effetSpecial?.source || 'fixe'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-source-${talent.id}`}
+                                          onChange={(e) => {
+                                            // Afficher/masquer le sélecteur de marqueur source
+                                            const marqueurSourceSelect = document.getElementById(`effet-marqueur-source-container-${talent.id}`);
+                                            if (marqueurSourceSelect) {
+                                              marqueurSourceSelect.style.display = e.target.value === 'marqueur' ? 'block' : 'none';
+                                            }
+                                          }}
                                         >
                                           <option value="fixe">Valeur fixe</option>
                                           <option value="endu">Basé sur ENDU</option>
                                           <option value="vie">Basé sur VIE</option>
                                           <option value="degats">Basé sur DÉGÂTS</option>
                                           <option value="niveau">Basé sur NIVEAU</option>
+                                          <option value="marqueur">Basé sur MARQUEUR</option>
                                         </select>
+                                        <div
+                                          id={`effet-marqueur-source-container-${talent.id}`}
+                                          style={{ display: talent.effetSpecial?.source === 'marqueur' ? 'block' : 'none' }}
+                                        >
+                                          <select
+                                            defaultValue={talent.effetSpecial?.marqueurSource || Object.keys(marqueursCustom)[0]}
+                                            className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
+                                            id={`effet-marqueur-source-${talent.id}`}
+                                          >
+                                            {Object.keys(marqueursCustom).length > 0 ? (
+                                              Object.keys(marqueursCustom).map(nom => (
+                                                <option key={nom} value={nom}>{nom}</option>
+                                              ))
+                                            ) : (
+                                              <option value="">Aucun marqueur (créez-en un d'abord)</option>
+                                            )}
+                                          </select>
+                                        </div>
                                         <input
                                           type="number"
                                           step="0.1"
@@ -3596,13 +3644,15 @@
                                           const effetSource = document.getElementById(`effet-source-${talent.id}`).value;
                                           const effetMult = parseFloat(document.getElementById(`effet-mult-${talent.id}`).value) || 1;
                                           const effetMarqueur = document.getElementById(`effet-marqueur-${talent.id}`)?.value;
+                                          const effetMarqueurSource = document.getElementById(`effet-marqueur-source-${talent.id}`)?.value;
 
                                           const effetSpecial = effetType !== 'aucun' ? {
                                             type: effetType,
                                             source: effetSource,
                                             multiplicateur: effetMult,
                                             valeur: effetSource === 'fixe' ? effetMult : undefined,
-                                            marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined
+                                            marqueur: effetType === 'bonus_marqueur' ? effetMarqueur : undefined,
+                                            marqueurSource: effetSource === 'marqueur' ? effetMarqueurSource : undefined
                                           } : undefined;
 
                                           // Récupérer la compétence
