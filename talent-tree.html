@@ -2857,20 +2857,25 @@
                     </>
                   )}
 
-                  {/* Marqueurs personnalisés - visible seulement en mode GM */}
-                  {!modeLectureSeule && !modePlayer && Object.keys(marqueursCustom).length > 0 && (
-                    <>
-                      <div className="w-full"></div>
-                      {Object.entries(marqueursCustom).map(([nom, marqueur]) => (
-                        <div key={nom} className="flex items-center gap-2">
-                          <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{nom}</span>
-                          <span className="px-3 py-1.5 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: marqueur.couleur || '#10b981' }}>
-                            {getMarqueurValue(nom)}
-                          </span>
-                        </div>
-                      ))}
-                    </>
-                  )}
+                  {/* Marqueurs personnalisés - visible pour tous si > 0 */}
+                  {(() => {
+                    const marqueursVisibles = Object.entries(marqueursCustom).filter(([nom]) => getMarqueurValue(nom) > 0);
+                    return marqueursVisibles.length > 0 && (
+                      <>
+                        {/* Séparateur vertical */}
+                        <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-bold text-xl`}>|</span>
+
+                        {marqueursVisibles.map(([nom, marqueur]) => (
+                          <div key={nom} className="flex items-center gap-2">
+                            <span className={`${modePrint ? 'text-gray-800' : 'text-white'} font-semibold`}>{nom}</span>
+                            <span className="px-3 py-1.5 text-white rounded font-bold min-w-[50px] text-center" style={{ backgroundColor: marqueur.couleur || '#10b981' }}>
+                              {getMarqueurValue(nom)}
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Barre d'outils */}
@@ -3838,6 +3843,24 @@
                             {getBonusPV()}
                           </span>
                         </div>
+
+                        {/* Marqueurs personnalisés - visible si > 0 */}
+                        {(() => {
+                          const marqueursVisibles = Object.entries(marqueursCustom).filter(([nom]) => getMarqueurValue(nom) > 0);
+                          return marqueursVisibles.length > 0 && (
+                            <>
+                              <div className="h-6 border-l-2 border-slate-400"></div>
+                              {marqueursVisibles.map(([nom, marqueur]) => (
+                                <div key={nom} className="flex items-center gap-2">
+                                  <span className="font-bold">{nom}</span>
+                                  <span className="px-2 py-1 rounded font-bold text-white min-w-[50px] text-center" style={{ backgroundColor: marqueur.couleur || '#10b981' }}>
+                                    {getMarqueurValue(nom)}
+                                  </span>
+                                </div>
+                              ))}
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Compétences sur une seule ligne */}
