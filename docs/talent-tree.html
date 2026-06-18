@@ -536,6 +536,17 @@
             });
           };
 
+          // Retourne la liste des effets spéciaux d'un talent, en supportant
+          // les DEUX formats : effetsSpeciaux (tableau, format actuel) ET
+          // effetSpecial (objet unique, ancien format). Indispensable pour que
+          // les bonus s'appliquent quelle que soit la version de sauvegarde.
+          const getEffets = (talent) => {
+            if (!talent) return [];
+            if (Array.isArray(talent.effetsSpeciaux)) return talent.effetsSpeciaux;
+            if (talent.effetSpecial) return [talent.effetSpecial];
+            return [];
+          };
+
           // Calculer la valeur d'un marqueur personnalisé
           const getMarqueurValue = (nom) => {
             const marqueur = marqueursCustom[nom];
@@ -549,20 +560,22 @@
               if (estRemplace(id)) return;
 
               const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_marqueur' && talent.effetSpecial.marqueur === nom) {
-                const source = talent.effetSpecial.source;
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+              getEffets(talent).forEach(effetSpecial => {
+                if (effetSpecial?.type === 'bonus_marqueur' && effetSpecial.marqueur === nom) {
+                  const source = effetSpecial.source;
+                  const multiplicateur = effetSpecial.multiplicateur || 1;
 
-                if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'endu') {
-                  total += Math.floor(getTotalEndu() * multiplicateur);
-                } else if (source === 'vie') {
-                  total += Math.floor(getTotalVie() * multiplicateur);
+                  if (source === 'fixe') {
+                    total += Math.floor(effetSpecial.valeur || multiplicateur);
+                  } else if (source === 'niveau') {
+                    total += Math.floor(niveau * multiplicateur);
+                  } else if (source === 'endu') {
+                    total += Math.floor(getTotalEndu() * multiplicateur);
+                  } else if (source === 'vie') {
+                    total += Math.floor(getTotalVie() * multiplicateur);
+                  }
                 }
-              }
+              });
             });
 
             return total;
@@ -686,21 +699,23 @@
               if (estRemplace(id)) return;
 
               const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_endu') {
-                const source = talent.effetSpecial.source;
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+              getEffets(talent).forEach(effetSpecial => {
+                if (effetSpecial?.type === 'bonus_endu') {
+                  const source = effetSpecial.source;
+                  const multiplicateur = effetSpecial.multiplicateur || 1;
 
-                if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'marqueur') {
-                  const marqueurSource = talent.effetSpecial.marqueurSource;
-                  if (marqueurSource) {
-                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  if (source === 'fixe') {
+                    total += Math.floor(effetSpecial.valeur || multiplicateur);
+                  } else if (source === 'niveau') {
+                    total += Math.floor(niveau * multiplicateur);
+                  } else if (source === 'marqueur') {
+                    const marqueurSource = effetSpecial.marqueurSource;
+                    if (marqueurSource) {
+                      total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                    }
                   }
                 }
-              }
+              });
             });
 
             return total;
@@ -716,25 +731,27 @@
               if (estRemplace(id)) return;
 
               const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_degats') {
-                const source = talent.effetSpecial.source;
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+              getEffets(talent).forEach(effetSpecial => {
+                if (effetSpecial?.type === 'bonus_degats') {
+                  const source = effetSpecial.source;
+                  const multiplicateur = effetSpecial.multiplicateur || 1;
 
-                if (source === 'endu') {
-                  total += Math.floor(getTotalEndu() * multiplicateur);
-                } else if (source === 'vie') {
-                  total += Math.floor(getTotalVie() * multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
-                } else if (source === 'marqueur') {
-                  const marqueurSource = talent.effetSpecial.marqueurSource;
-                  if (marqueurSource) {
-                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  if (source === 'endu') {
+                    total += Math.floor(getTotalEndu() * multiplicateur);
+                  } else if (source === 'vie') {
+                    total += Math.floor(getTotalVie() * multiplicateur);
+                  } else if (source === 'niveau') {
+                    total += Math.floor(niveau * multiplicateur);
+                  } else if (source === 'fixe') {
+                    total += Math.floor(effetSpecial.valeur || multiplicateur);
+                  } else if (source === 'marqueur') {
+                    const marqueurSource = effetSpecial.marqueurSource;
+                    if (marqueurSource) {
+                      total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                    }
                   }
                 }
-              }
+              });
             });
 
             return total;
@@ -750,21 +767,23 @@
               if (estRemplace(id)) return;
 
               const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_vie') {
-                const source = talent.effetSpecial.source;
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+              getEffets(talent).forEach(effetSpecial => {
+                if (effetSpecial?.type === 'bonus_vie') {
+                  const source = effetSpecial.source;
+                  const multiplicateur = effetSpecial.multiplicateur || 1;
 
-                if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'marqueur') {
-                  const marqueurSource = talent.effetSpecial.marqueurSource;
-                  if (marqueurSource) {
-                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  if (source === 'fixe') {
+                    total += Math.floor(effetSpecial.valeur || multiplicateur);
+                  } else if (source === 'niveau') {
+                    total += Math.floor(niveau * multiplicateur);
+                  } else if (source === 'marqueur') {
+                    const marqueurSource = effetSpecial.marqueurSource;
+                    if (marqueurSource) {
+                      total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                    }
                   }
                 }
-              }
+              });
             });
 
             return total;
@@ -780,27 +799,29 @@
               if (estRemplace(id)) return;
 
               const talent = talents[id];
-              if (talent?.effetSpecial?.type === 'bonus_pv') {
-                const source = talent.effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', 'marqueur', etc.
-                const multiplicateur = talent.effetSpecial.multiplicateur || 1;
+              getEffets(talent).forEach(effetSpecial => {
+                if (effetSpecial?.type === 'bonus_pv') {
+                  const source = effetSpecial.source; // 'endu', 'vie', 'degats', 'niveau', 'marqueur', etc.
+                  const multiplicateur = effetSpecial.multiplicateur || 1;
 
-                if (source === 'endu') {
-                  total += Math.floor(getTotalEndu() * multiplicateur);
-                } else if (source === 'vie') {
-                  total += Math.floor(getTotalVie() * multiplicateur);
-                } else if (source === 'degats') {
-                  total += Math.floor(getTotalDegats() * multiplicateur);
-                } else if (source === 'niveau') {
-                  total += Math.floor(niveau * multiplicateur);
-                } else if (source === 'fixe') {
-                  total += Math.floor(talent.effetSpecial.valeur || 0);
-                } else if (source === 'marqueur') {
-                  const marqueurSource = talent.effetSpecial.marqueurSource;
-                  if (marqueurSource) {
-                    total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                  if (source === 'endu') {
+                    total += Math.floor(getTotalEndu() * multiplicateur);
+                  } else if (source === 'vie') {
+                    total += Math.floor(getTotalVie() * multiplicateur);
+                  } else if (source === 'degats') {
+                    total += Math.floor(getTotalDegats() * multiplicateur);
+                  } else if (source === 'niveau') {
+                    total += Math.floor(niveau * multiplicateur);
+                  } else if (source === 'fixe') {
+                    total += Math.floor(effetSpecial.valeur || 0);
+                  } else if (source === 'marqueur') {
+                    const marqueurSource = effetSpecial.marqueurSource;
+                    if (marqueurSource) {
+                      total += Math.floor(getMarqueurValue(marqueurSource) * multiplicateur);
+                    }
                   }
                 }
-              }
+              });
             });
 
             return total;
@@ -3372,7 +3393,8 @@
                                           typeTalent: document.getElementById(`type-${talent.id}`).value,
                                           couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                           prerequis: prerequis,
-                                          effetSpecial: effetSpecial,
+                                          effetsSpeciaux: effetSpecial ? [effetSpecial] : [],
+                                          effetSpecial: undefined,
                                           competence: competence,
                                           motsCles: motsCles.length > 0 ? motsCles : undefined
                                         });
@@ -3448,7 +3470,7 @@
                                       <div className="mb-2 p-2 bg-slate-700 rounded">
                                         <div className="text-xs text-white mb-1 font-semibold">Effet Spécial:</div>
                                         <select
-                                          defaultValue={talent.effetSpecial?.type || 'aucun'}
+                                          defaultValue={(talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.type || 'aucun'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-type-${talent.id}`}
                                           onChange={(e) => {
@@ -3468,10 +3490,10 @@
                                         </select>
                                         <div
                                           id={`effet-marqueur-container-${talent.id}`}
-                                          style={{ display: talent.effetSpecial?.type === 'bonus_marqueur' ? 'block' : 'none' }}
+                                          style={{ display: (talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.type === 'bonus_marqueur' ? 'block' : 'none' }}
                                         >
                                           <select
-                                            defaultValue={talent.effetSpecial?.marqueur || Object.keys(marqueursCustom)[0]}
+                                            defaultValue={(talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.marqueur || Object.keys(marqueursCustom)[0]}
                                             className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                             id={`effet-marqueur-${talent.id}`}
                                           >
@@ -3485,7 +3507,7 @@
                                           </select>
                                         </div>
                                         <select
-                                          defaultValue={talent.effetSpecial?.source || 'fixe'}
+                                          defaultValue={(talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.source || 'fixe'}
                                           className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-source-${talent.id}`}
                                           onChange={(e) => {
@@ -3505,10 +3527,10 @@
                                         </select>
                                         <div
                                           id={`effet-marqueur-source-container-${talent.id}`}
-                                          style={{ display: talent.effetSpecial?.source === 'marqueur' ? 'block' : 'none' }}
+                                          style={{ display: (talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.source === 'marqueur' ? 'block' : 'none' }}
                                         >
                                           <select
-                                            defaultValue={talent.effetSpecial?.marqueurSource || Object.keys(marqueursCustom)[0]}
+                                            defaultValue={(talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.marqueurSource || Object.keys(marqueursCustom)[0]}
                                             className="w-full mb-1 p-1 text-xs bg-slate-600 text-white rounded"
                                             id={`effet-marqueur-source-${talent.id}`}
                                           >
@@ -3524,7 +3546,7 @@
                                         <input
                                           type="number"
                                           step="0.1"
-                                          defaultValue={talent.effetSpecial?.multiplicateur || 1}
+                                          defaultValue={(talent.effetsSpeciaux?.[0] || talent.effetSpecial)?.multiplicateur || 1}
                                           placeholder="Multiplicateur (ex: 0.5 pour moitié)"
                                           className="w-full p-1 text-xs bg-slate-600 text-white rounded"
                                           id={`effet-mult-${talent.id}`}
@@ -3666,7 +3688,8 @@
                                             couleurTalent: document.getElementById(`couleur-${talent.id}`).value,
                                             prerequis: prerequis,
                                             remplace: remplace,
-                                            effetSpecial: effetSpecial,
+                                            effetsSpeciaux: effetSpecial ? [effetSpecial] : [],
+                                            effetSpecial: undefined,
                                             competence: competence
                                           });
                                         }}
