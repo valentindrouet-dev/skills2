@@ -919,53 +919,6 @@
             return modifie ? talentsMigres : talents;
           };
 
-          // Migrer les bonus texte vers effetSpecial
-          const migrerBonusVersEffetSpecial = (talents) => {
-            const talentsMigres = { ...talents };
-            let modifie = false;
-
-            Object.keys(talentsMigres).forEach(id => {
-              const talent = talentsMigres[id];
-
-              // Si le talent a déjà un effetSpecial, ne rien faire
-              if (talent.effetSpecial) return;
-
-              // Si le talent n'a pas de bonus texte, passer
-              if (!talent.bonus || talent.bonus.trim() === '') return;
-
-              const bonus = talent.bonus.trim();
-
-              // Parser les patterns courants: "Endu +2", "Vie +1", "Dégâts +1", "PV +5"
-              const patterns = [
-                { regex: /^Endu\s*\+\s*(\d+)$/i, type: 'bonus_endu' },
-                { regex: /^Vie\s*\+\s*(\d+)$/i, type: 'bonus_vie' },
-                { regex: /^D[ée]g[aâ]ts?\s*\+\s*(\d+)$/i, type: 'bonus_degats' },
-                { regex: /^PV\s*\+\s*(\d+)$/i, type: 'bonus_pv' }
-              ];
-
-              for (const pattern of patterns) {
-                const match = bonus.match(pattern.regex);
-                if (match) {
-                  const valeur = parseInt(match[1]);
-                  talentsMigres[id] = {
-                    ...talent,
-                    effetSpecial: {
-                      type: pattern.type,
-                      source: 'fixe',
-                      multiplicateur: valeur,
-                      valeur: valeur
-                    }
-                  };
-                  modifie = true;
-                  console.log(`✨ Talent "${talent.nom}" migré: ${bonus} → ${pattern.type} (${valeur})`);
-                  break;
-                }
-              }
-            });
-
-            return modifie ? talentsMigres : talents;
-          };
-
           // Initialiser une classe si elle n'existe pas
           const initialiserClasse = (classe) => {
             const key = `classe_${classe}`;
@@ -1118,8 +1071,7 @@
             });
 
             // Migrer les talents de base
-            let talentsMigres = migrerTalentsDeBase(talentsNormalises);
-            talentsMigres = migrerBonusVersEffetSpecial(talentsMigres);
+            const talentsMigres = migrerTalentsDeBase(talentsNormalises);
             setTalents(talentsMigres);
             setArbreActuel(classe);
 
@@ -1182,9 +1134,8 @@
 
             if (savedData) {
               const data = JSON.parse(savedData);
-              // Migrer les talents de base pour ajouter le gras et migrer les bonus
-              let talentsMigres = migrerTalentsDeBase(data.talents || creerTalentDepart(classe));
-              talentsMigres = migrerBonusVersEffetSpecial(talentsMigres);
+              // Migrer les talents de base pour ajouter le gras
+              const talentsMigres = migrerTalentsDeBase(data.talents || creerTalentDepart(classe));
               setTalents(talentsMigres);
               setTalentsActifs(data.talentsActifs || {});
               // Charger les marqueurs si présents
@@ -1296,8 +1247,7 @@
                     };
                   });
 
-                  const talentsMigres = migrerBonusVersEffetSpecial(talentsNormalises);
-                  setTalents(talentsMigres);
+                  setTalents(talentsNormalises);
                   setTalentsActifs(decoded.talentsActifs || {}); // Charger les talents actifs
                   setArbreActuel(decoded.classe);
                   if (decoded.nomPersonnage) setNomPersonnage(decoded.nomPersonnage);
@@ -1317,8 +1267,7 @@
                   const classeActive = decoded.classeActive || CLASSES[0];
                   const dataClasseActive = decoded.classes[classeActive];
                   if (dataClasseActive) {
-                    const talentsMigres = migrerBonusVersEffetSpecial(dataClasseActive.talents || {});
-                    setTalents(talentsMigres);
+                    setTalents(dataClasseActive.talents || {});
                     setTalentsActifs(dataClasseActive.talentsActifs || {}); // Charger les talents actifs
                     setArbreActuel(classeActive);
                   }
@@ -1332,8 +1281,7 @@
                   // Ancien format (rétrocompatibilité)
                   console.log('Format v1.0 détecté');
                   if (decoded.talents) {
-                    const talentsMigres = migrerBonusVersEffetSpecial(decoded.talents);
-                    setTalents(talentsMigres);
+                    setTalents(decoded.talents);
                   }
                   if (decoded.talentsActifs) {
                     setTalentsActifs(decoded.talentsActifs);
@@ -1466,8 +1414,7 @@
                     });
 
                     // Migrer les talents de base
-                    let talentsMigres = migrerTalentsDeBase(talentsNormalises);
-                    talentsMigres = migrerBonusVersEffetSpecial(talentsMigres);
+                    const talentsMigres = migrerTalentsDeBase(talentsNormalises);
                     setTalents(talentsMigres);
                     setArbreActuel(classeToLoad);
 
@@ -1534,8 +1481,7 @@
                     };
                   });
 
-                  const talentsMigres = migrerBonusVersEffetSpecial(talentsNormalises);
-                  setTalents(talentsMigres);
+                  setTalents(talentsNormalises);
                   setArbreActuel(snapshot.classe);
                   if (snapshot.nomPersonnage) setNomPersonnage(snapshot.nomPersonnage);
                   if (snapshot.niveau) setNiveau(snapshot.niveau);
@@ -1892,10 +1838,7 @@
             reader.onload = (e) => {
               try {
                 const data = JSON.parse(e.target.result);
-                if (data.talents) {
-                  const talentsMigres = migrerBonusVersEffetSpecial(data.talents);
-                  setTalents(talentsMigres);
-                }
+                if (data.talents) setTalents(data.talents);
                 if (data.talentsActifs) setTalentsActifs(data.talentsActifs);
                 if (data.pointsMax) setPointsDisponibles(data.pointsMax);
                 alert('Import réussi !');
@@ -2185,8 +2128,7 @@
                   }
 
                   // Importer les talents
-                  const talentsMigres = migrerBonusVersEffetSpecial(importedData.talents);
-                  setTalents(talentsMigres);
+                  setTalents(importedData.talents);
 
                   // Sauvegarder dans localStorage
                   localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify({
