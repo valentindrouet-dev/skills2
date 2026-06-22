@@ -153,6 +153,35 @@
             display: inline-block;
             object-fit: contain;
         }
+
+        /* Vue Mobile — overlay plein écran du formulaire d'édition (via portal).
+           Le formulaire est porté vers document.body pour échapper au
+           conteneur transformé (scale) de l'arbre : il s'affiche donc plein
+           écran, lisible et non mis à l'échelle. */
+        .mobile-edit-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 3000;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 8px;
+            overflow-y: auto;
+        }
+        .mobile-edit-backdrop .talent-edit-box {
+            position: static !important;
+            width: 94vw !important;
+            max-width: 520px !important;
+            max-height: 94vh !important;
+            margin: 8px auto !important;
+        }
+        /* Sur petits écrans, le formulaire passe en une seule colonne */
+        @media (max-width: 640px) {
+            .mobile-edit-backdrop .talent-edit-box .grid.grid-cols-2 {
+                grid-template-columns: 1fr !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -299,7 +328,7 @@
         };
 
         // E5 — bornes de zoom (le « fit » peut descendre plus bas que les boutons)
-        const MIN_ZOOM = 0.4;
+        const MIN_ZOOM = 0.25;
         const MAX_ZOOM = 1.5;
         const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
 
@@ -402,6 +431,14 @@
 
           // E2 — Recherche/filtre de talents
           const [rechercheTalent, setRechercheTalent] = useState('');
+
+          // Vue Mobile — auto-détectée au 1er chargement, puis persistée.
+          // Fonctionne en mode MJ comme en mode Partagé (joueur / lecture seule).
+          const [modeMobile, setModeMobile] = useState(() => {
+            const saved = localStorage.getItem('modeMobile');
+            if (saved !== null) return saved === 'true';
+            return typeof window !== 'undefined' && window.innerWidth <= 820;
+          });
 
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
           const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
@@ -1286,6 +1323,22 @@
           const nbResultatsRecherche = rechercheTalent.trim()
             ? Object.values(talents).filter(talentMatchRecherche).length
             : 0;
+
+          // Vue Mobile — persistance du choix + bascule (ajuste le zoom à l'activation)
+          useEffect(() => {
+            localStorage.setItem('modeMobile', modeMobile ? 'true' : 'false');
+          }, [modeMobile]);
+
+          const toggleModeMobile = () => {
+            setModeMobile(prev => {
+              const next = !prev;
+              if (next && vueActiveRef.current === 'arbre') {
+                // Ajuster l'arbre à la largeur de l'écran au prochain tick
+                setTimeout(() => ajusterZoom(), 0);
+              }
+              return next;
+            });
+          };
 
           // Sauvegarder les icônes disponibles quand elles changent
           useEffect(() => {
@@ -3336,6 +3389,17 @@
                       Feuille de Perso
                     </button>
 
+                    {/* Vue Mobile — disponible en mode MJ et en mode Partagé */}
+                    <button
+                      onClick={toggleModeMobile}
+                      className={`px-3 py-1.5 text-sm sm:px-4 sm:py-2 rounded font-semibold transition-colors flex items-center gap-1 ${
+                        modeMobile ? 'bg-amber-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                      title={modeMobile ? "Revenir à la vue Bureau" : "Vue Mobile : ajuste l'arbre à l'écran et rend l'édition utilisable sur téléphone"}
+                    >
+                      📱 <span className="hidden sm:inline">{modeMobile ? 'Vue Bureau' : 'Vue Mobile'}</span>
+                    </button>
+
                     {vueActive === 'arbre' && (
                       <div className="flex items-center gap-1 sm:gap-2 border-l border-slate-600 pl-2 sm:pl-4" title="Astuce : Ctrl + molette pour zoomer">
                         <span className="text-white text-xs sm:text-sm font-semibold">Zoom:</span>
@@ -3804,10 +3868,23 @@
                               onMouseLeave={() => setHoveredTalent(null)}
                             >
                               {isEditing ? (
-                                // Formulaire d'édition - Box fixe déportée
+                                // Formulaire d'édition - Box fixe déportée.
+                                // Vue Mobile : on sort le formulaire du conteneur scalé
+                                // (transform) via un portal vers document.body pour qu'il
+                                // s'affiche plein écran, lisible et non mis à l'échelle.
+                                (modeMobile
+                                  ? (contenu) => ReactDOM.createPortal(
+                                      <div
+                                        className="mobile-edit-backdrop"
+                                        onClick={(e) => { if (e.target === e.currentTarget) setEditingTalent(null); }}
+                                      >{contenu}</div>,
+                                      document.body
+                                    )
+                                  : (contenu) => contenu
+                                )(
                                 <div
                                   key={talent.id}
-                                  className="absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
+                                  className="talent-edit-box absolute bg-slate-800 border-2 border-amber-500 rounded-lg p-3 shadow-xl overflow-y-auto no-print"
                                   style={{
                                     width: '480px',
                                     maxHeight: '90vh',
@@ -4187,7 +4264,7 @@
                                     </div>
                                   </div>
                                 </div>
-                              ) : (
+                              )) : (
                                 // Affichage normal
                                 <div className="relative">
                                   <button
