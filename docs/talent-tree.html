@@ -2269,6 +2269,18 @@
                 </div>
               )}
 
+              {/* Note MJ : rappel de la version stable.
+                  Visible uniquement en mode MJ (édition), JAMAIS dans la version
+                  publique partagée (modeLectureSeule = true) ni à l'impression. */}
+              {!modeLectureSeule && !modePrint && (
+                <div
+                  className="fixed bottom-1 left-1 z-40 text-[10px] leading-tight text-slate-500 hover:text-slate-300 bg-slate-900/60 px-2 py-1 rounded select-none pointer-events-none"
+                  title="Note MJ — version stable de référence"
+                >
+                  📌 MJ — version stable : branche <strong>pull-latest-updates-etuXp</strong> (commit <strong>31a6543</strong>, tag v1.0-stable)
+                </div>
+              )}
+
               {/* Éditeur de mots-clés */}
               {editeurMotsCles && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
