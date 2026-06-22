@@ -211,6 +211,98 @@
             </svg>
         );
 
+        // T1 — Évaluateur arithmétique sûr (remplace eval()).
+        // Supporte + - * / parenthèses, nombres décimaux et moins unaire.
+        // N'exécute AUCUN code JS : tokenise puis évalue via shunting-yard.
+        // Lève une exception si l'expression est invalide (gérée par l'appelant).
+        const evalArithmetique = (expression) => {
+          const tokens = [];
+          const src = String(expression);
+          let i = 0;
+          while (i < src.length) {
+            const c = src[i];
+            if (c === ' ' || c === '\t' || c === '\n') { i++; continue; }
+            if ((c >= '0' && c <= '9') || c === '.') {
+              let num = '';
+              while (i < src.length && ((src[i] >= '0' && src[i] <= '9') || src[i] === '.')) {
+                num += src[i]; i++;
+              }
+              if (!/^\d*\.?\d+$/.test(num)) throw new Error('Nombre invalide: ' + num);
+              tokens.push({ t: 'num', v: parseFloat(num) });
+              continue;
+            }
+            if (c === '+' || c === '-' || c === '*' || c === '/') {
+              tokens.push({ t: 'op', v: c }); i++; continue;
+            }
+            if (c === '(' || c === ')') {
+              tokens.push({ t: c }); i++; continue;
+            }
+            throw new Error('Caractère non autorisé: ' + c);
+          }
+
+          // Conversion infixe -> postfixe (shunting-yard), avec gestion du moins unaire
+          const prec = { '+': 1, '-': 1, '*': 2, '/': 2, 'u-': 3 };
+          const output = [];
+          const stack = [];
+          let prev = null;
+          for (const tok of tokens) {
+            if (tok.t === 'num') {
+              output.push(tok);
+            } else if (tok.t === 'op') {
+              // Détecter un moins/plus unaire (début, après un opérateur ou une parenthèse ouvrante)
+              const unaire = prev === null || prev.t === 'op' || prev.t === '(';
+              let op = tok.v;
+              if (unaire && (op === '-' || op === '+')) {
+                op = op === '-' ? 'u-' : 'u+';
+              }
+              if (op === 'u+') { prev = tok; continue; } // moins unaire utile, plus unaire ignoré
+              while (stack.length) {
+                const top = stack[stack.length - 1];
+                if (top.t === 'op' && prec[top.v] >= prec[op]) output.push(stack.pop());
+                else break;
+              }
+              stack.push({ t: 'op', v: op });
+            } else if (tok.t === '(') {
+              stack.push(tok);
+            } else if (tok.t === ')') {
+              while (stack.length && stack[stack.length - 1].t !== '(') output.push(stack.pop());
+              if (!stack.length) throw new Error('Parenthèses déséquilibrées');
+              stack.pop();
+            }
+            prev = tok;
+          }
+          while (stack.length) {
+            const top = stack.pop();
+            if (top.t === '(' || top.t === ')') throw new Error('Parenthèses déséquilibrées');
+            output.push(top);
+          }
+
+          // Évaluation de la pile postfixe
+          const eval_stack = [];
+          for (const tok of output) {
+            if (tok.t === 'num') { eval_stack.push(tok.v); continue; }
+            if (tok.v === 'u-') {
+              if (!eval_stack.length) throw new Error('Expression invalide');
+              eval_stack.push(-eval_stack.pop());
+              continue;
+            }
+            if (eval_stack.length < 2) throw new Error('Expression invalide');
+            const b = eval_stack.pop();
+            const a = eval_stack.pop();
+            if (tok.v === '+') eval_stack.push(a + b);
+            else if (tok.v === '-') eval_stack.push(a - b);
+            else if (tok.v === '*') eval_stack.push(a * b);
+            else if (tok.v === '/') eval_stack.push(b === 0 ? 0 : a / b);
+          }
+          if (eval_stack.length !== 1) throw new Error('Expression invalide');
+          return eval_stack[0];
+        };
+
+        // E5 — bornes de zoom (le « fit » peut descendre plus bas que les boutons)
+        const MIN_ZOOM = 0.4;
+        const MAX_ZOOM = 1.5;
+        const clampZoom = (z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
+
         function ArbreTalents() {
           // Grille de placement : points d'ancrage tous les 20px
           // Génère automatiquement les points de 0 à 1340 (68 colonnes) et 0 à 2400 (121 lignes)
@@ -300,6 +392,16 @@
             const saved = localStorage.getItem('iconesDisponibles');
             return saved ? JSON.parse(saved) : [];
           });
+
+          // T2 — État pour le gestionnaire de sauvegardes automatiques
+          const [gestionnaireBackups, setGestionnaireBackups] = useState(false);
+          const [backupsListe, setBackupsListe] = useState([]);
+
+          // T3 — État pour le panneau de diagnostic
+          const [gestionnaireDiagnostic, setGestionnaireDiagnostic] = useState(false);
+
+          // E2 — Recherche/filtre de talents
+          const [rechercheTalent, setRechercheTalent] = useState('');
 
           // Fonction pour obtenir le bonus de PV selon la classe (non-éditable)
           const getBonusPV = () => BONUS_PV_PAR_CLASSE[arbreActuel] || 0;
@@ -547,10 +649,20 @@
             return [];
           };
 
+          // T4 — Cache de rendu des stats. useMemo retourne un objet vidé
+          // uniquement quand les dépendances changent ; entre deux rendus
+          // déclenchés par autre chose (survol, zoom, recherche...), les valeurs
+          // déjà calculées sont réutilisées au lieu de tout recalculer.
+          const statsCache = React.useMemo(
+            () => ({ marqueurs: {} }),
+            [talentsActifs, talents, niveau, marqueursCustom, arbreActuel]
+          );
+
           // Calculer la valeur d'un marqueur personnalisé
           const getMarqueurValue = (nom) => {
+            if (statsCache.marqueurs[nom] !== undefined) return statsCache.marqueurs[nom];
             const marqueur = marqueursCustom[nom];
-            if (!marqueur) return 0;
+            if (!marqueur) { statsCache.marqueurs[nom] = 0; return 0; }
 
             let total = marqueur.valeurBase || 0;
 
@@ -578,6 +690,7 @@
               });
             });
 
+            statsCache.marqueurs[nom] = total;
             return total;
           };
 
@@ -641,8 +754,9 @@
                 });
 
                 // Évaluer la formule de manière sûre (seulement +, -, *, /)
+                // T1 : évaluateur maison, plus aucun appel à eval()
                 if (/^[\d\s+\-*/.()]+$/.test(expr)) {
-                  const value = eval(expr);
+                  const value = evalArithmetique(expr);
                   return Math.floor(value);
                 }
 
@@ -691,6 +805,7 @@
 
           // Calculer le total d'ENDU (via effets spéciaux uniquement)
           const getTotalEndu = () => {
+            if (statsCache.endu !== undefined) return statsCache.endu;
             let total = 0;
 
             // Effets spéciaux: bonus d'ENDU depuis les talents
@@ -718,11 +833,13 @@
               });
             });
 
+            statsCache.endu = total;
             return total;
           };
 
           // Calculer le total de DEGATS (via effets spéciaux uniquement)
           const getTotalDegats = () => {
+            if (statsCache.degats !== undefined) return statsCache.degats;
             let total = 0;
 
             // Effets spéciaux: bonus de dégâts depuis les talents
@@ -754,11 +871,13 @@
               });
             });
 
+            statsCache.degats = total;
             return total;
           };
 
           // Calculer le total de VIE (via effets spéciaux uniquement)
           const getTotalVie = () => {
+            if (statsCache.vie !== undefined) return statsCache.vie;
             let total = 3; // VIE de base = 3 pour toutes les classes
 
             // Effets spéciaux: bonus de VIE depuis les talents
@@ -786,11 +905,13 @@
               });
             });
 
+            statsCache.vie = total;
             return total;
           };
 
           // Calculer les Points de Vie (VIE x ENDU + Bonus)
           const getPointsDeVie = () => {
+            if (statsCache.pv !== undefined) return statsCache.pv;
             let total = getTotalVie() * getTotalEndu() + getBonusPV();
 
             // Effets spéciaux: bonus de PV depuis d'autres talents
@@ -824,6 +945,7 @@
               });
             });
 
+            statsCache.pv = total;
             return total;
           };
 
@@ -957,6 +1079,135 @@
             }
           };
 
+          // T2 — Sauvegardes automatiques tournantes (filet anti-perte de données).
+          // À chaque sauvegarde de classe, on conserve un historique horodaté dans
+          // localStorage['backups_<classe>']. Les éditions très rapprochées sont
+          // fusionnées dans une même entrée, et on plafonne le nombre conservé.
+          const MAX_BACKUPS = 12;
+          const COALESCE_MS = 15000; // fusionne les éditions à moins de 15s d'écart
+          const getBackups = (classe) => {
+            try {
+              const raw = localStorage.getItem(`backups_${classe}`);
+              return raw ? JSON.parse(raw) : [];
+            } catch (e) {
+              return [];
+            }
+          };
+          const pushBackup = (classe, data) => {
+            if (!classe) return;
+            try {
+              const liste = getBackups(classe);
+              const serialise = JSON.stringify(data);
+              const now = Date.now();
+              const dernier = liste[liste.length - 1];
+              // Rien n'a changé depuis la dernière sauvegarde -> on n'ajoute rien
+              if (dernier && JSON.stringify(dernier.data) === serialise) return;
+              const entree = { ts: now, data: JSON.parse(serialise) };
+              // Fusionner les éditions très rapprochées dans la même entrée
+              if (dernier && (now - dernier.ts) < COALESCE_MS) {
+                liste[liste.length - 1] = entree;
+              } else {
+                liste.push(entree);
+              }
+              while (liste.length > MAX_BACKUPS) liste.shift();
+              localStorage.setItem(`backups_${classe}`, JSON.stringify(liste));
+            } catch (e) {
+              console.warn('⚠️ Sauvegarde de secours impossible:', e);
+            }
+          };
+          const restaurerBackup = (entree) => {
+            if (!entree || !entree.data) return;
+            if (!confirm('Restaurer cette sauvegarde ?\n\nL\'état actuel de la classe sera remplacé (mais une nouvelle sauvegarde de secours est conservée).')) return;
+            const d = entree.data;
+            setTalents(d.talents || {});
+            setTalentsActifs(d.talentsActifs || {});
+            setNomPersonnage(d.nomPersonnage || '');
+            setNiveau(d.niveau || 1);
+            setMarqueursCustom(d.marqueurs || {});
+            setGestionnaireBackups(false);
+            showNotification('✅ Sauvegarde restaurée');
+          };
+
+          // T3 — Diagnostic du graphe de talents (lecture seule, n'écrit rien).
+          // Détecte les références cassées, cycles de prérequis, marqueurs/icônes
+          // manquants et variables inconnues dans les descriptions.
+          const getDiagnostics = () => {
+            const issues = [];
+            const ids = Object.keys(talents);
+            const idSet = new Set(ids);
+            const variablesConnues = new Set([
+              'ENDU', 'VIE', 'DEGATS', 'NIVEAU', 'PV',
+              ...COMPETENCES,
+              ...Object.keys(marqueursCustom)
+            ]);
+
+            ids.forEach(id => {
+              const t = talents[id];
+              const nom = t.nom || id;
+
+              // Prérequis orphelins
+              (t.prerequis || []).forEach(p => {
+                if (!idSet.has(p)) issues.push({ type: 'Prérequis orphelin', talent: nom, detail: `prérequis "${p}" introuvable` });
+              });
+              // Remplacement cassé
+              if (t.remplace && !idSet.has(t.remplace)) {
+                issues.push({ type: 'Remplacement cassé', talent: nom, detail: `remplace "${t.remplace}" introuvable` });
+              }
+              // Exclusions cassées
+              (t.exclusif || []).forEach(e => {
+                if (!idSet.has(e)) issues.push({ type: 'Exclusion cassée', talent: nom, detail: `exclut "${e}" introuvable` });
+              });
+              // Marqueurs référencés par les effets
+              getEffets(t).forEach(eff => {
+                if (eff?.type === 'bonus_marqueur' && eff.marqueur && !marqueursCustom[eff.marqueur]) {
+                  issues.push({ type: 'Marqueur manquant', talent: nom, detail: `effet sur marqueur "${eff.marqueur}" inexistant` });
+                }
+                if (eff?.source === 'marqueur' && eff.marqueurSource && !marqueursCustom[eff.marqueurSource]) {
+                  issues.push({ type: 'Marqueur manquant', talent: nom, detail: `source marqueur "${eff.marqueurSource}" inexistant` });
+                }
+              });
+              // Variables / icônes dans la description
+              const matches = (t.description || '').match(/\{([^}]+)\}/g) || [];
+              matches.forEach(m => {
+                const inner = m.slice(1, -1).trim();
+                if (inner.startsWith('IMG:')) {
+                  const iconName = inner.substring(4).trim();
+                  if (!iconesDisponibles.find(ic => ic.name === iconName)) {
+                    issues.push({ type: 'Icône manquante', talent: nom, detail: `icône "${iconName}" absente du gestionnaire` });
+                  }
+                  return;
+                }
+                const tokens = inner.match(/[A-Z_]{2,}/g) || [];
+                tokens.forEach(tok => {
+                  if (!variablesConnues.has(tok)) {
+                    issues.push({ type: 'Variable inconnue', talent: nom, detail: `"${tok}" n'est ni une stat ni un marqueur connu` });
+                  }
+                });
+              });
+            });
+
+            // Cycles de prérequis (DFS coloriée : 1=en cours, 2=terminé)
+            const couleur = {};
+            let cycleDetecte = false;
+            const dfs = (id) => {
+              if (cycleDetecte) return;
+              couleur[id] = 1;
+              (talents[id]?.prerequis || []).forEach(p => {
+                if (!idSet.has(p)) return;
+                if (couleur[p] === 1) {
+                  cycleDetecte = true;
+                  issues.push({ type: 'Cycle de prérequis', talent: talents[id]?.nom || id, detail: `boucle via "${talents[p]?.nom || p}"` });
+                } else if (couleur[p] !== 2) {
+                  dfs(p);
+                }
+              });
+              couleur[id] = 2;
+            };
+            ids.forEach(id => { if (couleur[id] !== 2) dfs(id); });
+
+            return issues;
+          };
+
           // Sauvegarder automatiquement l'arbre actuel
           useEffect(() => {
             // Sauter la sauvegarde au premier rendu pour éviter d'écraser le dernier arbre actif
@@ -978,6 +1229,8 @@
               localStorage.setItem(`classe_${arbreActuel}`, JSON.stringify(arbreData));
               // Sauvegarder également quelle classe est active
               localStorage.setItem('derniereClasseActive', arbreActuel);
+              // T2 — alimenter l'historique de sauvegardes tournantes
+              pushBackup(arbreActuel, arbreData);
               console.log('💾 Sauvegarde automatique:', arbreActuel);
             }
           }, [talents, talentsActifs, nomPersonnage, niveau, arbreActuel, modeLectureSeule, marqueursCustom]);
@@ -994,6 +1247,45 @@
           useEffect(() => {
             localStorage.setItem('zoomLevel', zoom.toString());
           }, [zoom]);
+
+          // E5 — ref de la vue active (pour le zoom molette sans closure périmée)
+          const vueActiveRef = React.useRef(vueActive);
+          vueActiveRef.current = vueActive;
+
+          // E5 — Ajuster le zoom pour faire tenir l'arbre dans la largeur dispo
+          const ajusterZoom = () => {
+            const dispo = (window.innerWidth || 1200) - 80;
+            const requise = getRequiredWidth() || 1300;
+            setZoom(clampZoom(dispo / requise));
+          };
+
+          // E5 — Zoom à la molette avec Ctrl/Cmd (listener natif non-passif)
+          useEffect(() => {
+            const onWheel = (e) => {
+              if (!(e.ctrlKey || e.metaKey)) return;
+              if (vueActiveRef.current !== 'arbre') return;
+              e.preventDefault();
+              const delta = e.deltaY < 0 ? 0.05 : -0.05;
+              setZoom(z => clampZoom(z + delta));
+            };
+            document.addEventListener('wheel', onWheel, { passive: false });
+            return () => document.removeEventListener('wheel', onWheel);
+          }, []);
+
+          // E2 — Recherche : normalisation (minuscules + sans accents) et test de match
+          const normaliserRecherche = (s) => (s || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '');
+          const talentMatchRecherche = (talent) => {
+            const q = normaliserRecherche(rechercheTalent.trim());
+            if (!q) return true;
+            return normaliserRecherche(talent.nom).includes(q) ||
+              normaliserRecherche(talent.description).includes(q);
+          };
+          const nbResultatsRecherche = rechercheTalent.trim()
+            ? Object.values(talents).filter(talentMatchRecherche).length
+            : 0;
 
           // Sauvegarder les icônes disponibles quand elles changent
           useEffect(() => {
@@ -2632,6 +2924,99 @@
                 </div>
               )}
 
+              {/* T2 — Gestionnaire de Sauvegardes automatiques */}
+              {gestionnaireBackups && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                  <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-white">🛟 Sauvegardes — {arbreActuel}</h2>
+                        <button
+                          onClick={() => setGestionnaireBackups(false)}
+                          className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
+                        <p>💾 Sauvegardes automatiques horodatées de la classe en cours (max {MAX_BACKUPS}). Utile en cas de fausse manipulation : restaurez un état antérieur en un clic.</p>
+                      </div>
+
+                      {backupsListe.length === 0 ? (
+                        <div className="text-slate-400 text-center py-8">Aucune sauvegarde pour le moment. Les sauvegardes sont créées automatiquement lors de vos modifications.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {backupsListe.slice().reverse().map((b, idx) => {
+                            const nbTalents = b.data && b.data.talents ? Object.keys(b.data.talents).length : 0;
+                            const nbActifs = b.data && b.data.talentsActifs ? Object.keys(b.data.talentsActifs).length : 0;
+                            const estDernier = idx === 0;
+                            return (
+                              <div key={b.ts} className="flex items-center justify-between bg-slate-700 rounded p-3">
+                                <div className="text-sm text-white">
+                                  <div className="font-semibold">
+                                    {new Date(b.ts).toLocaleString('fr-FR')}
+                                    {estDernier && <span className="ml-2 text-xs text-green-400">(plus récente)</span>}
+                                  </div>
+                                  <div className="text-slate-400 text-xs">{nbTalents} talents · {nbActifs} actifs{b.data && b.data.nomPersonnage ? ` · ${b.data.nomPersonnage}` : ''}</div>
+                                </div>
+                                <button
+                                  onClick={() => restaurerBackup(b)}
+                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-semibold transition-colors"
+                                >
+                                  Restaurer
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* T3 — Panneau de Diagnostic du graphe */}
+              {gestionnaireDiagnostic && (() => {
+                const issues = getDiagnostics();
+                return (
+                  <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                      <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <h2 className="text-2xl font-bold text-white">🔍 Diagnostic — {arbreActuel}</h2>
+                          <button
+                            onClick={() => setGestionnaireDiagnostic(false)}
+                            className="w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center font-bold transition-colors"
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        <div className="bg-slate-700 p-3 rounded mb-4 text-sm text-slate-300">
+                          <p>🩺 Analyse en lecture seule du graphe de talents (n'écrit rien). Détecte les références cassées, les cycles de prérequis, les marqueurs/icônes manquants et les variables inconnues.</p>
+                        </div>
+
+                        {issues.length === 0 ? (
+                          <div className="text-green-400 text-center py-8 font-semibold">✅ Aucun problème détecté sur cette classe.</div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="text-amber-400 font-semibold mb-2">{issues.length} problème(s) détecté(s) :</div>
+                            {issues.map((iss, idx) => (
+                              <div key={idx} className="bg-slate-700 rounded p-3 border-l-4 border-amber-500">
+                                <div className="text-amber-300 text-xs font-bold uppercase tracking-wide">{iss.type}</div>
+                                <div className="text-white text-sm font-semibold">{iss.talent}</div>
+                                <div className="text-slate-400 text-xs">{iss.detail}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Gestionnaire d'Icônes */}
               {gestionnaireIcones && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -2952,23 +3337,65 @@
                     </button>
 
                     {vueActive === 'arbre' && (
-                      <div className="flex items-center gap-1 sm:gap-2 border-l border-slate-600 pl-2 sm:pl-4">
+                      <div className="flex items-center gap-1 sm:gap-2 border-l border-slate-600 pl-2 sm:pl-4" title="Astuce : Ctrl + molette pour zoomer">
                         <span className="text-white text-xs sm:text-sm font-semibold">Zoom:</span>
                         <button
-                          onClick={() => setZoom(Math.max(0.5, zoom - 0.05))}
+                          onClick={() => setZoom(clampZoom(zoom - 0.05))}
                           className="px-2 py-1 sm:px-3 sm:py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors text-sm"
                           title="Dézoomer"
                         >
                           −
                         </button>
-                        <span className="text-white text-xs sm:text-sm font-mono">{Math.round(zoom * 100)}%</span>
+                        <input
+                          type="range"
+                          min={MIN_ZOOM}
+                          max={MAX_ZOOM}
+                          step="0.05"
+                          value={zoom}
+                          onChange={(e) => setZoom(clampZoom(parseFloat(e.target.value)))}
+                          className="w-20 sm:w-28 accent-amber-500 cursor-pointer"
+                          title="Régler le zoom"
+                        />
+                        <span className="text-white text-xs sm:text-sm font-mono w-10 text-center">{Math.round(zoom * 100)}%</span>
                         <button
-                          onClick={() => setZoom(Math.min(1.5, zoom + 0.05))}
+                          onClick={() => setZoom(clampZoom(zoom + 0.05))}
                           className="px-2 py-1 sm:px-3 sm:py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold transition-colors text-sm"
                           title="Zoomer"
                         >
                           +
                         </button>
+                        <button
+                          onClick={ajusterZoom}
+                          className="px-2 py-1 sm:px-3 sm:py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-semibold transition-colors text-xs sm:text-sm"
+                          title="Ajuster l'arbre à la largeur de l'écran"
+                        >
+                          ⤢ Ajuster
+                        </button>
+                      </div>
+                    )}
+
+                    {vueActive === 'arbre' && (
+                      <div className="flex items-center gap-1 sm:gap-2 border-l border-slate-600 pl-2 sm:pl-4">
+                        <span className="text-white text-xs sm:text-sm">🔍</span>
+                        <input
+                          type="text"
+                          value={rechercheTalent}
+                          onChange={(e) => setRechercheTalent(e.target.value)}
+                          placeholder="Rechercher un talent…"
+                          className="px-2 py-1 text-sm bg-slate-700 text-white rounded border border-slate-500 focus:border-amber-500 focus:outline-none w-32 sm:w-48"
+                        />
+                        {rechercheTalent.trim() && (
+                          <>
+                            <span className="text-amber-400 text-xs font-mono whitespace-nowrap">{nbResultatsRecherche} rés.</span>
+                            <button
+                              onClick={() => setRechercheTalent('')}
+                              className="px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded text-xs font-bold transition-colors"
+                              title="Effacer la recherche"
+                            >
+                              ×
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2989,8 +3416,15 @@
                     {!modeLectureSeule && !modePlayer && (
                       <>
                         <div className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs font-mono">
-                          skills2_v12.12
+                          skills2_v13.1
                         </div>
+                        <button
+                          onClick={() => { setBackupsListe(getBackups(arbreActuel)); setGestionnaireBackups(true); }}
+                          className="px-3 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-semibold transition-colors flex items-center gap-1"
+                          title="Sauvegardes automatiques de cette classe"
+                        >
+                          🛟 <span className="hidden sm:inline">Sauvegardes</span>
+                        </button>
                         <button
                           onClick={() => setModeEdition(!modeEdition)}
                           className={`px-4 py-2 rounded font-semibold transition-colors flex items-center gap-2 ${
@@ -3007,6 +3441,13 @@
                               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
                             >
                               + Nouveau Talent
+                            </button>
+                            <button
+                              onClick={() => setGestionnaireDiagnostic(true)}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors flex items-center gap-1"
+                              title="Analyser le graphe (références cassées, cycles, marqueurs manquants…)"
+                            >
+                              🔍 Diagnostic
                             </button>
                             <button
                               onClick={ajouterTalentVie}
@@ -3329,6 +3770,10 @@
                           const isEditing = editingTalent === talent.id;
                           const dimensions = getDimensionsTalent(talent);
 
+                          // E2 — surbrillance/atténuation selon la recherche
+                          const rechercheActive = rechercheTalent.trim().length > 0;
+                          const matchRecherche = talentMatchRecherche(talent);
+
                           // Point d'ancrage en haut à gauche (pas de centrage)
                           const offsetX = 0;
                           const offsetY = 0;
@@ -3344,7 +3789,13 @@
                                 height: `${dimensions.height}px`,
                                 maxHeight: `${dimensions.height}px`,
                                 minHeight: `${dimensions.height}px`,
-                                overflow: 'visible'
+                                overflow: 'visible',
+                                opacity: rechercheActive && !matchRecherche ? 0.2 : 1,
+                                outline: rechercheActive && matchRecherche ? '3px solid #fbbf24' : 'none',
+                                outlineOffset: '2px',
+                                borderRadius: '0.5rem',
+                                zIndex: rechercheActive && matchRecherche ? 5 : undefined,
+                                transition: 'opacity 0.2s ease, outline 0.2s ease'
                               }}
                               draggable={modeEdition && !isEditing}
                               onDragStart={(e) => handleDragStart(e, talent.id)}
