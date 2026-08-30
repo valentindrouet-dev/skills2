@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛟 Secours — Données Talent Tree</title>
+  <style>
+    body { background: #0f172a; color: #e2e8f0; font-family: system-ui, sans-serif; margin: 0; padding: 24px; }
+    h1 { color: #fbbf24; font-size: 1.4rem; }
+    h2 { color: #93c5fd; font-size: 1.1rem; margin-top: 28px; border-bottom: 1px solid #334155; padding-bottom: 6px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin: 10px 0; }
+    .ok { color: #4ade80; } .warn { color: #f87171; } .muted { color: #94a3b8; font-size: 0.85rem; }
+    button { background: #2563eb; color: white; border: none; border-radius: 6px; padding: 10px 16px; font-size: 0.95rem; cursor: pointer; margin: 4px 6px 4px 0; }
+    button:hover { background: #1d4ed8; }
+    button.green { background: #16a34a; } button.green:hover { background: #15803d; }
+    button.amber { background: #d97706; } button.amber:hover { background: #b45309; }
+    details { margin: 6px 0; }
+    summary { cursor: pointer; color: #cbd5e1; }
+    pre { background: #0b1220; border: 1px solid #334155; border-radius: 6px; padding: 10px; overflow-x: auto; font-size: 0.75rem; max-height: 300px; }
+    .big { font-size: 1.05rem; }
+    input[type=file] { color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <h1>🛟 Page de secours — Données de l'arbre de talents</h1>
+  <p class="muted">Cette page lit le localStorage de CE navigateur pour le domaine actuel (<span id="origine"></span>).
+  Elle ne modifie rien tant que tu ne cliques pas sur un bouton de restauration.</p>
+
+  <div class="card big" id="verdict">Analyse en cours…</div>
+
+  <div class="card">
+    <button class="green" onclick="exporterTout()">💾 Exporter TOUTES mes données (fichier JSON)</button>
+    <button onclick="location.reload()">🔄 Ré-analyser</button>
+  </div>
+
+  <h2>📚 Classes et talents (mode MJ)</h2>
+  <div id="classes"></div>
+
+  <h2>🕰️ Sauvegardes automatiques (backups v13.1)</h2>
+  <div id="backups"></div>
+
+  <h2>🔑 Mots-clés, icônes et divers</h2>
+  <div id="divers"></div>
+
+  <h2>👥 Données joueurs (snapshots)</h2>
+  <div id="snapshots"></div>
+
+  <h2>📥 Restaurer un export JSON</h2>
+  <div class="card">
+    <p class="muted">Choisis un fichier exporté précédemment depuis cette page. Les clés du fichier seront réécrites dans le localStorage (après confirmation).</p>
+    <input type="file" accept=".json,application/json" onchange="importerFichier(event)">
+  </div>
+
+  <script>
+    document.getElementById('origine').textContent = location.origin;
+
+    function lireJSON(cle) {
+      try { return JSON.parse(localStorage.getItem(cle)); } catch (e) { return null; }
+    }
+    function taille(cle) {
+      const v = localStorage.getItem(cle);
+      return v ? (v.length / 1024).toFixed(1) + ' Ko' : '0';
+    }
+    function compter(objOuArr) {
+      if (Array.isArray(objOuArr)) return objOuArr.length;
+      if (objOuArr && typeof objOuArr === 'object') return Object.keys(objOuArr).length;
+      return 0;
+    }
+
+    // Inventaire complet
+    const toutes = [];
+    for (let i = 0; i < localStorage.length; i++) toutes.push(localStorage.key(i));
+    toutes.sort();
+
+    const clesClasses = toutes.filter(k => k.startsWith('classe_') && !k.startsWith('classe_shared_'));
+    const clesPartagees = toutes.filter(k => k.startsWith('classe_shared_'));
+    const clesBackups = toutes.filter(k => k.startsWith('backups_'));
+    const clesSnapshots = toutes.filter(k => k.startsWith('snapshot_'));
+    const clesDivers = toutes.filter(k => !k.startsWith('classe_') && !k.startsWith('backups_') && !k.startsWith('snapshot_'));
+
+    // Verdict global
+    let totalTalents = 0;
+    clesClasses.forEach(k => {
+      const d = lireJSON(k);
+      totalTalents += compter(d && d.talents);
+    });
+    const verdict = document.getElementById('verdict');
+    if (clesClasses.length > 0 && totalTalents > 0) {
+      verdict.innerHTML = '<span class="ok">✅ BONNE NOUVELLE : tes données sont bien là !</span><br>' +
+        clesClasses.length + ' classe(s) trouvée(s), ' + totalTalents + ' talents au total dans ce navigateur.' +
+        '<br><span class="muted">Si l\'application les affiche vides, c\'est la version déployée qui est mauvaise, pas tes données. Exporte quand même un fichier JSON par sécurité (bouton vert).</span>';
+    } else if (toutes.length === 0) {
+      verdict.innerHTML = '<span class="warn">⚠️ Aucune donnée sur CE domaine/navigateur.</span><br>' +
+        '<span class="muted">Tes talents sont sans doute dans un AUTRE navigateur, ou tu ouvres l\'app depuis une autre adresse que d\'habitude. Ouvre cette page de secours depuis l\'adresse habituelle de ton arbre, dans ton navigateur habituel (pas en navigation privée).</span>';
+    } else {
+      verdict.innerHTML = '<span class="warn">⚠️ Des clés existent (' + toutes.length + ') mais aucune classe avec talents détectée.</span> Regarde le détail ci-dessous, et les backups automatiques.';
+    }
+
+    // Section classes
+    function afficherCle(conteneur, cle, extra) {
+      const d = lireJSON(cle);
+      const div = document.createElement('div');
+      div.className = 'card';
+      let resume = '';
+      if (d && typeof d === 'object') {
+        const t = compter(d.talents);
+        const m = compter(d.marqueurs || d.marqueursCustom);
+        resume = (t ? t + ' talents' : '') + (m ? (t ? ', ' : '') + m + ' marqueur(s)' : '');
+        if (!resume) resume = Object.keys(d).slice(0, 6).join(', ');
+      }
+      div.innerHTML = '<strong>' + cle + '</strong> — ' + taille(cle) +
+        (resume ? ' <span class="ok">(' + resume + ')</span>' : '') + (extra || '') +
+        '<details><summary class="muted">voir le contenu brut</summary><pre>' +
+        (localStorage.getItem(cle) || '').replace(/</g, '&lt;').slice(0, 20000) + '</pre></details>';
+      conteneur.appendChild(div);
+      return div;
+    }
+
+    const zc = document.getElementById('classes');
+    if (clesClasses.length === 0) zc.innerHTML = '<p class="warn">Aucune clé classe_* trouvée.</p>';
+    clesClasses.forEach(k => afficherCle(zc, k));
+    clesPartagees.forEach(k => afficherCle(zc, k, ' <span class="muted">[version partagée/joueur]</span>'));
+
+    // Section backups
+    const zb = document.getElementById('backups');
+    if (clesBackups.length === 0) {
+      zb.innerHTML = '<p class="muted">Aucun backup automatique (normal si la v13.1 n\'a pas encore tourné ici).</p>';
+    }
+    clesBackups.forEach(k => {
+      const liste = lireJSON(k) || [];
+      const classe = k.replace('backups_', '');
+      const div = document.createElement('div');
+      div.className = 'card';
+      let html = '<strong>' + k + '</strong> — ' + liste.length + ' sauvegarde(s)<br>';
+      liste.forEach((b, i) => {
+        const date = b.ts ? new Date(b.ts).toLocaleString('fr-FR') : '?';
+        const nb = compter(b.data && b.data.talents);
+        html += '<div style="margin:6px 0">' + date + ' — ' + nb + ' talents ' +
+          '<button class="amber" onclick="restaurerBackup(\'' + k + '\',' + i + ')">↩️ Restaurer dans classe_' + classe + '</button></div>';
+      });
+      div.innerHTML = html;
+      zb.appendChild(div);
+    });
+
+    function restaurerBackup(cleBackup, index) {
+      const liste = lireJSON(cleBackup) || [];
+      const entree = liste[index];
+      if (!entree || !entree.data) { alert('Backup introuvable.'); return; }
+      const classe = cleBackup.replace('backups_', '');
+      const cible = 'classe_' + classe;
+      if (!confirm('Restaurer ce backup dans ' + cible + ' ?\n(La valeur actuelle sera copiée dans pre_restauration_' + cible + ' au cas où.)')) return;
+      const actuel = localStorage.getItem(cible);
+      if (actuel) localStorage.setItem('pre_restauration_' + cible, actuel);
+      localStorage.setItem(cible, JSON.stringify(entree.data));
+      alert('✅ Restauré ! Recharge l\'application pour voir le résultat.');
+      location.reload();
+    }
+
+    // Divers + snapshots
+    const zd = document.getElementById('divers');
+    if (clesDivers.length === 0) zd.innerHTML = '<p class="muted">Rien.</p>';
+    clesDivers.forEach(k => afficherCle(zd, k));
+
+    const zs = document.getElementById('snapshots');
+    if (clesSnapshots.length === 0) zs.innerHTML = '<p class="muted">Aucune donnée joueur locale.</p>';
+    clesSnapshots.forEach(k => afficherCle(zs, k));
+
+    // Export global
+    function exporterTout() {
+      const dump = {};
+      toutes.forEach(k => { dump[k] = localStorage.getItem(k); });
+      const blob = new Blob([JSON.stringify({
+        _info: 'Export de secours Talent Tree',
+        _date: new Date().toISOString(),
+        _origine: location.origin,
+        donnees: dump
+      }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'talent-tree-secours-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+    }
+
+    // Import global
+    function importerFichier(ev) {
+      const f = ev.target.files[0];
+      if (!f) return;
+      const lecteur = new FileReader();
+      lecteur.onload = () => {
+        try {
+          const contenu = JSON.parse(lecteur.result);
+          const dump = contenu.donnees || contenu;
+          const cles = Object.keys(dump);
+          if (!confirm('Restaurer ' + cles.length + ' clé(s) dans le localStorage ?\nLes clés existantes portant le même nom seront remplacées.')) return;
+          cles.forEach(k => {
+            const v = dump[k];
+            localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+          });
+          alert('✅ Import terminé. Recharge l\'application.');
+          location.reload();
+        } catch (e) {
+          alert('❌ Fichier illisible : ' + e.message);
+        }
+      };
+      lecteur.readAsText(f);
+    }
+  </script>
+</body>
+</html>
